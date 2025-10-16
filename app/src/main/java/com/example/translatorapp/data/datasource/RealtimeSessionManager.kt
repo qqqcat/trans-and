@@ -48,6 +48,11 @@ class RealtimeSessionManager @Inject constructor(
     private var sessionJob: Job? = null
     private var lastAudioTimestamp: Instant? = null
 
+    private val captureCallback: (ByteArray) -> Unit = { buffer ->
+        lastAudioTimestamp = Clock.System.now()
+        // TODO: stream buffer through WebRTC data channel
+    }
+
     override suspend fun start(settings: UserSettings) {
         mutex.withLock {
             if (_state.value.isActive) return
@@ -61,10 +66,7 @@ class RealtimeSessionManager @Inject constructor(
             )
             sessionId = response.sessionId
             webRtcClient.createPeerConnection(emptyList())
-            audioSessionController.startCapture { buffer ->
-                lastAudioTimestamp = Clock.System.now()
-                // TODO: stream buffer through WebRTC data channel
-            }
+            audioSessionController.startCapture(captureCallback)
             sessionJob = coroutineScope.launch {
                 webRtcClient.remoteAudio.collect { audioBytes ->
                     audioSessionController.playAudio(audioBytes)
@@ -94,7 +96,7 @@ class RealtimeSessionManager @Inject constructor(
     suspend fun toggleMicrophone(): Boolean = mutex.withLock {
         val newState = !_state.value.isMicrophoneOpen
         if (newState) {
-            audioSessionController.startCapture { /* streaming handled elsewhere */ }
+            audioSessionController.startCapture(captureCallback)
         } else {
             audioSessionController.stopCapture()
         }
