@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">TransAnd</string>
+    <string name="home_title">实时翻译</string>
+    <string name="settings_title">设置</string>
+    <string name="history_title">历史记录</string>
+    <string name="privacy_policy">隐私政策</string>
+</resources>
