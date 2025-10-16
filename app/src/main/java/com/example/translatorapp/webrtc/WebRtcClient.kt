@@ -37,10 +37,35 @@ class WebRtcClient @Inject constructor(
     fun createPeerConnection(iceServers: List<PeerConnection.IceServer>) {
         if (peerConnection != null) return
         val pc = peerConnectionFactory.createPeerConnection(
-            PeerConnection.RTCConfiguration(iceServers)
-        ) { state ->
-            _connectionState.value = state
-        }
+            PeerConnection.RTCConfiguration(iceServers),
+            object : PeerConnection.Observer {
+                override fun onSignalingChange(newState: PeerConnection.SignalingState?) {}
+
+                override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {}
+
+                override fun onIceConnectionReceivingChange(receiving: Boolean) {}
+
+                override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState?) {}
+
+                override fun onIceCandidate(candidate: org.webrtc.IceCandidate?) {}
+
+                override fun onIceCandidatesRemoved(candidates: Array<out org.webrtc.IceCandidate>?) {}
+
+                override fun onAddStream(stream: MediaStream?) {}
+
+                override fun onRemoveStream(stream: MediaStream?) {}
+
+                override fun onDataChannel(dataChannel: org.webrtc.DataChannel?) {}
+
+                override fun onRenegotiationNeeded() {}
+
+                override fun onAddTrack(receiver: org.webrtc.RtpReceiver?, mediaStreams: Array<out MediaStream>?) {}
+
+                override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
+                    newState?.let { _connectionState.value = it }
+                }
+            }
+        )
         peerConnection = pc
         audioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
         audioTrack = peerConnectionFactory.createAudioTrack("ARDAMSa0", audioSource)
