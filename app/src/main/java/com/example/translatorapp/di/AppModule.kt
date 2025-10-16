@@ -12,8 +12,6 @@ import com.example.translatorapp.domain.repository.TranslationRepository
 import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.ApiRelayService
 import com.example.translatorapp.network.RealtimeApi
-import com.example.translatorapp.network.RealtimeEventStream
-import com.example.translatorapp.network.RealtimeEventStreamConfig
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.webrtc.WebRtcClient
 import dagger.Module
@@ -75,19 +73,6 @@ object AppModule {
     @Provides
     @Singleton
     fun provideRealtimeApi(service: ApiRelayService): RealtimeApi = RealtimeApi(service)
-
-    @Provides
-    @Singleton
-    fun provideRealtimeEventStreamConfig(): RealtimeEventStreamConfig = RealtimeEventStreamConfig()
-
-    @Provides
-    @Singleton
-    fun provideRealtimeEventStream(
-        okHttpClient: OkHttpClient,
-        json: Json,
-        apiConfig: ApiConfig,
-        config: RealtimeEventStreamConfig
-    ): RealtimeEventStream = RealtimeEventStream(okHttpClient, json, apiConfig, config)
 
     @Provides
     @Singleton
