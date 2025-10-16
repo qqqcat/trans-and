@@ -1,0 +1,101 @@
+package com.example.translatorapp.audio
+
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.AudioTrack
+import android.media.MediaRecorder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class AudioSessionController @Inject constructor() {
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: Flow<Boolean> = _isRecording.asStateFlow()
+
+    private var record: AudioRecord? = null
+    private var play: AudioTrack? = null
+    private var audioJob: Job? = null
+    private val ioScope = CoroutineScope(Dispatchers.IO)
+
+    fun startCapture(onBuffer: suspend (ByteArray) -> Unit) {
+        if (_isRecording.value) return
+        val minBufferSize = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        record = AudioRecord.Builder()
+            .setAudioSource(MediaRecorder.AudioSource.MIC)
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setSampleRate(SAMPLE_RATE)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                    .build()
+            )
+            .setBufferSizeInBytes(minBufferSize)
+            .build()
+        record?.startRecording()
+        _isRecording.value = true
+        audioJob = ioScope.launch {
+            val buffer = ByteArray(minBufferSize)
+            while (_isRecording.value) {
+                val read = record?.read(buffer, 0, buffer.size) ?: 0
+                if (read > 0) {
+                    onBuffer(buffer.copyOf(read))
+                }
+            }
+        }
+    }
+
+    fun stopCapture() {
+        _isRecording.value = false
+        audioJob?.cancel()
+        record?.stop()
+        record?.release()
+        record = null
+    }
+
+    fun playAudio(stream: ByteArray) {
+        val track = play ?: createAudioTrack().also { play = it }
+        track.write(stream, 0, stream.size)
+        track.play()
+    }
+
+    fun releasePlayback() {
+        play?.stop()
+        play?.release()
+        play = null
+    }
+
+    private fun createAudioTrack(): AudioTrack =
+        AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setSampleRate(SAMPLE_RATE)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build()
+            )
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .setBufferSizeInBytes(SAMPLE_RATE)
+            .build()
+
+    companion object {
+        private const val SAMPLE_RATE = 16_000
+    }
+}

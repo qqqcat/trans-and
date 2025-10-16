@@ -1,0 +1,5 @@
+<resources>
+    <color name="brand_primary">#FF4F5A</color>
+    <color name="brand_secondary">#4A90E2</color>
+    <color name="surface_tint">#F5F5F5</color>
+</resources>
