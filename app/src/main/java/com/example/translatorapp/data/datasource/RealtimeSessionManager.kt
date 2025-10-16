@@ -51,24 +51,44 @@ class RealtimeSessionManager @Inject constructor(
     override suspend fun start(settings: UserSettings) {
         mutex.withLock {
             if (_state.value.isActive) return
-            _state.value = _state.value.copy(isActive = true, direction = settings.direction, errorMessage = null)
-            val response = apiRelayService.startSession(
-                SessionStartRequest(
-                    direction = settings.direction.name,
-                    model = settings.translationProfile.name,
-                    offlineFallback = settings.offlineFallbackEnabled
+            _state.value = _state.value.copy(errorMessage = null, direction = settings.direction)
+
+            try {
+                val response = apiRelayService.startSession(
+                    SessionStartRequest(
+                        direction = settings.direction.name,
+                        model = settings.translationProfile.name,
+                        offlineFallback = settings.offlineFallbackEnabled
+                    )
                 )
-            )
-            sessionId = response.sessionId
-            webRtcClient.createPeerConnection(emptyList())
-            audioSessionController.startCapture { buffer ->
-                lastAudioTimestamp = Clock.System.now()
-                // TODO: stream buffer through WebRTC data channel
-            }
-            sessionJob = coroutineScope.launch {
-                webRtcClient.remoteAudio.collect { audioBytes ->
-                    audioSessionController.playAudio(audioBytes)
+                sessionId = response.sessionId
+                webRtcClient.createPeerConnection(emptyList())
+                audioSessionController.startCapture { buffer ->
+                    lastAudioTimestamp = Clock.System.now()
+                    // TODO: stream buffer through WebRTC data channel
                 }
+                sessionJob = coroutineScope.launch {
+                    webRtcClient.remoteAudio.collect { audioBytes ->
+                        audioSessionController.playAudio(audioBytes)
+                    }
+                }
+                _state.value = _state.value.copy(
+                    isActive = true,
+                    direction = settings.direction,
+                    errorMessage = null
+                )
+            } catch (error: Throwable) {
+                sessionJob?.cancel()
+                sessionJob = null
+                audioSessionController.stopCapture()
+                audioSessionController.releasePlayback()
+                webRtcClient.close()
+                sessionId = null
+                _state.value = _state.value.copy(
+                    isActive = false,
+                    errorMessage = error.message
+                )
+                throw error
             }
         }
     }
