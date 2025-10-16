@@ -48,7 +48,7 @@ class RealtimeSessionManager @Inject constructor(
     private var sessionJob: Job? = null
     private var lastAudioTimestamp: Instant? = null
 
-    private val captureCallback: (ByteArray) -> Unit = { buffer ->
+    private val captureCallback: suspend (ByteArray) -> Unit = { buffer ->
         lastAudioTimestamp = Clock.System.now()
         // TODO: stream buffer through WebRTC data channel
     }
