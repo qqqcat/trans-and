@@ -9,7 +9,6 @@ import com.example.translatorapp.domain.model.TranslationSessionState
 import com.example.translatorapp.domain.model.UserSettings
 import com.example.translatorapp.network.IceServerDto
 import com.example.translatorapp.network.RealtimeApi
-import com.example.translatorapp.network.RealtimeEventStream
 import com.example.translatorapp.network.SessionStartRequest
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.webrtc.WebRtcClient
@@ -33,7 +32,6 @@ import javax.inject.Singleton
 @Singleton
 class RealtimeSessionManager @Inject constructor(
     private val realtimeApi: RealtimeApi,
-    private val realtimeEventStream: RealtimeEventStream,
     private val audioSessionController: AudioSessionController,
     private val webRtcClient: WebRtcClient,
     private val dispatcherProvider: DispatcherProvider
@@ -83,30 +81,19 @@ class RealtimeSessionManager @Inject constructor(
                     }
                 }
                 _state.value = _state.value.copy(isMicrophoneOpen = true)
-                remoteAudioJob = coroutineScope.launch {
+                sessionJob = coroutineScope.launch {
                     webRtcClient.remoteAudio.collect { audioBytes ->
                         audioSessionController.playAudio(audioBytes)
                     }
                 }
-                eventStreamJob = coroutineScope.launch {
-                    try {
-                        realtimeEventStream.listen(response.sessionId, response.token).collect { content ->
-                            onTranslationReceived(content)
-                        }
-                    } catch (t: Throwable) {
-                        if (t is CancellationException) throw t
-                        mutex.withLock {
-                            tearDownSession(notifyBackend = true)
-                            val direction = _state.value.direction
-                            _state.value = TranslationSessionState(
-                                direction = direction,
-                                errorMessage = t.message ?: "Translation stream interrupted"
-                            )
-                        }
-                    }
-                }
             } catch (t: Throwable) {
-                tearDownSession(notifyBackend = false)
+                audioSessionController.stopCapture()
+                audioSessionController.releasePlayback()
+                webRtcClient.close()
+                sessionJob?.cancel()
+                sessionJob = null
+                sessionId = null
+                lastAudioTimestamp = null
                 _state.value = TranslationSessionState(
                     direction = settings.direction,
                     errorMessage = t.message
@@ -118,7 +105,16 @@ class RealtimeSessionManager @Inject constructor(
 
     override suspend fun stop() {
         mutex.withLock {
-            tearDownSession(notifyBackend = true)
+            sessionJob?.cancel()
+            sessionJob = null
+            audioSessionController.stopCapture()
+            audioSessionController.releasePlayback()
+            webRtcClient.close()
+            sessionId?.let {
+                runCatching { realtimeApi.stopSession(it) }
+            }
+            sessionId = null
+            lastAudioTimestamp = null
             _state.value = TranslationSessionState()
         }
     }
