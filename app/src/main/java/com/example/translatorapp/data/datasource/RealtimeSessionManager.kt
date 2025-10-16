@@ -12,6 +12,7 @@ import com.example.translatorapp.network.RealtimeApi
 import com.example.translatorapp.network.SessionStartRequest
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.webrtc.WebRtcClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -46,7 +47,8 @@ class RealtimeSessionManager @Inject constructor(
     override val transcriptStream = _transcripts.asSharedFlow()
 
     private var sessionId: String? = null
-    private var sessionJob: Job? = null
+    private var remoteAudioJob: Job? = null
+    private var eventStreamJob: Job? = null
     private var lastAudioTimestamp: Instant? = null
 
     override suspend fun start(settings: UserSettings) {
@@ -155,6 +157,22 @@ class RealtimeSessionManager @Inject constructor(
             runCatching {
                 realtimeApi.updateSession(it, model = profile.name)
             }
+        }
+    }
+
+    private suspend fun tearDownSession(notifyBackend: Boolean) {
+        remoteAudioJob?.cancel()
+        remoteAudioJob = null
+        eventStreamJob?.cancel()
+        eventStreamJob = null
+        audioSessionController.stopCapture()
+        audioSessionController.releasePlayback()
+        webRtcClient.close()
+        val id = sessionId
+        sessionId = null
+        lastAudioTimestamp = null
+        if (notifyBackend) {
+            id?.let { runCatching { realtimeApi.stopSession(it) } }
         }
     }
 
