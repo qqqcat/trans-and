@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -38,9 +39,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.translatorapp.R
+import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.TranslationInputMode
 import com.example.translatorapp.presentation.components.MicrophoneButton
 import com.example.translatorapp.presentation.components.PermissionGuidanceCard
 import com.example.translatorapp.presentation.components.SessionStatusIndicator
+import java.io.InputStream
 
 @Composable
 fun HomeRoute(
@@ -57,6 +61,17 @@ fun HomeRoute(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = viewModel::onPermissionResult
     )
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        val bytes = context.contentResolver.openInputStream(uri)?.use(InputStream::readBytes)
+        if (bytes != null) {
+            val description = queryDisplayName(context, uri)
+            viewModel.onImageTranslationRequested(bytes, description)
+        }
+    }
 
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -82,7 +97,11 @@ fun HomeRoute(
                 Uri.fromParts("package", context.packageName, null)
             ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             context.startActivity(intent)
-        }
+        },
+        onTextInputChange = viewModel::onTextInputChanged,
+        onTranslateText = viewModel::onTranslateText,
+        onPickImage = { imagePickerLauncher.launch("image/*") },
+        onInputModeSelected = viewModel::onInputModeSelected
     )
 }
 
@@ -96,6 +115,10 @@ fun HomeScreen(
     onOpenHistory: () -> Unit,
     onRequestPermission: () -> Unit,
     onOpenPermissionSettings: () -> Unit,
+    onTextInputChange: (String) -> Unit,
+    onTranslateText: () -> Unit,
+    onPickImage: () -> Unit,
+    onInputModeSelected: (TranslationInputMode) -> Unit,
 ) {
     if (state.isLoading) {
         Column(
@@ -119,17 +142,44 @@ fun HomeScreen(
             isMicrophoneActive = state.isMicActive,
             errorMessage = state.errorMessage
         )
-        MicrophoneButton(
-            isActive = state.isMicActive,
-            onToggle = onToggleMicrophone,
-            enabled = state.isRecordAudioPermissionGranted
+        InputModeSelector(
+            selected = state.selectedInputMode,
+            onSelected = onInputModeSelected
         )
-        if (!state.isRecordAudioPermissionGranted) {
-            PermissionGuidanceCard(
-                modifier = Modifier.fillMaxWidth(),
-                onRequestPermission = onRequestPermission,
-                onOpenPermissionSettings = onOpenPermissionSettings
-            )
+        when (state.selectedInputMode) {
+            TranslationInputMode.Voice -> {
+                MicrophoneButton(
+                    isActive = state.isMicActive,
+                    onToggle = onToggleMicrophone,
+                    enabled = state.isRecordAudioPermissionGranted
+                )
+                if (!state.isRecordAudioPermissionGranted) {
+                    PermissionGuidanceCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onRequestPermission = onRequestPermission,
+                        onOpenPermissionSettings = onOpenPermissionSettings
+                    )
+                }
+            }
+
+            TranslationInputMode.Text -> {
+                TextTranslationPanel(
+                    text = state.textInput,
+                    onTextChange = onTextInputChange,
+                    onTranslate = onTranslateText,
+                    isLoading = state.isTranslatingText,
+                    detectedLanguage = state.detectedLanguage,
+                    errorMessage = state.manualTranslationError
+                )
+            }
+
+            TranslationInputMode.Image -> {
+                ImageTranslationPanel(
+                    isLoading = state.isTranslatingImage,
+                    onPickImage = onPickImage,
+                    errorMessage = state.manualTranslationError
+                )
+            }
         }
         Divider()
         Text(
@@ -188,6 +238,115 @@ fun HomeScreen(
         }
         Button(onClick = onStopSession) {
             Text(text = stringResource(id = R.string.home_stop_session))
+        }
+    }
+}
+
+@Composable
+private fun InputModeSelector(
+    selected: TranslationInputMode,
+    onSelected: (TranslationInputMode) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = stringResource(id = R.string.home_input_mode_label), style = MaterialTheme.typography.labelLarge)
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            TranslationInputMode.entries.forEach { mode ->
+                androidx.compose.material3.FilterChip(
+                    selected = mode == selected,
+                    onClick = { onSelected(mode) },
+                    label = {
+                        Text(
+                            text = when (mode) {
+                                TranslationInputMode.Voice -> stringResource(id = R.string.home_input_mode_voice)
+                                TranslationInputMode.Text -> stringResource(id = R.string.home_input_mode_text)
+                                TranslationInputMode.Image -> stringResource(id = R.string.home_input_mode_image)
+                            }
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextTranslationPanel(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onTranslate: () -> Unit,
+    isLoading: Boolean,
+    detectedLanguage: SupportedLanguage?,
+    errorMessage: String?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        androidx.compose.material3.OutlinedTextField(
+            value = text,
+            onValueChange = onTextChange,
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+            label = { Text(text = stringResource(id = R.string.home_text_input_label)) }
+        )
+        androidx.compose.material3.Button(
+            onClick = onTranslate,
+            enabled = !isLoading
+        ) {
+            if (isLoading) {
+                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Text(text = stringResource(id = R.string.home_translate_text_action))
+            }
+        }
+        detectedLanguage?.let {
+            Text(
+                text = stringResource(id = R.string.home_detected_language_label, it.displayName),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+        errorMessage?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
+private fun ImageTranslationPanel(
+    isLoading: Boolean,
+    onPickImage: () -> Unit,
+    errorMessage: String?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Button(onClick = onPickImage, enabled = !isLoading) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Text(text = stringResource(id = R.string.home_pick_image_action))
+            }
+        }
+        errorMessage?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+private fun queryDisplayName(context: android.content.Context, uri: Uri): String? {
+    return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (index >= 0 && cursor.moveToFirst()) {
+            cursor.getString(index)
+        } else {
+            null
         }
     }
 }

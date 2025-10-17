@@ -46,4 +46,19 @@ class RealtimeApi @Inject constructor(
             )
         )
     }
+
+    suspend fun translateText(request: TextTranslationRequest): TextTranslationResponse =
+        service.translateText(request)
+
+    suspend fun translateImage(request: ImageTranslationRequest): TextTranslationResponse =
+        service.translateImage(request)
+
+    suspend fun detectLanguage(text: String): LanguageDetectionResponse =
+        service.detectLanguage(LanguageDetectionRequest(text))
+
+    suspend fun syncAccount(request: AccountSyncRequest): AccountSyncResponse =
+        service.syncAccount(request)
+
+    suspend fun updateAccountProfile(request: AccountProfileRequest): AccountProfileResponse =
+        service.updateAccountProfile(request)
 }

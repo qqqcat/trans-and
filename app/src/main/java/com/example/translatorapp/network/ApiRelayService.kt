@@ -15,4 +15,19 @@ interface ApiRelayService {
 
     @POST("session/metrics")
     suspend fun sendMetrics(@Body body: SessionMetricsRequest)
+
+    @POST("text/translate")
+    suspend fun translateText(@Body body: TextTranslationRequest): TextTranslationResponse
+
+    @POST("image/translate")
+    suspend fun translateImage(@Body body: ImageTranslationRequest): TextTranslationResponse
+
+    @POST("language/detect")
+    suspend fun detectLanguage(@Body body: LanguageDetectionRequest): LanguageDetectionResponse
+
+    @POST("account/sync")
+    suspend fun syncAccount(@Body body: AccountSyncRequest): AccountSyncResponse
+
+    @POST("account/profile")
+    suspend fun updateAccountProfile(@Body body: AccountProfileRequest): AccountProfileResponse
 }

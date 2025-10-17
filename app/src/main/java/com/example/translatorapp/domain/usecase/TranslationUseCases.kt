@@ -1,6 +1,9 @@
 package com.example.translatorapp.domain.usecase
 
+import com.example.translatorapp.domain.model.AccountProfile
+import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationModelProfile
@@ -86,4 +89,60 @@ class LoadSettingsUseCase @Inject constructor(
     private val repository: TranslationRepository
 ) {
     suspend operator fun invoke(): UserSettings = repository.refreshSettings()
+}
+
+class TranslateTextUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(
+        text: String,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent = repository.translateText(text, direction, profile)
+}
+
+class TranslateImageUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(
+        imageBytes: ByteArray,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent = repository.translateImage(imageBytes, direction, profile)
+}
+
+class DetectLanguageUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(text: String): SupportedLanguage? = repository.detectLanguage(text)
+}
+
+class UpdateHistoryFavoriteUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(id: Long, favorite: Boolean) = repository.updateHistoryFavorite(id, favorite)
+}
+
+class UpdateHistoryTagsUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(id: Long, tags: Set<String>) = repository.updateHistoryTags(id, tags)
+}
+
+class SyncAccountUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(): AccountSyncStatus = repository.syncAccount()
+}
+
+class UpdateAccountProfileUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(profile: AccountProfile) = repository.updateAccountProfile(profile)
+}
+
+class UpdateSyncEnabledUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(enabled: Boolean) = repository.updateSyncEnabled(enabled)
 }

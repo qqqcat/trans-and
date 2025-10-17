@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
@@ -61,7 +63,12 @@ fun HistoryRoute(
                 putExtra(Intent.EXTRA_TEXT, shareText)
             }
             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.history_share_title)))
-        }
+        },
+        onToggleFavoriteFilter = viewModel::toggleFavoriteFilter,
+        onTagFilterToggle = viewModel::onTagFilterToggle,
+        onFavoriteToggle = viewModel::onFavoriteToggle,
+        onTagDraftChange = viewModel::onTagDraftChange,
+        onTagDraftCommit = viewModel::onTagDraftCommit
     )
 }
 
@@ -73,6 +80,11 @@ fun HistoryScreen(
     onClear: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onShareItem: (TranslationHistoryItem) -> Unit,
+    onToggleFavoriteFilter: () -> Unit,
+    onTagFilterToggle: (String) -> Unit,
+    onFavoriteToggle: (Long, Boolean) -> Unit,
+    onTagDraftChange: (Long, String) -> Unit,
+    onTagDraftCommit: (Long) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -94,6 +106,32 @@ fun HistoryScreen(
             },
             placeholder = { Text(text = stringResource(id = R.string.history_search_placeholder)) }
         )
+        androidx.compose.material3.FilterChip(
+            selected = state.showFavoritesOnly,
+            onClick = onToggleFavoriteFilter,
+            label = { Text(text = stringResource(id = R.string.history_filter_favorites)) },
+            leadingIcon = {
+                Icon(imageVector = Icons.Outlined.Bookmark, contentDescription = null)
+            }
+        )
+        if (state.availableTags.isNotEmpty()) {
+            Text(
+                text = stringResource(id = R.string.history_filter_tags_label),
+                style = MaterialTheme.typography.labelMedium
+            )
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                state.availableTags.forEach { tag ->
+                    androidx.compose.material3.FilterChip(
+                        selected = tag in state.selectedTags,
+                        onClick = { onTagFilterToggle(tag) },
+                        label = { Text(text = "#$tag") }
+                    )
+                }
+            }
+        }
         if (state.filteredHistory.isEmpty()) {
             Column(
                 modifier = Modifier
@@ -113,7 +151,11 @@ fun HistoryScreen(
                 items(state.filteredHistory) { item ->
                     HistoryListItem(
                         item = item,
-                        onShare = { onShareItem(item) }
+                        tagDraft = state.tagDrafts[item.id].orEmpty(),
+                        onShare = { onShareItem(item) },
+                        onFavoriteToggle = { onFavoriteToggle(item.id, !item.isFavorite) },
+                        onTagDraftChange = { onTagDraftChange(item.id, it) },
+                        onTagDraftCommit = { onTagDraftCommit(item.id) }
                     )
                     Divider()
                 }
@@ -136,7 +178,11 @@ fun HistoryScreen(
 @Composable
 private fun HistoryListItem(
     item: TranslationHistoryItem,
+    tagDraft: String,
     onShare: () -> Unit,
+    onFavoriteToggle: () -> Unit,
+    onTagDraftChange: (String) -> Unit,
+    onTagDraftCommit: () -> Unit,
 ) {
     val createdAt = item.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
     Column(
@@ -159,11 +205,22 @@ private fun HistoryListItem(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.secondary
             )
-            IconButton(onClick = onShare) {
-                Icon(
-                    imageVector = Icons.Outlined.Share,
-                    contentDescription = stringResource(id = R.string.history_share_action)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.IconToggleButton(
+                    checked = item.isFavorite,
+                    onCheckedChange = { onFavoriteToggle() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Bookmark,
+                        contentDescription = stringResource(id = R.string.history_favorite_action)
+                    )
+                }
+                IconButton(onClick = onShare) {
+                    Icon(
+                        imageVector = Icons.Outlined.Share,
+                        contentDescription = stringResource(id = R.string.history_share_action)
+                    )
+                }
             }
         }
         Text(
@@ -187,6 +244,34 @@ private fun HistoryListItem(
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 4,
             overflow = TextOverflow.Ellipsis
+        )
+        if (item.tags.isNotEmpty()) {
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                item.tags.forEach { tag ->
+                    androidx.compose.material3.AssistChip(
+                        onClick = {},
+                        label = { Text(text = "#$tag") }
+                    )
+                }
+            }
+        }
+        androidx.compose.material3.OutlinedTextField(
+            value = tagDraft,
+            onValueChange = onTagDraftChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(text = stringResource(id = R.string.history_tag_input_label)) },
+            trailingIcon = {
+                IconButton(onClick = onTagDraftCommit) {
+                    Icon(
+                        imageVector = Icons.Outlined.Done,
+                        contentDescription = stringResource(id = R.string.history_save_tags_action)
+                    )
+                }
+            },
+            placeholder = { Text(text = stringResource(id = R.string.history_tag_input_hint)) }
         )
     }
 }
