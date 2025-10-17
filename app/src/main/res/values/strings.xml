@@ -1,42 +1,105 @@
 <resources>
     <string name="app_name">TransAnd</string>
-    <string name="home_title">实时翻译</string>
-    <string name="settings_title">设置</string>
-    <string name="history_title">历史记录</string>
+
+    <!-- Common -->
+    <string name="action_back">返回</string>
     <string name="privacy_policy">隐私政策</string>
-    <string name="subtitle_timeline_title">字幕时间轴</string>
-    <string name="subtitle_timeline_empty">暂无字幕，点击麦克风开始对话。</string>
-    <string name="subtitle_timeline_source_label">原文</string>
-    <string name="subtitle_timeline_translation_label">译文</string>
-    <string name="home_open_history">查看历史记录</string>
-    <string name="home_open_settings">打开设置</string>
-    <string name="home_stop_session">结束会话</string>
-    <string name="permission_guidance_title">需要麦克风权限</string>
-    <string name="permission_guidance_description">请允许应用访问麦克风，以便进行实时听写与翻译。</string>
-    <string name="permission_guidance_step_request">• 点击“立即授权”并在弹窗中允许麦克风访问。</string>
-    <string name="permission_guidance_step_settings">• 若已拒绝，请前往系统设置 &gt; 应用权限中手动开启。</string>
-    <string name="permission_guidance_request">立即授权</string>
-    <string name="permission_guidance_open_settings">系统权限设置</string>
-    <string name="history_search_placeholder">搜索原文或译文</string>
-    <string name="history_empty_placeholder">暂无历史记录</string>
-    <string name="history_clear_all">清空历史</string>
-    <string name="history_back">返回</string>
-    <string name="history_share_title">分享会话记录</string>
-    <string name="history_share_content">原文：%1$s\n译文：%2$s</string>
-    <string name="history_share_action">分享本条记录</string>
-    <string name="history_timestamp_label">%1$s %2$s</string>
+
+    <!-- Home -->
+    <string name="home_title">实时翻译</string>
+    <string name="home_status_active">会话已开启</string>
+    <string name="home_status_inactive">麦克风已关闭</string>
+    <string name="home_status_connecting">正在连接实时翻译…</string>
+    <string name="home_status_permission">等待麦克风权限</string>
+    <string name="home_status_indicator_on">麦克风正在采集</string>
+    <string name="home_status_indicator_off">麦克风未采集</string>
+    <string name="home_latency_label">ASR %1$d ms · 翻译 %2$d ms · TTS %3$d ms</string>
+    <string name="home_current_configuration">当前配置</string>
+    <string name="home_language_auto_detect">自动检测</string>
+    <string name="home_model_label">使用模型：%1$s</string>
+    <string name="home_adjust_settings">调整设置</string>
     <string name="home_input_mode_label">输入模式</string>
     <string name="home_input_mode_voice">语音实时</string>
     <string name="home_input_mode_text">文本输入</string>
     <string name="home_input_mode_image">拍照翻译</string>
-    <string name="home_text_input_label">输入需要翻译的文本</string>
+    <string name="home_voice_active_description">保持设备安静，实时翻译正在采集语音。</string>
+    <string name="home_voice_inactive_description">点击下方按钮开启麦克风，继续实时翻译。</string>
+    <string name="home_action_mute">关闭麦克风</string>
+    <string name="home_action_unmute">开启麦克风</string>
+    <string name="permission_guidance_title">需要麦克风权限</string>
+    <string name="permission_guidance_description">请先授予麦克风权限，以便实时进行语音翻译。</string>
+    <string name="permission_guidance_step_request">· 在弹出的对话框中选择“允许”。</string>
+    <string name="permission_guidance_step_settings">· 若已拒绝，请前往系统“设置 &gt; 应用权限”中手动开启。</string>
+    <string name="permission_guidance_request">申请权限</string>
+    <string name="permission_guidance_open_settings">前往系统设置</string>
+    <string name="home_text_translation_title">文本翻译</string>
+    <string name="home_text_input_label">请输入待翻译的内容</string>
     <string name="home_translate_text_action">翻译文本</string>
-    <string name="home_detected_language_label">检测到源语言：%1$s</string>
+    <string name="home_detected_language_label">检测到语言：%1$s</string>
+    <string name="home_image_translation_title">图片翻译</string>
+    <string name="home_image_translation_hint">支持 JPG/PNG，建议选取包含清晰文字的图片。</string>
     <string name="home_pick_image_action">选择图片进行翻译</string>
+    <string name="home_history_preview_title">历史记录</string>
+    <string name="home_history_preview_description">查看完整对话记录或收藏的条目。</string>
+    <string name="home_timeline_description">最新 100 条翻译片段将显示在此列表中。</string>
+    <string name="home_stop_session">结束会话</string>
+    <string name="home_open_history">查看历史记录</string>
+    <string name="home_open_settings">前往设置</string>
+
+    <!-- History -->
+    <string name="history_title">历史记录</string>
+    <string name="history_search_placeholder">搜索原文或译文</string>
     <string name="history_filter_favorites">仅查看收藏</string>
-    <string name="history_filter_tags_label">按标签筛选</string>
-    <string name="history_favorite_action">收藏该记录</string>
+    <string name="history_filter_tags_label">标签筛选</string>
     <string name="history_tag_input_label">标签（使用逗号分隔）</string>
+    <string name="history_tag_input_hint">例如：会议, 旅游, 公务</string>
     <string name="history_save_tags_action">保存标签</string>
-    <string name="history_tag_input_hint">例如：会议, 销售, 法务</string>
+    <string name="history_favorite_action">收藏此记录</string>
+    <string name="history_empty_placeholder">暂无历史记录</string>
+    <string name="history_clear_all">清空历史</string>
+    <string name="history_load_more">加载更多</string>
+    <string name="history_share_title">分享翻译记录</string>
+    <string name="history_share_action">分享</string>
+    <string name="history_share_content">原文：%1$s
+译文：%2$s</string>
+
+    <!-- Subtitle timeline -->
+    <string name="subtitle_timeline_title">字幕时间轴</string>
+    <string name="subtitle_timeline_empty">暂无实时记录，开始对话后这里会显示翻译片段。</string>
+    <string name="subtitle_timeline_source_label">原文</string>
+    <string name="subtitle_timeline_translation_label">译文</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_section_language">语言方向</string>
+    <string name="settings_section_model">翻译模型</string>
+    <string name="settings_section_network">网络与服务</string>
+    <string name="settings_section_preferences">通用偏好</string>
+    <string name="settings_section_account">账号与同步</string>
+    <string name="settings_auto_detect_label">自动检测源语言</string>
+    <string name="settings_source_language_label">源语言</string>
+    <string name="settings_target_language_label">目标语言</string>
+    <string name="settings_offline_fallback_label">在线异常时启用离线模型</string>
+    <string name="settings_telemetry_label">允许匿名体验数据</string>
+    <string name="settings_api_endpoint_label">自定义实时服务地址</string>
+    <string name="settings_api_endpoint_hint">例如：https://your-proxy.example/</string>
+    <string name="settings_api_endpoint_default">默认服务地址：%1$s</string>
+    <string name="settings_api_endpoint_save">保存服务地址</string>
+    <string name="settings_api_endpoint_reset">恢复默认</string>
+    <string name="settings_api_endpoint_error">请输入以 http(s):// 开头的有效地址，或留空使用默认服务。</string>
+    <string name="settings_account_email">登录邮箱</string>
+    <string name="settings_account_display_name">显示名称</string>
+    <string name="settings_save_account">保存账户信息</string>
+    <string name="settings_sync_toggle">同步历史记录</string>
+    <string name="settings_sync_now">立即同步</string>
+    <string name="settings_last_sync">上次同步：%1$s</string>
+    <string name="settings_sync_never">尚未同步</string>
+    <string name="settings_message_saved">设置已保存</string>
+    <string name="settings_message_sync_in_progress">正在同步，请稍候…</string>
+    <string name="settings_message_sync_success">同步完成</string>
+    <string name="settings_message_sync_failed">同步失败：%1$s</string>
+
+    <!-- Misc -->
+    <string name="history_tag_separator">•</string>
 </resources>
+

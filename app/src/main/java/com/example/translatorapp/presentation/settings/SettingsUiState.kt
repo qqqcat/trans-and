@@ -19,9 +19,12 @@ data class SettingsUiState(
     val syncEnabled: Boolean = settings.syncEnabled,
     val isSyncing: Boolean = false,
     val lastSyncDisplay: String? = settings.lastSyncedAt?.toReadableString(),
+    val apiEndpoint: String = settings.apiEndpoint,
+    val apiEndpointError: String? = null
 )
 
 private fun Instant.toReadableString(): String {
     val local = this.toLocalDateTime(TimeZone.currentSystemDefault())
     return "%04d-%02d-%02d %02d:%02d".format(local.year, local.monthNumber, local.dayOfMonth, local.hour, local.minute)
 }
+

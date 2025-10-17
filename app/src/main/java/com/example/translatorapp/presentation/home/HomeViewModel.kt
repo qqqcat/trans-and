@@ -5,17 +5,23 @@ import androidx.lifecycle.viewModelScope
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
+import com.example.translatorapp.domain.model.TranslationSessionState
+import com.example.translatorapp.domain.model.TranslatorException
+import com.example.translatorapp.domain.model.UiAction
+import com.example.translatorapp.domain.model.UiMessage
+import com.example.translatorapp.domain.model.UiMessageLevel
 import com.example.translatorapp.domain.model.UserSettings
+import com.example.translatorapp.domain.model.defaultLabel
+import com.example.translatorapp.domain.usecase.DetectLanguageUseCase
 import com.example.translatorapp.domain.usecase.LoadSettingsUseCase
 import com.example.translatorapp.domain.usecase.ObserveLiveTranscriptionUseCase
 import com.example.translatorapp.domain.usecase.ObserveSessionStateUseCase
 import com.example.translatorapp.domain.usecase.PersistHistoryUseCase
 import com.example.translatorapp.domain.usecase.StartRealtimeSessionUseCase
+import com.example.translatorapp.domain.usecase.StopRealtimeSessionUseCase
 import com.example.translatorapp.domain.usecase.ToggleMicrophoneUseCase
 import com.example.translatorapp.domain.usecase.TranslateImageUseCase
 import com.example.translatorapp.domain.usecase.TranslateTextUseCase
-import com.example.translatorapp.domain.usecase.DetectLanguageUseCase
-import com.example.translatorapp.domain.usecase.StopRealtimeSessionUseCase
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.util.PermissionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +31,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+private const val TIMELINE_MAX_ITEMS = 100
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -39,52 +47,146 @@ class HomeViewModel @Inject constructor(
     private val translateImageUseCase: TranslateImageUseCase,
     private val detectLanguageUseCase: DetectLanguageUseCase,
     private val dispatcherProvider: DispatcherProvider,
-    private val permissionManager: PermissionManager,
+    private val permissionManager: PermissionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var currentSettings: UserSettings? = null
+    private var latestSessionState: TranslationSessionState = TranslationSessionState()
     private var hasStartedSession = false
+    private var isStartingSession = false
     private var settingsLoaded = false
     private var permissionChecked = false
 
     init {
+        observeSessionChanges()
+        observeTranscriptChanges()
+        loadInitialSettings()
+        refreshPermissionStatus()
+    }
+
+    private fun observeSessionChanges() {
         viewModelScope.launch {
-            observeSessionState().collect { state ->
-                _uiState.value = _uiState.value.copy(
-                    sessionState = state,
-                    isMicActive = state.isMicrophoneOpen,
-                    errorMessage = state.errorMessage
-                )
+            observeSessionState().collect { session ->
+                latestSessionState = session
+                if (session.isActive) {
+                    isStartingSession = false
+                }
+                if (session.errorMessage != null) {
+                    isStartingSession = false
+                }
+                _uiState.update { current ->
+                    val updatedSession = current.session.copy(
+                        direction = session.direction,
+                        latency = session.latencyMetrics,
+                        isMicrophoneOpen = session.isMicrophoneOpen,
+                        activeSegment = session.currentSegment,
+                        lastErrorMessage = session.errorMessage
+                    )
+                    val snapshot = current.copy(session = updatedSession)
+                    snapshot.copy(
+                        session = snapshot.session.copy(
+                            status = computeSessionStatus(snapshot),
+                            requiresPermission = !snapshot.input.isRecordAudioPermissionGranted
+                        )
+                    )
+                }
+                session.errorMessage?.let { pushMessage(it) }
             }
         }
+    }
+
+    private fun observeTranscriptChanges() {
         viewModelScope.launch(dispatcherProvider.io) {
             observeLiveTranscription().collect { content ->
                 persistHistoryUseCase(content)
-                _uiState.value = _uiState.value.copy(
-                    transcriptHistory = (_uiState.value.transcriptHistory + content).takeLast(50),
-                    detectedLanguage = content.detectedSourceLanguage,
-                    lastManualTranslation = content,
-                    selectedInputMode = TranslationInputMode.Voice
-                )
+                _uiState.update { current ->
+                    val updatedTimeline = current.timeline.copy(
+                        entries = (current.timeline.entries + content).takeLast(TIMELINE_MAX_ITEMS)
+                    )
+                    val updatedInput = current.input.copy(
+                        detectedLanguage = content.detectedSourceLanguage,
+                        selectedMode = TranslationInputMode.Voice
+                    )
+                    val snapshot = current.copy(
+                        timeline = updatedTimeline,
+                        input = updatedInput
+                    )
+                    snapshot.copy(
+                        session = snapshot.session.copy(
+                            status = computeSessionStatus(snapshot)
+                        )
+                    )
+                }
             }
         }
+    }
+
+    private fun loadInitialSettings() {
         viewModelScope.launch(dispatcherProvider.io) {
             val settings = loadSettingsUseCase()
             currentSettings = settings
             settingsLoaded = true
-            _uiState.update { it.copy(settings = settings) }
+            _uiState.update { current ->
+                val snapshot = current.copy(
+                    settings = settings,
+                    session = current.session.copy(
+                        direction = settings.direction,
+                        model = settings.translationProfile
+                    )
+                )
+                snapshot.copy(
+                    session = snapshot.session.copy(
+                        status = computeSessionStatus(snapshot)
+                    )
+                )
+            }
             finalizeInitialization()
         }
-        refreshPermissionStatus()
+    }
+
+    fun refreshPermissionStatus() {
+        viewModelScope.launch(dispatcherProvider.io) {
+            val granted = permissionManager.hasRecordAudioPermission()
+            permissionChecked = true
+            updateInput { it.copy(isRecordAudioPermissionGranted = granted) }
+            finalizeInitialization()
+            if (granted) {
+                maybeStartSession()
+            }
+        }
+    }
+
+    fun onPermissionResult(isGranted: Boolean) {
+        permissionChecked = true
+        updateInput { it.copy(isRecordAudioPermissionGranted = isGranted) }
+        finalizeInitialization()
+        if (isGranted) {
+            maybeStartSession()
+        } else {
+            isStartingSession = false
+            hasStartedSession = false
+            latestSessionState = TranslationSessionState()
+            viewModelScope.launch(dispatcherProvider.io) {
+                stopRealtimeSession()
+            }
+        }
     }
 
     fun onToggleMicrophone() {
+        if (!uiState.value.input.isRecordAudioPermissionGranted) {
+            pushMessage(
+                message = "请先授予麦克风权限以启动实时翻译",
+                level = UiMessageLevel.Warning,
+                action = UiAction.CheckPermissions
+            )
+            return
+        }
         viewModelScope.launch(dispatcherProvider.io) {
-            val isActive = toggleMicrophoneUseCase()
-            _uiState.value = _uiState.value.copy(isMicActive = isActive)
+            val isOpen = toggleMicrophoneUseCase()
+            updateSession { it.copy(isMicrophoneOpen = isOpen) }
         }
     }
 
@@ -92,75 +194,63 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(dispatcherProvider.io) {
             stopRealtimeSession()
             hasStartedSession = false
-            _uiState.value = _uiState.value.copy(sessionState = HomeUiState().sessionState)
+            isStartingSession = false
+            latestSessionState = TranslationSessionState()
+            updateSession {
+                it.copy(
+                    isMicrophoneOpen = false,
+                    activeSegment = null,
+                    lastErrorMessage = null,
+                    status = SessionStatus.Idle
+                )
+            }
         }
     }
 
-    fun onPermissionResult(isGranted: Boolean) {
-        permissionChecked = true
-        _uiState.update { it.copy(isRecordAudioPermissionGranted = isGranted) }
-        finalizeInitialization()
-        if (isGranted) {
+    fun onInputModeSelected(mode: TranslationInputMode) {
+        updateInput { it.copy(selectedMode = mode) }
+        if (mode == TranslationInputMode.Voice) {
             maybeStartSession()
-        } else {
-            hasStartedSession = false
-            viewModelScope.launch(dispatcherProvider.io) {
-                stopRealtimeSession()
-            }
         }
     }
 
-    fun refreshPermissionStatus() {
-        viewModelScope.launch(dispatcherProvider.io) {
-            val hasPermission = permissionManager.hasRecordAudioPermission()
-            permissionChecked = true
-            _uiState.update { it.copy(isRecordAudioPermissionGranted = hasPermission) }
-            finalizeInitialization()
-            if (hasPermission) {
-                maybeStartSession()
-            } else {
-                hasStartedSession = false
-                stopRealtimeSession()
-            }
-        }
-    }
-
-    fun onTextInputChanged(text: String) {
-        _uiState.update { it.copy(textInput = text, manualTranslationError = null) }
+    fun onTextInputChanged(value: String) {
+        updateInput { it.copy(textValue = value) }
     }
 
     fun onTranslateText() {
-        val text = _uiState.value.textInput.trim()
+        val text = uiState.value.input.textValue.trim()
         if (text.isBlank()) {
-            _uiState.update { it.copy(manualTranslationError = "请输入需要翻译的文本") }
+            pushMessage(
+                message = "请输入需要翻译的文本",
+                level = UiMessageLevel.Warning,
+                action = UiAction.Dismiss
+            )
             return
         }
         val settings = currentSettings ?: return
         viewModelScope.launch(dispatcherProvider.io) {
-            _uiState.update { it.copy(isTranslatingText = true, manualTranslationError = null) }
+            updateInput { it.copy(isTextTranslating = true) }
             val direction = resolveDirectionForText(text)
-            val result = runCatching {
+            runCatching {
                 translateTextUseCase(text, direction, settings.translationProfile)
-            }
-            result.onSuccess { content ->
-                _uiState.update {
+            }.onSuccess { content ->
+                updateInput {
                     it.copy(
-                        transcriptHistory = (it.transcriptHistory + content).takeLast(50),
-                        textInput = "",
-                        isTranslatingText = false,
+                        textValue = "",
+                        isTextTranslating = false,
                         detectedLanguage = content.detectedSourceLanguage,
-                        lastManualTranslation = content,
-                        selectedInputMode = TranslationInputMode.Text,
-                        manualTranslationError = null
+                        selectedMode = TranslationInputMode.Text
                     )
                 }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        isTranslatingText = false,
-                        manualTranslationError = error.message ?: "文本翻译失败"
+                updateTimeline { timeline ->
+                    timeline.copy(
+                        entries = (timeline.entries + content).takeLast(TIMELINE_MAX_ITEMS)
                     )
                 }
+            }.onFailure { throwable ->
+                updateInput { it.copy(isTextTranslating = false) }
+                pushMessageFromThrowable(throwable, fallback = "文本翻译失败")
             }
         }
     }
@@ -168,44 +258,182 @@ class HomeViewModel @Inject constructor(
     fun onImageTranslationRequested(imageBytes: ByteArray, description: String?) {
         val settings = currentSettings ?: return
         viewModelScope.launch(dispatcherProvider.io) {
-            _uiState.update { it.copy(isTranslatingImage = true, manualTranslationError = null) }
-            val direction = settings.direction
-            val result = runCatching {
-                translateImageUseCase(imageBytes, direction, settings.translationProfile)
-            }
-            result.onSuccess { content ->
+            updateInput { it.copy(isImageTranslating = true, detectedLanguage = null) }
+            runCatching {
+                translateImageUseCase(imageBytes, settings.direction, settings.translationProfile)
+            }.onSuccess { content ->
                 val normalized = if (content.transcript.isBlank() && !description.isNullOrBlank()) {
                     content.copy(transcript = description)
                 } else {
                     content
                 }
-                _uiState.update {
+                updateInput {
                     it.copy(
-                        transcriptHistory = (it.transcriptHistory + normalized).takeLast(50),
-                        isTranslatingImage = false,
+                        isImageTranslating = false,
                         detectedLanguage = normalized.detectedSourceLanguage,
-                        lastManualTranslation = normalized,
-                        selectedInputMode = TranslationInputMode.Image,
-                        manualTranslationError = null
+                        selectedMode = TranslationInputMode.Image
                     )
                 }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        isTranslatingImage = false,
-                        manualTranslationError = error.message ?: "图片翻译失败"
+                updateTimeline { timeline ->
+                    timeline.copy(
+                        entries = (timeline.entries + normalized).takeLast(TIMELINE_MAX_ITEMS)
                     )
                 }
+            }.onFailure { throwable ->
+                updateInput { it.copy(isImageTranslating = false) }
+                pushMessageFromThrowable(throwable, fallback = "图片翻译失败")
             }
         }
     }
 
-    fun onInputModeSelected(mode: TranslationInputMode) {
-        _uiState.update { it.copy(selectedInputMode = mode) }
-        if (mode == TranslationInputMode.Voice) {
-            maybeStartSession()
+    fun onMessageDismissed(id: String) {
+        _uiState.update { current ->
+            current.copy(messages = current.messages.filterNot { it.id == id })
         }
     }
+
+    fun onMessageAction(action: UiAction) {
+        when (action) {
+            UiAction.Retry -> maybeStartSession()
+            UiAction.CheckPermissions -> refreshPermissionStatus()
+            UiAction.OpenSettings, UiAction.Dismiss -> Unit
+        }
+    }
+
+    private fun maybeStartSession() {
+        val settings = currentSettings ?: return
+        if (!uiState.value.input.isRecordAudioPermissionGranted) {
+            pushMessage(
+                message = "需要麦克风权限才能启动实时翻译",
+                level = UiMessageLevel.Warning,
+                action = UiAction.CheckPermissions
+            )
+            return
+        }
+        if (hasStartedSession && isStartingSession) return
+        hasStartedSession = true
+        isStartingSession = true
+        recalculateStatus()
+        viewModelScope.launch(dispatcherProvider.io) {
+            runCatching { startRealtimeSession(settings) }
+                .onFailure { throwable ->
+                    isStartingSession = false
+                    hasStartedSession = false
+                    pushMessageFromThrowable(throwable, fallback = "实时会话启动失败")
+                    recalculateStatus()
+                }
+        }
+    }
+
+    private fun updateInput(transform: (InputUiState) -> InputUiState) {
+        _uiState.update { current ->
+            val updatedInput = transform(current.input)
+            val snapshot = current.copy(input = updatedInput)
+            snapshot.copy(
+                session = snapshot.session.copy(
+                    status = computeSessionStatus(snapshot),
+                    requiresPermission = !snapshot.input.isRecordAudioPermissionGranted
+                )
+            )
+        }
+    }
+
+    private fun updateSession(transform: (SessionUiState) -> SessionUiState) {
+        _uiState.update { current ->
+            val updatedSession = transform(current.session)
+            val snapshot = current.copy(session = updatedSession)
+            snapshot.copy(
+                session = snapshot.session.copy(
+                    status = computeSessionStatus(snapshot),
+                    requiresPermission = !snapshot.input.isRecordAudioPermissionGranted
+                )
+            )
+        }
+    }
+
+    private fun updateTimeline(transform: (TimelineUiState) -> TimelineUiState) {
+        _uiState.update { current ->
+            current.copy(timeline = transform(current.timeline))
+        }
+    }
+
+    private fun recalculateStatus() {
+        _uiState.update { current ->
+            current.copy(
+                session = current.session.copy(
+                    status = computeSessionStatus(current),
+                    requiresPermission = !current.input.isRecordAudioPermissionGranted
+                )
+            )
+        }
+    }
+
+    private fun computeSessionStatus(snapshot: HomeUiState): SessionStatus {
+        val hasPermission = snapshot.input.isRecordAudioPermissionGranted
+        val session = latestSessionState
+        if (session.errorMessage != null) {
+            isStartingSession = false
+        }
+        return when {
+            !hasPermission -> SessionStatus.PermissionRequired
+            session.errorMessage != null -> SessionStatus.Error
+            session.isActive -> {
+                isStartingSession = false
+                SessionStatus.Streaming
+            }
+            isStartingSession -> SessionStatus.Connecting
+            else -> SessionStatus.Idle
+        }
+    }
+
+    private suspend fun resolveDirectionForText(text: String): LanguageDirection {
+        val settings = currentSettings ?: return UserSettings().direction
+        if (!settings.direction.isAutoDetect) {
+            return settings.direction
+        }
+        updateInput { it.copy(detectedLanguage = null) }
+        val detected = detectLanguageUseCase(text)
+        updateInput { it.copy(detectedLanguage = detected) }
+        return if (detected != null) {
+            settings.direction.withSource(detected)
+        } else {
+            settings.direction
+        }
+    }
+
+    private fun pushMessageFromThrowable(throwable: Throwable, fallback: String) {
+        val exception = throwable.asTranslatorException(fallback)
+        pushMessage(
+            message = exception.userMessage.ifBlank { fallback },
+            level = exception.level,
+            action = exception.action
+        )
+    }
+
+    private fun pushMessage(
+        message: String,
+        level: UiMessageLevel = UiMessageLevel.Error,
+        action: UiAction? = null
+    ) {
+        val uiMessage = UiMessage(
+            message = message,
+            level = level,
+            action = action,
+            actionLabel = action?.defaultLabel()
+        )
+        _uiState.update { current -> current.copy(messages = current.messages + uiMessage) }
+    }
+
+    private fun Throwable.asTranslatorException(fallback: String): TranslatorException =
+        when (this) {
+            is TranslatorException -> this
+            else -> TranslatorException(
+                userMessage = message ?: fallback,
+                action = UiAction.Retry,
+                level = UiMessageLevel.Error,
+                cause = this
+            )
+        }
 
     private fun finalizeInitialization() {
         if (settingsLoaded && permissionChecked) {
@@ -213,37 +441,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun maybeStartSession() {
-        val settings = currentSettings ?: return
-        if (_uiState.value.isRecordAudioPermissionGranted && !hasStartedSession) {
-            hasStartedSession = true
-            viewModelScope.launch(dispatcherProvider.io) {
-                startRealtimeSession(settings)
-            }
-        }
-    }
-
     override fun onCleared() {
         viewModelScope.launch(dispatcherProvider.io) {
-            stopRealtimeSession()
-            hasStartedSession = false
+            runCatching { stopRealtimeSession() }
         }
+        hasStartedSession = false
+        isStartingSession = false
         super.onCleared()
-    }
-
-    private suspend fun resolveDirectionForText(text: String): LanguageDirection {
-        val settings = currentSettings ?: return UserSettings().direction
-        return if (settings.direction.isAutoDetect) {
-            _uiState.update { it.copy(detectedLanguage = null) }
-            val detected = detectLanguageUseCase(text)
-            if (detected != null) {
-                _uiState.update { it.copy(detectedLanguage = detected) }
-                settings.direction.withSource(detected)
-            } else {
-                settings.direction
-            }
-        } else {
-            settings.direction
-        }
     }
 }

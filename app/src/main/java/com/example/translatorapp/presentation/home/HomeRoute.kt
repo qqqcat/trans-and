@@ -6,44 +6,70 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.MicOff
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
-import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.translatorapp.R
-import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
-import com.example.translatorapp.presentation.components.MicrophoneButton
+import com.example.translatorapp.domain.model.UiAction
+import com.example.translatorapp.domain.model.UiMessage
+import com.example.translatorapp.domain.model.UiMessageLevel
 import com.example.translatorapp.presentation.components.PermissionGuidanceCard
 import com.example.translatorapp.presentation.components.SessionStatusIndicator
+import com.example.translatorapp.presentation.theme.LocalElevation
+import com.example.translatorapp.presentation.theme.LocalRadius
+import com.example.translatorapp.presentation.theme.LocalSpacing
 import java.io.InputStream
 
 @Composable
@@ -53,76 +79,78 @@ fun HomeRoute(
     onOpenSettings: () -> Unit,
     onOpenHistory: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = viewModel::onPermissionResult
-    )
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted -> viewModel.onPermissionResult(granted) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
+    ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         val bytes = context.contentResolver.openInputStream(uri)?.use(InputStream::readBytes)
         if (bytes != null) {
-            val description = queryDisplayName(context, uri)
+            val description = uri.lastPathSegment
             viewModel.onImageTranslationRequested(bytes, description)
         }
     }
 
-    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshPermissionStatus()
+    val openPermissionSettings = remember(context) {
+        {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            context.startActivity(intent)
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     HomeScreen(
-        state = uiState,
+        state = state,
         paddingValues = paddingValues,
         onToggleMicrophone = viewModel::onToggleMicrophone,
         onStopSession = viewModel::onStopSession,
+        onRequestPermission = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+        onOpenPermissionSettings = openPermissionSettings,
         onOpenSettings = onOpenSettings,
         onOpenHistory = onOpenHistory,
-        onRequestPermission = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-        onOpenPermissionSettings = {
-            val intent = Intent(
-                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                Uri.fromParts("package", context.packageName, null)
-            ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-            context.startActivity(intent)
-        },
-        onTextInputChange = viewModel::onTextInputChanged,
+        onTextChanged = viewModel::onTextInputChanged,
         onTranslateText = viewModel::onTranslateText,
         onPickImage = { imagePickerLauncher.launch("image/*") },
-        onInputModeSelected = viewModel::onInputModeSelected
+        onInputModeSelected = viewModel::onInputModeSelected,
+        onMessageDismissed = viewModel::onMessageDismissed,
+        onMessageAction = viewModel::onMessageAction
     )
 }
 
 @Composable
-fun HomeScreen(
+private fun HomeScreen(
     state: HomeUiState,
     paddingValues: PaddingValues,
     onToggleMicrophone: () -> Unit,
     onStopSession: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenHistory: () -> Unit,
     onRequestPermission: () -> Unit,
     onOpenPermissionSettings: () -> Unit,
-    onTextInputChange: (String) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onTextChanged: (String) -> Unit,
     onTranslateText: () -> Unit,
     onPickImage: () -> Unit,
     onInputModeSelected: (TranslationInputMode) -> Unit,
+    onMessageDismissed: (String) -> Unit,
+    onMessageAction: (UiAction) -> Unit
 ) {
+    val bottomPadding = paddingValues.calculateBottomPadding()
+    val topPadding = paddingValues.calculateTopPadding()
+    val spacing = LocalSpacing.current
+
     if (state.isLoading) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -130,114 +158,310 @@ fun HomeScreen(
         }
         return
     }
-    Column(
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(top = topPadding, bottom = bottomPadding),
+        contentPadding = PaddingValues(
+            start = spacing.lg,
+            end = spacing.lg,
+            top = spacing.lg,
+            bottom = spacing.xxl + bottomPadding
+        ),
+        verticalArrangement = Arrangement.spacedBy(spacing.lg)
     ) {
-        SessionStatusIndicator(
-            latencyMetrics = state.sessionState.latencyMetrics,
-            isMicrophoneActive = state.isMicActive,
-            errorMessage = state.errorMessage
-        )
-        InputModeSelector(
-            selected = state.selectedInputMode,
-            onSelected = onInputModeSelected
-        )
-        when (state.selectedInputMode) {
-            TranslationInputMode.Voice -> {
-                MicrophoneButton(
-                    isActive = state.isMicActive,
-                    onToggle = onToggleMicrophone,
-                    enabled = state.isRecordAudioPermissionGranted
+        if (state.messages.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    state.messages.forEach { message ->
+                        HomeMessageBanner(
+                            message = message,
+                            onDismiss = { onMessageDismissed(message.id) },
+                            onAction = { action -> onMessageAction(action) }
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            SessionStatusCard(
+                session = state.session,
+                onToggleMicrophone = onToggleMicrophone,
+                onStopSession = onStopSession,
+                onOpenSettings = onOpenSettings
+            )
+        }
+
+        if (state.session.status == SessionStatus.PermissionRequired) {
+            item {
+                PermissionGuidanceCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onRequestPermission = onRequestPermission,
+                    onOpenPermissionSettings = onOpenPermissionSettings
                 )
-                if (!state.isRecordAudioPermissionGranted) {
-                    PermissionGuidanceCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        onRequestPermission = onRequestPermission,
-                        onOpenPermissionSettings = onOpenPermissionSettings
+            }
+        }
+
+        item {
+            InputModeSelector(
+                selected = state.input.selectedMode,
+                onInputModeSelected = onInputModeSelected
+            )
+        }
+
+        when (state.input.selectedMode) {
+            TranslationInputMode.Voice -> {
+                item {
+                    VoiceModeCard(
+                        session = state.session
                     )
                 }
             }
 
             TranslationInputMode.Text -> {
-                TextTranslationPanel(
-                    text = state.textInput,
-                    onTextChange = onTextInputChange,
-                    onTranslate = onTranslateText,
-                    isLoading = state.isTranslatingText,
-                    detectedLanguage = state.detectedLanguage,
-                    errorMessage = state.manualTranslationError
-                )
+                item {
+                    TextInputCard(
+                        state = state.input,
+                        onTextChanged = onTextChanged,
+                        onTranslateText = onTranslateText
+                    )
+                }
             }
 
             TranslationInputMode.Image -> {
-                ImageTranslationPanel(
-                    isLoading = state.isTranslatingImage,
-                    onPickImage = onPickImage,
-                    errorMessage = state.manualTranslationError
+                item {
+                    ImageInputCard(
+                        state = state.input,
+                        onPickImage = onPickImage
+                    )
+                }
+            }
+        }
+
+        item {
+            HistoryPreviewCard(onOpenHistory = onOpenHistory)
+        }
+
+        item {
+            TimelineHeader(onOpenHistory = onOpenHistory)
+        }
+
+        if (state.timeline.entries.isEmpty()) {
+            item {
+                EmptyTimelinePlaceholder()
+            }
+        } else {
+            itemsIndexed(state.timeline.entries) { index, item ->
+                SubtitleTimelineItem(
+                    content = item,
+                    isFirst = index == 0,
+                    isLast = index == state.timeline.entries.lastIndex
                 )
             }
         }
-        Divider()
-        Text(
-            text = stringResource(id = R.string.subtitle_timeline_title),
-            style = MaterialTheme.typography.titleMedium
+    }
+}
+
+@Composable
+private fun HomeMessageBanner(
+    message: UiMessage,
+    onDismiss: () -> Unit,
+    onAction: (UiAction) -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val (containerColor, contentColor) = when (message.level) {
+        UiMessageLevel.Info -> colorScheme.surfaceVariant to colorScheme.onSurfaceVariant
+        UiMessageLevel.Success -> colorScheme.tertiaryContainer to colorScheme.onTertiaryContainer
+        UiMessageLevel.Warning -> colorScheme.secondaryContainer to colorScheme.onSecondaryContainer
+        UiMessageLevel.Error -> colorScheme.errorContainer to colorScheme.onErrorContainer
+    }
+    ElevatedCard(
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = containerColor,
+            contentColor = contentColor
         )
-        if (state.transcriptHistory.isEmpty()) {
-            Surface(
-                modifier = Modifier.weight(1f, fill = true),
-                tonalElevation = 2.dp,
-                shape = MaterialTheme.shapes.medium
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .weight(1f)
+                        .padding(end = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    message.title?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
                     Text(
-                        text = stringResource(id = R.string.subtitle_timeline_empty),
+                        text = message.message,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
+                IconButton(onClick = onDismiss) {
+                    Icon(imageVector = Icons.Outlined.Close, contentDescription = null)
+                }
             }
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f, fill = true)) {
-                itemsIndexed(state.transcriptHistory) { index, item ->
-                    SubtitleTimelineItem(
-                        content = item,
-                        isFirst = index == 0,
-                        isLast = index == state.transcriptHistory.lastIndex
+            AnimatedVisibility(visible = message.action != null && message.actionLabel != null) {
+                TextButton(
+                    onClick = {
+                        message.action?.let {
+                            onAction(it)
+                            onDismiss()
+                        }
+                    },
+                    contentPadding = PaddingValues(horizontal = 0.dp)
+                ) {
+                    Text(text = message.actionLabel ?: "")
+                    Icon(
+                        imageVector = Icons.Outlined.ChevronRight,
+                        contentDescription = null
                     )
                 }
             }
         }
-        ElevatedButton(onClick = onOpenHistory) {
-            Icon(
-                imageVector = Icons.Outlined.History,
-                contentDescription = null
-            )
+    }
+}
+
+@Composable
+private fun SessionStatusCard(
+    session: SessionUiState,
+    onToggleMicrophone: () -> Unit,
+    onStopSession: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    val colorScheme = MaterialTheme.colorScheme
+
+    val (statusLabel, statusIcon, statusColor) = when (session.status) {
+        SessionStatus.Streaming -> Triple(
+            stringResource(id = R.string.home_status_active),
+            Icons.Outlined.GraphicEq,
+            colorScheme.primary
+        )
+
+        SessionStatus.Connecting -> Triple(
+            stringResource(id = R.string.home_status_connecting),
+            Icons.Outlined.Sync,
+            colorScheme.tertiary
+        )
+
+        SessionStatus.PermissionRequired -> Triple(
+            stringResource(id = R.string.home_status_permission),
+            Icons.Outlined.Lock,
+            colorScheme.error
+        )
+
+        SessionStatus.Error -> Triple(
+            session.lastErrorMessage ?: stringResource(id = R.string.home_status_inactive),
+            Icons.Outlined.ErrorOutline,
+            colorScheme.error
+        )
+
+        SessionStatus.Idle -> Triple(
+            stringResource(id = R.string.home_status_inactive),
+            Icons.Outlined.MicOff,
+            colorScheme.onSurfaceVariant
+        )
+    }
+
+    val sourceLabel = session.direction.sourceLanguage?.displayName
+        ?: stringResource(id = R.string.home_language_auto_detect)
+    val targetLabel = session.direction.targetLanguage.displayName
+
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+            ) {
+                Icon(
+                    imageVector = statusIcon,
+                    contentDescription = null,
+                    tint = statusColor
+                )
             Text(
-                modifier = Modifier.padding(start = 8.dp),
-                text = stringResource(id = R.string.home_open_history)
+                text = statusLabel,
+                style = MaterialTheme.typography.titleMedium,
+                color = statusColor
             )
-        }
-        ElevatedButton(onClick = onOpenSettings) {
-            Icon(
-                imageVector = Icons.Outlined.Settings,
-                contentDescription = null
-            )
+            AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(text = "${sourceLabel} → ${targetLabel}")
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Mic,
+                            contentDescription = null
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors()
+                )
+            }
+
             Text(
-                modifier = Modifier.padding(start = 8.dp),
-                text = stringResource(id = R.string.home_open_settings)
+                text = stringResource(id = R.string.home_model_label, session.model.displayName),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        Button(onClick = onStopSession) {
-            Text(text = stringResource(id = R.string.home_stop_session))
+
+            SessionStatusIndicator(
+                latencyMetrics = session.latency,
+                isMicrophoneActive = session.isMicrophoneOpen,
+                errorMessage = session.lastErrorMessage
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val micLabel = if (session.isMicrophoneOpen) {
+                    stringResource(id = R.string.home_action_mute)
+                } else {
+                    stringResource(id = R.string.home_action_unmute)
+                }
+                val micIcon = if (session.isMicrophoneOpen) Icons.Outlined.MicOff else Icons.Outlined.Mic
+                Button(
+                    onClick = onToggleMicrophone,
+                    enabled = session.status != SessionStatus.PermissionRequired
+                ) {
+                    Icon(imageVector = micIcon, contentDescription = null)
+                    Spacer(modifier = Modifier.width(spacing.xs))
+                    Text(text = micLabel)
+                }
+                OutlinedButton(
+                    onClick = onStopSession,
+                    enabled = session.status == SessionStatus.Streaming || session.status == SessionStatus.Connecting
+                ) {
+                    Text(text = stringResource(id = R.string.home_stop_session))
+                }
+                TextButton(onClick = onOpenSettings) {
+                    Icon(imageVector = Icons.Outlined.Settings, contentDescription = null)
+                    Spacer(modifier = Modifier.width(spacing.xs))
+                    Text(text = stringResource(id = R.string.home_open_settings))
+                }
+            }
         }
     }
 }
@@ -245,27 +469,40 @@ fun HomeScreen(
 @Composable
 private fun InputModeSelector(
     selected: TranslationInputMode,
-    onSelected: (TranslationInputMode) -> Unit
+    onInputModeSelected: (TranslationInputMode) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = stringResource(id = R.string.home_input_mode_label), style = MaterialTheme.typography.labelLarge)
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    val spacing = LocalSpacing.current
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
-            TranslationInputMode.entries.forEach { mode ->
-                androidx.compose.material3.FilterChip(
-                    selected = mode == selected,
-                    onClick = { onSelected(mode) },
-                    label = {
-                        Text(
-                            text = when (mode) {
-                                TranslationInputMode.Voice -> stringResource(id = R.string.home_input_mode_voice)
-                                TranslationInputMode.Text -> stringResource(id = R.string.home_input_mode_text)
-                                TranslationInputMode.Image -> stringResource(id = R.string.home_input_mode_image)
-                            }
-                        )
-                    }
+            Text(
+                text = stringResource(id = R.string.home_input_mode_label),
+                style = MaterialTheme.typography.titleSmall
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+            ) {
+                InputModeChip(
+                    label = stringResource(id = R.string.home_input_mode_voice),
+                    icon = Icons.Outlined.Mic,
+                    selected = selected == TranslationInputMode.Voice,
+                    onClick = { onInputModeSelected(TranslationInputMode.Voice) }
+                )
+                InputModeChip(
+                    label = stringResource(id = R.string.home_input_mode_text),
+                    icon = Icons.Outlined.Edit,
+                    selected = selected == TranslationInputMode.Text,
+                    onClick = { onInputModeSelected(TranslationInputMode.Text) }
+                )
+                InputModeChip(
+                    label = stringResource(id = R.string.home_input_mode_image),
+                    icon = Icons.Outlined.Image,
+                    selected = selected == TranslationInputMode.Image,
+                    onClick = { onInputModeSelected(TranslationInputMode.Image) }
                 )
             }
         }
@@ -273,80 +510,254 @@ private fun InputModeSelector(
 }
 
 @Composable
-private fun TextTranslationPanel(
-    text: String,
-    onTextChange: (String) -> Unit,
-    onTranslate: () -> Unit,
-    isLoading: Boolean,
-    detectedLanguage: SupportedLanguage?,
-    errorMessage: String?,
+private fun InputModeChip(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        androidx.compose.material3.OutlinedTextField(
-            value = text,
-            onValueChange = onTextChange,
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
-            label = { Text(text = stringResource(id = R.string.home_text_input_label)) }
+    AssistChip(
+        onClick = onClick,
+        label = { Text(text = label) },
+        leadingIcon = { Icon(imageVector = icon, contentDescription = null) },
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+            labelColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            leadingIconContentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
-        androidx.compose.material3.Button(
-            onClick = onTranslate,
-            enabled = !isLoading
+    )
+}
+
+@Composable
+private fun VoiceModeCard(
+    session: SessionUiState
+) {
+    val spacing = LocalSpacing.current
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm)
         ) {
-            if (isLoading) {
-                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-            } else {
-                Text(text = stringResource(id = R.string.home_translate_text_action))
-            }
-        }
-        detectedLanguage?.let {
             Text(
-                text = stringResource(id = R.string.home_detected_language_label, it.displayName),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary
+                text = stringResource(id = R.string.home_input_mode_voice),
+                style = MaterialTheme.typography.titleMedium
             )
-        }
-        errorMessage?.let {
+            val description = if (session.isMicrophoneOpen) {
+                stringResource(id = R.string.home_voice_active_description)
+            } else {
+                stringResource(id = R.string.home_voice_inactive_description)
+            }
             Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            HorizontalDivider()
+            SessionStatusIndicator(
+                latencyMetrics = session.latency,
+                isMicrophoneActive = session.isMicrophoneOpen,
+                errorMessage = session.lastErrorMessage
             )
         }
     }
 }
 
 @Composable
-private fun ImageTranslationPanel(
-    isLoading: Boolean,
-    onPickImage: () -> Unit,
-    errorMessage: String?,
+private fun TextInputCard(
+    state: InputUiState,
+    onTextChanged: (String) -> Unit,
+    onTranslateText: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(onClick = onPickImage, enabled = !isLoading) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-            } else {
-                Text(text = stringResource(id = R.string.home_pick_image_action))
-            }
-        }
-        errorMessage?.let {
+    val spacing = LocalSpacing.current
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md)
+        ) {
             Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
+                text = stringResource(id = R.string.home_text_translation_title),
+                style = MaterialTheme.typography.titleMedium
             )
+            OutlinedTextField(
+                value = state.textValue,
+                onValueChange = onTextChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp),
+                label = { Text(text = stringResource(id = R.string.home_text_input_label)) }
+            )
+            state.detectedLanguage?.let { detected ->
+                Text(
+                    text = stringResource(id = R.string.home_detected_language_label, detected.displayName),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Button(
+                onClick = onTranslateText,
+                modifier = Modifier.align(Alignment.End),
+                enabled = !state.isTextTranslating
+            ) {
+                if (state.isTextTranslating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(end = spacing.xs)
+                            .height(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+                Text(text = stringResource(id = R.string.home_translate_text_action))
+            }
         }
     }
 }
 
-private fun queryDisplayName(context: android.content.Context, uri: Uri): String? {
-    return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-        if (index >= 0 && cursor.moveToFirst()) {
-            cursor.getString(index)
-        } else {
-            null
+@Composable
+private fun ImageInputCard(
+    state: InputUiState,
+    onPickImage: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md)
+        ) {
+            Text(
+                text = stringResource(id = R.string.home_image_translation_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(id = R.string.home_image_translation_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(
+                onClick = onPickImage,
+                modifier = Modifier.align(Alignment.End),
+                enabled = !state.isImageTranslating
+            ) {
+                if (state.isImageTranslating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(end = spacing.xs)
+                            .height(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+                Text(text = stringResource(id = R.string.home_pick_image_action))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryPreviewCard(
+    onOpenHistory: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(id = R.string.home_history_preview_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+            Text(
+                text = stringResource(id = R.string.home_history_preview_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = onOpenHistory,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(text = stringResource(id = R.string.home_open_history))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineHeader(
+    onOpenHistory: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stringResource(id = R.string.subtitle_timeline_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(id = R.string.home_timeline_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        TextButton(onClick = onOpenHistory) {
+            Text(text = stringResource(id = R.string.home_open_history))
+            Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null)
+        }
+    }
+}
+
+@Composable
+private fun EmptyTimelinePlaceholder() {
+    val spacing = LocalSpacing.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            Text(
+                text = stringResource(id = R.string.subtitle_timeline_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

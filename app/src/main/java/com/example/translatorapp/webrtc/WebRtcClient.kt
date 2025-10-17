@@ -23,6 +23,7 @@ import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
 import org.webrtc.RtpTransceiver
 import org.webrtc.SessionDescription
+import org.webrtc.SdpObserver
 import kotlin.coroutines.resume
 
 @Singleton
@@ -64,6 +65,8 @@ class WebRtcClient @Inject constructor(
             }
 
             override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState) {}
+
+            override fun onIceConnectionReceivingChange(receiving: Boolean) {}
 
             override fun onIceCandidate(candidate: IceCandidate) {
                 onIceCandidate?.invoke(candidate)
@@ -114,7 +117,11 @@ class WebRtcClient @Inject constructor(
             return@suspendCancellableCoroutine
         }
         peer.createAnswer(object : SimpleSdpObserver() {
-            override fun onCreateSuccess(sdp: SessionDescription) {
+            override fun onCreateSuccess(sdp: SessionDescription?) {
+                if (sdp == null) {
+                    continuation.resume(null)
+                    return
+                }
                 peer.setLocalDescription(SimpleSdpObserver(), sdp)
                 continuation.resume(sdp)
             }
@@ -178,7 +185,7 @@ class WebRtcClient @Inject constructor(
     }
 }
 
-open class SimpleSdpObserver : PeerConnection.SdpObserver {
+open class SimpleSdpObserver : SdpObserver {
     override fun onCreateSuccess(sdp: SessionDescription?) {}
     override fun onSetSuccess() {}
     override fun onCreateFailure(error: String?) {}

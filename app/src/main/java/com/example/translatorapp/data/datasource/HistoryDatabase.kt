@@ -9,7 +9,7 @@ import com.example.translatorapp.data.model.TranslationHistoryEntity
 @Database(
     entities = [TranslationHistoryEntity::class],
     version = 2,
-    exportSchema = true
+    exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
     abstract fun historyDao(): HistoryDao
