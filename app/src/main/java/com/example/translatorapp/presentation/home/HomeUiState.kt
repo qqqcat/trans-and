@@ -10,5 +10,6 @@ data class HomeUiState(
     val transcriptHistory: List<TranslationContent> = emptyList(),
     val settings: UserSettings = UserSettings(),
     val isMicActive: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isRecordAudioPermissionGranted: Boolean = false,
 )
