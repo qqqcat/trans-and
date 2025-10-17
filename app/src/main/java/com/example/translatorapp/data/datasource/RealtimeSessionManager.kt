@@ -62,7 +62,7 @@ class RealtimeSessionManager @Inject constructor(
             try {
                 val response = realtimeApi.startSession(
                     SessionStartRequest(
-                        direction = settings.direction.name,
+                        direction = settings.direction.id,
                         model = settings.translationProfile.name,
                         offlineFallback = settings.offlineFallbackEnabled
                     )
@@ -146,7 +146,7 @@ class RealtimeSessionManager @Inject constructor(
             _state.value = _state.value.copy(direction = direction)
             sessionId?.let {
                 runCatching {
-                    realtimeApi.updateSession(it, direction = direction.name)
+                    realtimeApi.updateSession(it, direction = direction.id)
                 }
             }
         }

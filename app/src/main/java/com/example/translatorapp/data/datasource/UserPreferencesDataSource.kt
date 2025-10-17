@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.LanguageCatalog
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.UserSettings
 import kotlinx.coroutines.flow.Flow
@@ -28,19 +28,19 @@ class UserPreferencesDataSource @Inject constructor(
     }
 
     val settings: Flow<UserSettings> = context.userPrefsDataStore.data.map { prefs ->
+        val defaults = UserSettings()
         UserSettings(
-            direction = prefs[Keys.direction]?.let { runCatching { LanguageDirection.valueOf(it) }.getOrNull() }
-                ?: UserSettings().direction,
+            direction = prefs[Keys.direction]?.let(LanguageCatalog::findDirection) ?: defaults.direction,
             translationProfile = prefs[Keys.modelProfile]?.let { runCatching { TranslationModelProfile.valueOf(it) }.getOrNull() }
-                ?: UserSettings().translationProfile,
-            offlineFallbackEnabled = prefs[Keys.offlineFallback] ?: UserSettings().offlineFallbackEnabled,
-            allowTelemetry = prefs[Keys.telemetry] ?: UserSettings().allowTelemetry
+                ?: defaults.translationProfile,
+            offlineFallbackEnabled = prefs[Keys.offlineFallback] ?: defaults.offlineFallbackEnabled,
+            allowTelemetry = prefs[Keys.telemetry] ?: defaults.allowTelemetry
         )
     }
 
     suspend fun update(settings: UserSettings) {
         context.userPrefsDataStore.edit { prefs ->
-            prefs[Keys.direction] = settings.direction.name
+            prefs[Keys.direction] = settings.direction.id
             prefs[Keys.modelProfile] = settings.translationProfile.name
             prefs[Keys.offlineFallback] = settings.offlineFallbackEnabled
             prefs[Keys.telemetry] = settings.allowTelemetry

@@ -1,5 +1,6 @@
 package com.example.translatorapp.domain.usecase
 
+import com.example.translatorapp.domain.model.LanguageCatalog
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
@@ -67,7 +68,7 @@ class StartRealtimeSessionUseCaseTest {
     fun `starting session forwards settings`() = runTest {
         val fakeRepository = FakeRepository()
         val useCase = StartRealtimeSessionUseCase(fakeRepository)
-        val settings = UserSettings(direction = LanguageDirection.FrenchToChinese)
+        val settings = UserSettings(direction = LanguageCatalog.defaultDirection.reverse())
 
         useCase(settings)
 
