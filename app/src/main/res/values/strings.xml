@@ -25,4 +25,18 @@
     <string name="history_share_content">原文：%1$s\n译文：%2$s</string>
     <string name="history_share_action">分享本条记录</string>
     <string name="history_timestamp_label">%1$s %2$s</string>
+    <string name="home_input_mode_label">输入模式</string>
+    <string name="home_input_mode_voice">语音实时</string>
+    <string name="home_input_mode_text">文本输入</string>
+    <string name="home_input_mode_image">拍照翻译</string>
+    <string name="home_text_input_label">输入需要翻译的文本</string>
+    <string name="home_translate_text_action">翻译文本</string>
+    <string name="home_detected_language_label">检测到源语言：%1$s</string>
+    <string name="home_pick_image_action">选择图片进行翻译</string>
+    <string name="history_filter_favorites">仅查看收藏</string>
+    <string name="history_filter_tags_label">按标签筛选</string>
+    <string name="history_favorite_action">收藏该记录</string>
+    <string name="history_tag_input_label">标签（使用逗号分隔）</string>
+    <string name="history_save_tags_action">保存标签</string>
+    <string name="history_tag_input_hint">例如：会议, 销售, 法务</string>
 </resources>
