@@ -4,4 +4,25 @@
     <string name="settings_title">设置</string>
     <string name="history_title">历史记录</string>
     <string name="privacy_policy">隐私政策</string>
+    <string name="subtitle_timeline_title">字幕时间轴</string>
+    <string name="subtitle_timeline_empty">暂无字幕，点击麦克风开始对话。</string>
+    <string name="subtitle_timeline_source_label">原文</string>
+    <string name="subtitle_timeline_translation_label">译文</string>
+    <string name="home_open_history">查看历史记录</string>
+    <string name="home_open_settings">打开设置</string>
+    <string name="home_stop_session">结束会话</string>
+    <string name="permission_guidance_title">需要麦克风权限</string>
+    <string name="permission_guidance_description">请允许应用访问麦克风，以便进行实时听写与翻译。</string>
+    <string name="permission_guidance_step_request">• 点击“立即授权”并在弹窗中允许麦克风访问。</string>
+    <string name="permission_guidance_step_settings">• 若已拒绝，请前往系统设置 &gt; 应用权限中手动开启。</string>
+    <string name="permission_guidance_request">立即授权</string>
+    <string name="permission_guidance_open_settings">系统权限设置</string>
+    <string name="history_search_placeholder">搜索原文或译文</string>
+    <string name="history_empty_placeholder">暂无历史记录</string>
+    <string name="history_clear_all">清空历史</string>
+    <string name="history_back">返回</string>
+    <string name="history_share_title">分享会话记录</string>
+    <string name="history_share_content">原文：%1$s\n译文：%2$s</string>
+    <string name="history_share_action">分享本条记录</string>
+    <string name="history_timestamp_label">%1$s %2$s</string>
 </resources>
