@@ -17,4 +17,10 @@ interface HistoryDao {
 
     @Query("DELETE FROM translation_history")
     suspend fun clear()
+
+    @Query("UPDATE translation_history SET is_favorite = :isFavorite WHERE id = :id")
+    suspend fun updateFavorite(id: Long, isFavorite: Boolean)
+
+    @Query("UPDATE translation_history SET tags = :tags WHERE id = :id")
+    suspend fun updateTags(id: Long, tags: String)
 }

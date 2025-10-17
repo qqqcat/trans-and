@@ -1,6 +1,9 @@
 package com.example.translatorapp.domain.repository
 
+import com.example.translatorapp.domain.model.AccountProfile
+import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationModelProfile
@@ -23,4 +26,22 @@ interface TranslationRepository {
     suspend fun persistHistoryItem(content: TranslationContent)
     suspend fun clearHistory()
     suspend fun refreshSettings(): UserSettings
+    suspend fun translateText(
+        text: String,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent
+
+    suspend fun translateImage(
+        imageBytes: ByteArray,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent
+
+    suspend fun detectLanguage(text: String): SupportedLanguage?
+    suspend fun updateHistoryFavorite(id: Long, isFavorite: Boolean)
+    suspend fun updateHistoryTags(id: Long, tags: Set<String>)
+    suspend fun syncAccount(): AccountSyncStatus
+    suspend fun updateAccountProfile(profile: AccountProfile)
+    suspend fun updateSyncEnabled(enabled: Boolean)
 }
