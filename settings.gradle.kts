@@ -11,6 +11,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://webrtc.github.io/webrtc-maven-repo")
     }
 }
 
