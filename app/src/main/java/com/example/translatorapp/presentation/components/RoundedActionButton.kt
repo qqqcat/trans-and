@@ -15,12 +15,14 @@ import androidx.compose.ui.unit.dp
 fun MicrophoneButton(
     isActive: Boolean,
     onToggle: () -> Unit,
+    enabled: Boolean = true,
 ) {
     val containerColor = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
     FilledIconButton(
         onClick = onToggle,
         modifier = Modifier.size(72.dp),
-        colors = ButtonDefaults.iconButtonColors(containerColor = containerColor)
+        colors = ButtonDefaults.iconButtonColors(containerColor = containerColor),
+        enabled = enabled
     ) {
         Icon(imageVector = Icons.Default.Mic, contentDescription = null)
     }
