@@ -2,6 +2,7 @@ package com.example.translatorapp.presentation.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.translatorapp.BuildConfig
@@ -41,6 +44,11 @@ import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.presentation.theme.LocalSpacing
+import com.example.translatorapp.presentation.theme.WindowBreakpoint
+import com.example.translatorapp.presentation.theme.cardPadding
+import com.example.translatorapp.presentation.theme.computeBreakpoint
+import com.example.translatorapp.presentation.theme.horizontalPadding
+import com.example.translatorapp.presentation.theme.sectionSpacing
 
 @Composable
 fun SettingsRoute(
@@ -103,196 +111,231 @@ private fun SettingsScreen(
         return
     }
 
-    LazyColumn(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues),
-        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg)
+            .padding(paddingValues)
     ) {
-        item {
-            SettingsHeader(message = state.message)
-        }
+        val breakpoint = computeBreakpoint(maxWidth)
+        val horizontalPadding = spacing.horizontalPadding(breakpoint)
+        val verticalSpacing = spacing.sectionSpacing(breakpoint)
+        val cardPadding = spacing.cardPadding(breakpoint)
+        val isCompact = breakpoint == WindowBreakpoint.Compact
 
-        item {
-            SettingSection(
-                title = stringResource(id = R.string.settings_section_language)
-            ) {
-                Text(
-                    text = formatDirection(state),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                SettingSwitchRow(
-                    title = stringResource(id = R.string.settings_auto_detect_label),
-                    checked = state.isAutoDetectEnabled,
-                    onCheckedChange = onAutoDetectChanged
-                )
-                Spacer(modifier = Modifier.height(spacing.sm))
-                Text(
-                    text = stringResource(id = R.string.settings_source_language_label),
-                    style = MaterialTheme.typography.labelLarge
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = horizontalPadding,
+                end = horizontalPadding,
+                top = verticalSpacing,
+                bottom = verticalSpacing
+            ),
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+        ) {
+            item { SettingsHeader(message = state.message) }
+
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_language),
+                    contentPadding = cardPadding
                 ) {
-                    state.availableLanguages.forEach { language ->
-                        FilterChip(
-                            selected = state.settings.direction.sourceLanguage == language,
-                            enabled = !state.isAutoDetectEnabled,
-                            onClick = { onSourceLanguageSelected(language) },
-                            label = { Text(text = language.displayName) }
-                        )
+                    Text(
+                        text = formatDirection(state),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    SettingToggleRow(
+                        title = stringResource(id = R.string.settings_auto_detect_label),
+                        checked = state.isAutoDetectEnabled,
+                        onCheckedChange = onAutoDetectChanged
+                    )
+                    Spacer(modifier = Modifier.height(spacing.sm))
+                    Text(
+                        text = stringResource(id = R.string.settings_source_language_label),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                        maxItemsInEachRow = if (isCompact) 3 else Int.MAX_VALUE
+                    ) {
+                        state.availableLanguages.forEach { language ->
+                            FilterChip(
+                                selected = state.settings.direction.sourceLanguage == language,
+                                enabled = !state.isAutoDetectEnabled,
+                                onClick = { onSourceLanguageSelected(language) },
+                                label = { Text(text = language.displayName) }
+                            )
+                        }
                     }
-                }
-                Spacer(modifier = Modifier.height(spacing.md))
-                Text(
-                    text = stringResource(id = R.string.settings_target_language_label),
-                    style = MaterialTheme.typography.labelLarge
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm)
-                ) {
-                    state.availableLanguages.forEach { language ->
-                        FilterChip(
-                            selected = state.settings.direction.targetLanguage == language,
-                            onClick = { onTargetLanguageSelected(language) },
-                            label = { Text(text = language.displayName) }
-                        )
+                    Spacer(modifier = Modifier.height(spacing.md))
+                    Text(
+                        text = stringResource(id = R.string.settings_target_language_label),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                        maxItemsInEachRow = if (isCompact) 3 else Int.MAX_VALUE
+                    ) {
+                        state.availableLanguages.forEach { language ->
+                            FilterChip(
+                                selected = state.settings.direction.targetLanguage == language,
+                                onClick = { onTargetLanguageSelected(language) },
+                                label = { Text(text = language.displayName) }
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        item {
-            SettingSection(title = stringResource(id = R.string.settings_section_model)) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm)
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_model),
+                    contentPadding = cardPadding
                 ) {
-                    state.availableModels.forEach { model ->
-                        FilterChip(
-                            selected = state.settings.translationProfile == model,
-                            onClick = { onModelSelected(model) },
-                            label = { Text(text = model.displayName) }
-                        )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                        maxItemsInEachRow = if (isCompact) 2 else Int.MAX_VALUE
+                    ) {
+                        state.availableModels.forEach { model ->
+                            FilterChip(
+                                selected = state.settings.translationProfile == model,
+                                onClick = { onModelSelected(model) },
+                                label = { Text(text = model.displayName) }
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        item {
-            SettingSection(title = stringResource(id = R.string.settings_section_network)) {
-                OutlinedTextField(
-                    value = state.apiEndpoint,
-                    onValueChange = onApiEndpointChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(id = R.string.settings_api_endpoint_label)) },
-                    placeholder = { Text(text = stringResource(id = R.string.settings_api_endpoint_hint)) },
-                    supportingText = {
-                        val helper = state.apiEndpointError ?: stringResource(
-                            id = R.string.settings_api_endpoint_default,
-                            BuildConfig.REALTIME_BASE_URL
-                        )
-                        Text(
-                            text = helper,
-                            color = if (state.apiEndpointError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    isError = state.apiEndpointError != null,
-                    singleLine = true
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_network),
+                    contentPadding = cardPadding
                 ) {
-                    OutlinedButton(onClick = onSaveApiEndpoint) {
-                        Text(text = stringResource(id = R.string.settings_api_endpoint_save))
+                    OutlinedTextField(
+                        value = state.apiEndpoint,
+                        onValueChange = onApiEndpointChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(text = stringResource(id = R.string.settings_api_endpoint_label)) },
+                        placeholder = { Text(text = stringResource(id = R.string.settings_api_endpoint_hint)) },
+                        supportingText = {
+                            val helper = state.apiEndpointError ?: stringResource(
+                                id = R.string.settings_api_endpoint_default,
+                                BuildConfig.REALTIME_BASE_URL
+                            )
+                            Text(
+                                text = helper,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (state.apiEndpointError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        singleLine = true,
+                        isError = state.apiEndpointError != null
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = onResetApiEndpoint) {
+                            Text(text = stringResource(id = R.string.settings_api_endpoint_reset))
+                        }
+                        Spacer(modifier = Modifier.width(spacing.sm))
+                        OutlinedButton(onClick = onSaveApiEndpoint) {
+                            Text(text = stringResource(id = R.string.settings_api_endpoint_save))
+                        }
                     }
-                    TextButton(onClick = onResetApiEndpoint) {
-                        Text(text = stringResource(id = R.string.settings_api_endpoint_reset))
-                    }
+                    HorizontalDivider()
+                    SettingToggleRow(
+                        title = stringResource(id = R.string.settings_offline_fallback_label),
+                        checked = state.settings.offlineFallbackEnabled,
+                        onCheckedChange = onOfflineFallbackChanged
+                    )
                 }
-                HorizontalDivider()
-                SettingSwitchRow(
-                    title = stringResource(id = R.string.settings_offline_fallback_label),
-                    checked = state.settings.offlineFallbackEnabled,
-                    onCheckedChange = onOfflineFallbackChanged
-                )
             }
-        }
 
-        item {
-            SettingSection(title = stringResource(id = R.string.settings_section_preferences)) {
-                SettingSwitchRow(
-                    title = stringResource(id = R.string.settings_telemetry_label),
-                    checked = state.settings.allowTelemetry,
-                    onCheckedChange = onTelemetryChanged
-                )
-            }
-        }
-
-        item {
-            SettingSection(title = stringResource(id = R.string.settings_section_account)) {
-                OutlinedTextField(
-                    value = state.accountEmail,
-                    onValueChange = onAccountEmailChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(id = R.string.settings_account_email)) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = state.accountDisplayName,
-                    onValueChange = onAccountDisplayNameChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(id = R.string.settings_account_display_name)) },
-                    singleLine = true
-                )
-                Button(onClick = onSaveAccount, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = stringResource(id = R.string.settings_save_account))
-                }
-                SettingSwitchRow(
-                    title = stringResource(id = R.string.settings_sync_toggle),
-                    checked = state.syncEnabled,
-                    onCheckedChange = onSyncToggle
-                )
-                Text(
-                    text = state.lastSyncDisplay?.let { stringResource(id = R.string.settings_last_sync, it) }
-                        ?: stringResource(id = R.string.settings_sync_never),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Button(
-                    onClick = onSyncNow,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = state.syncEnabled && !state.isSyncing
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_preferences),
+                    contentPadding = cardPadding
                 ) {
-                    if (state.isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(end = spacing.sm),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                    Text(text = stringResource(id = R.string.settings_sync_now))
+                    SettingToggleRow(
+                        title = stringResource(id = R.string.settings_telemetry_label),
+                        checked = state.settings.allowTelemetry,
+                        onCheckedChange = onTelemetryChanged
+                    )
                 }
             }
-        }
 
-        item {
-            SettingSection(title = "版本信息") {
-                Text(
-                    text = "API Host: ${state.settings.apiEndpoint.ifBlank { BuildConfig.REALTIME_BASE_URL }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Build: ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_account),
+                    contentPadding = cardPadding
+                ) {
+                    OutlinedTextField(
+                        value = state.accountEmail,
+                        onValueChange = onAccountEmailChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(text = stringResource(id = R.string.settings_account_email)) },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = state.accountDisplayName,
+                        onValueChange = onAccountDisplayNameChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(text = stringResource(id = R.string.settings_account_display_name)) },
+                        singleLine = true
+                    )
+                    Button(onClick = onSaveAccount, modifier = Modifier.fillMaxWidth()) {
+                        Text(text = stringResource(id = R.string.settings_save_account))
+                    }
+                    SettingToggleRow(
+                        title = stringResource(id = R.string.settings_sync_toggle),
+                        checked = state.syncEnabled,
+                        onCheckedChange = onSyncToggle
+                    )
+                    Text(
+                        text = state.lastSyncDisplay?.let { stringResource(id = R.string.settings_last_sync, it) }
+                            ?: stringResource(id = R.string.settings_sync_never),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = onSyncNow,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = state.syncEnabled && !state.isSyncing
+                    ) {
+                        if (state.isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.padding(end = spacing.sm),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                        Text(text = stringResource(id = R.string.settings_sync_now))
+                    }
+                }
+            }
+
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_version),
+                    contentPadding = cardPadding
+                ) {
+                    Text(
+                        text = "API Host: ${state.settings.apiEndpoint.ifBlank { BuildConfig.REALTIME_BASE_URL }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Build: ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -326,6 +369,7 @@ private fun SettingsHeader(message: String?) {
 @Composable
 private fun SettingSection(
     title: String,
+    contentPadding: Dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val spacing = LocalSpacing.current
@@ -336,7 +380,7 @@ private fun SettingSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
             Text(
@@ -349,17 +393,31 @@ private fun SettingSection(
 }
 
 @Composable
-private fun SettingSwitchRow(
+private fun SettingToggleRow(
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    description: String? = null
 ) {
+    val spacing = LocalSpacing.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = title, style = MaterialTheme.typography.bodyLarge)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs)
+        ) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            if (!description.isNullOrBlank()) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

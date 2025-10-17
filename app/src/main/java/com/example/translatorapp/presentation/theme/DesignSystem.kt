@@ -39,3 +39,39 @@ data class TranslatorElevation(
 val LocalSpacing = staticCompositionLocalOf { TranslatorSpacing() }
 val LocalRadius = staticCompositionLocalOf { TranslatorRadius() }
 val LocalElevation = staticCompositionLocalOf { TranslatorElevation() }
+
+enum class WindowBreakpoint {
+    Compact,
+    Medium,
+    Expanded
+}
+
+fun computeBreakpoint(maxWidth: Dp): WindowBreakpoint = when {
+    maxWidth < 360.dp -> WindowBreakpoint.Compact
+    maxWidth < 600.dp -> WindowBreakpoint.Medium
+    else -> WindowBreakpoint.Expanded
+}
+
+fun TranslatorSpacing.horizontalPadding(breakpoint: WindowBreakpoint): Dp = when (breakpoint) {
+    WindowBreakpoint.Compact -> sm
+    WindowBreakpoint.Medium -> md
+    WindowBreakpoint.Expanded -> lg
+}
+
+fun TranslatorSpacing.verticalSpacing(breakpoint: WindowBreakpoint): Dp = when (breakpoint) {
+    WindowBreakpoint.Compact -> md
+    WindowBreakpoint.Medium -> lg
+    WindowBreakpoint.Expanded -> xl
+}
+
+fun TranslatorSpacing.sectionSpacing(breakpoint: WindowBreakpoint): Dp = when (breakpoint) {
+    WindowBreakpoint.Compact -> sm
+    WindowBreakpoint.Medium -> md
+    WindowBreakpoint.Expanded -> lg
+}
+
+fun TranslatorSpacing.cardPadding(breakpoint: WindowBreakpoint): Dp = when (breakpoint) {
+    WindowBreakpoint.Compact -> md
+    WindowBreakpoint.Medium -> lg
+    WindowBreakpoint.Expanded -> lg
+}

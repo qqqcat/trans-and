@@ -76,6 +76,7 @@
     <string name="settings_section_network">网络与服务</string>
     <string name="settings_section_preferences">通用偏好</string>
     <string name="settings_section_account">账号与同步</string>
+    <string name="settings_section_version">版本信息</string>
     <string name="settings_auto_detect_label">自动检测源语言</string>
     <string name="settings_source_language_label">源语言</string>
     <string name="settings_target_language_label">目标语言</string>

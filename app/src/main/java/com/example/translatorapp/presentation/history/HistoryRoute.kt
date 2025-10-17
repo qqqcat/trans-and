@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -34,7 +35,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,11 +50,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.presentation.theme.LocalSpacing
+import com.example.translatorapp.presentation.theme.WindowBreakpoint
+import com.example.translatorapp.presentation.theme.cardPadding
+import com.example.translatorapp.presentation.theme.computeBreakpoint
+import com.example.translatorapp.presentation.theme.horizontalPadding
+import com.example.translatorapp.presentation.theme.sectionSpacing
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -119,21 +126,32 @@ private fun HistoryScreen(
     val bottomPadding = paddingValues.calculateBottomPadding()
     val topPadding = paddingValues.calculateTopPadding()
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = topPadding, bottom = bottomPadding)
             .pullRefresh(pullRefreshState)
     ) {
+        val breakpoint = computeBreakpoint(maxWidth)
+        val horizontalPadding = spacing.horizontalPadding(breakpoint)
+        val verticalSpacing = spacing.sectionSpacing(breakpoint)
+        val cardPadding = spacing.cardPadding(breakpoint)
+
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(spacing.lg)
+            contentPadding = PaddingValues(
+                start = horizontalPadding,
+                end = horizontalPadding,
+                top = verticalSpacing,
+                bottom = verticalSpacing + bottomPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
         ) {
-            stickyHeader {
+            item {
                 HistoryFiltersHeader(
                     state = state,
+                    breakpoint = breakpoint,
                     onSearchQueryChange = onSearchQueryChange,
                     onToggleFavoritesOnly = onToggleFavoritesOnly,
                     onTagFilterToggle = onTagFilterToggle,
@@ -143,12 +161,14 @@ private fun HistoryScreen(
 
             if (state.visibleHistory.isEmpty()) {
                 item {
-                    HistoryEmptyState(modifier = Modifier.fillMaxWidth())
+                    HistoryEmptyState()
                 }
             } else {
                 items(state.visibleHistory, key = { it.id }) { item ->
                     HistoryEntryCard(
                         item = item,
+                        breakpoint = breakpoint,
+                        contentPadding = cardPadding,
                         tagDraft = state.tagDrafts[item.id] ?: "",
                         onFavoriteToggle = onFavoriteToggle,
                         onTagDraftChange = onTagDraftChange,
@@ -180,49 +200,42 @@ private fun HistoryScreen(
 @Composable
 private fun HistoryFiltersHeader(
     state: HistoryUiState,
+    breakpoint: WindowBreakpoint,
     onSearchQueryChange: (String) -> Unit,
     onToggleFavoritesOnly: () -> Unit,
     onTagFilterToggle: (String) -> Unit,
     onClearHistory: () -> Unit
 ) {
     val spacing = LocalSpacing.current
+    val isCompact = breakpoint == WindowBreakpoint.Compact
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = spacing.md)
-            .background(MaterialTheme.colorScheme.background),
-        verticalArrangement = Arrangement.spacedBy(spacing.md)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(bottom = spacing.sectionSpacing(breakpoint)),
+        verticalArrangement = Arrangement.spacedBy(spacing.sectionSpacing(breakpoint))
     ) {
-        Row(
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-        ) {
-            OutlinedTextField(
-                value = state.query,
-                onValueChange = onSearchQueryChange,
-                modifier = Modifier.weight(1f),
-                leadingIcon = { Icon(imageVector = Icons.Outlined.Search, contentDescription = null) },
-                label = { Text(text = stringResource(id = R.string.history_search_placeholder)) },
-                singleLine = true,
-                trailingIcon = {
-                    if (state.query.isNotBlank()) {
-                        IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(imageVector = Icons.Outlined.DeleteSweep, contentDescription = null)
-                        }
+            leadingIcon = { Icon(imageVector = Icons.Outlined.Search, contentDescription = null) },
+            label = { Text(text = stringResource(id = R.string.history_search_placeholder)) },
+            singleLine = true,
+            trailingIcon = {
+                if (state.query.isNotBlank()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(imageVector = Icons.Outlined.DeleteSweep, contentDescription = null)
                     }
                 }
-            )
-            TextButton(onClick = onClearHistory) {
-                Icon(imageVector = Icons.Outlined.DeleteSweep, contentDescription = null)
-                Spacer(modifier = Modifier.width(spacing.xs))
-                Text(text = stringResource(id = R.string.history_clear_all))
             }
-        }
+        )
 
         FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(spacing.xs)
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+            maxItemsInEachRow = if (isCompact) 2 else Int.MAX_VALUE
         ) {
             FilterChip(
                 selected = state.showFavoritesOnly,
@@ -235,12 +248,27 @@ private fun HistoryFiltersHeader(
                     )
                 }
             )
-            state.availableTags.forEach { tag ->
-                FilterChip(
-                    selected = tag in state.selectedTags,
-                    onClick = { onTagFilterToggle(tag) },
-                    label = { Text(text = tag) }
-                )
+            if (state.availableTags.isNotEmpty()) {
+                state.availableTags.forEach { tag ->
+                    FilterChip(
+                        selected = tag in state.selectedTags,
+                        onClick = { onTagFilterToggle(tag) },
+                        label = { Text(text = tag) }
+                    )
+                }
+            }
+        }
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalArrangement = Arrangement.Center,
+            maxItemsInEachRow = if (isCompact) 1 else Int.MAX_VALUE
+        ) {
+            TextButton(onClick = onClearHistory) {
+                Icon(imageVector = Icons.Outlined.DeleteSweep, contentDescription = null)
+                Spacer(modifier = Modifier.width(spacing.xs))
+                Text(text = stringResource(id = R.string.history_clear_all))
             }
         }
     }
@@ -250,6 +278,8 @@ private fun HistoryFiltersHeader(
 @Composable
 private fun HistoryEntryCard(
     item: TranslationHistoryItem,
+    breakpoint: WindowBreakpoint,
+    contentPadding: Dp,
     tagDraft: String,
     onFavoriteToggle: (Long, Boolean) -> Unit,
     onTagDraftChange: (Long, String) -> Unit,
@@ -257,6 +287,7 @@ private fun HistoryEntryCard(
     onShareItem: (TranslationHistoryItem) -> Unit
 ) {
     val spacing = LocalSpacing.current
+    val isCompact = breakpoint == WindowBreakpoint.Compact
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -264,7 +295,7 @@ private fun HistoryEntryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
             Row(
@@ -297,7 +328,7 @@ private fun HistoryEntryCard(
                 text = item.sourceText,
                 style = MaterialTheme.typography.titleMedium
             )
-            Divider()
+            HorizontalDivider()
             Text(
                 text = item.translatedText,
                 style = MaterialTheme.typography.bodyMedium
@@ -337,13 +368,21 @@ private fun HistoryEntryCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = { onShareItem(item) }) {
                     Icon(imageVector = Icons.Outlined.Share, contentDescription = null)
                     Spacer(modifier = Modifier.width(spacing.xs))
                     Text(text = stringResource(id = R.string.history_share_action))
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                if (!isCompact) {
+                    Text(
+                        text = directionLabel(item),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -376,18 +415,25 @@ private fun HistoryLoadMoreFooter(
 @Composable
 private fun HistoryEmptyState(modifier: Modifier = Modifier) {
     val spacing = LocalSpacing.current
-    Column(
+    Box(
         modifier = modifier
-            .padding(spacing.lg),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(spacing.sm)
+            .fillMaxWidth()
+            .height(240.dp)
     ) {
-        Text(
-            text = stringResource(id = R.string.history_empty_placeholder),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(spacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            Text(
+                text = stringResource(id = R.string.history_empty_placeholder),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
     }
 }
 
