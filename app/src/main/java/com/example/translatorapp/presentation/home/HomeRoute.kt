@@ -1,6 +1,9 @@
 package com.example.translatorapp.presentation.home
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -8,6 +11,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,7 +45,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,15 +54,24 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.TranslationContent
@@ -70,6 +84,11 @@ import com.example.translatorapp.presentation.components.SessionStatusIndicator
 import com.example.translatorapp.presentation.theme.LocalElevation
 import com.example.translatorapp.presentation.theme.LocalRadius
 import com.example.translatorapp.presentation.theme.LocalSpacing
+import com.example.translatorapp.presentation.theme.WindowBreakpoint
+import com.example.translatorapp.presentation.theme.cardPadding
+import com.example.translatorapp.presentation.theme.computeBreakpoint
+import com.example.translatorapp.presentation.theme.horizontalPadding
+import com.example.translatorapp.presentation.theme.sectionSpacing
 import java.io.InputStream
 
 @Composable
@@ -81,10 +100,37 @@ fun HomeRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = remember(context) { context.findActivity() }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted -> viewModel.onPermissionResult(granted) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissionStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val hasRequestedPermission = rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.session.status, hasRequestedPermission.value, activity) {
+        if (state.session.status == SessionStatus.PermissionRequired) {
+            val shouldShowRationale = activity?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.RECORD_AUDIO)
+            } ?: true
+            if (!hasRequestedPermission.value || shouldShowRationale) {
+                hasRequestedPermission.value = true
+                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        } else {
+            hasRequestedPermission.value = false
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -159,106 +205,121 @@ private fun HomeScreen(
         return
     }
 
-    LazyColumn(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = topPadding, bottom = bottomPadding),
-        contentPadding = PaddingValues(
-            start = spacing.lg,
-            end = spacing.lg,
-            top = spacing.lg,
-            bottom = spacing.xxl + bottomPadding
-        ),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg)
+            .padding(top = topPadding, bottom = bottomPadding)
     ) {
-        if (state.messages.isNotEmpty()) {
+        val breakpoint = computeBreakpoint(maxWidth)
+        val horizontalPadding = spacing.horizontalPadding(breakpoint)
+        val verticalSpacing = spacing.sectionSpacing(breakpoint)
+        val cardPadding = spacing.cardPadding(breakpoint)
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = horizontalPadding,
+                end = horizontalPadding,
+                top = verticalSpacing,
+                bottom = verticalSpacing + bottomPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+        ) {
+            if (state.messages.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        state.messages.forEach { message ->
+                            HomeMessageBanner(
+                                message = message,
+                                onDismiss = { onMessageDismissed(message.id) },
+                                onAction = { action -> onMessageAction(action) }
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    state.messages.forEach { message ->
-                        HomeMessageBanner(
-                            message = message,
-                            onDismiss = { onMessageDismissed(message.id) },
-                            onAction = { action -> onMessageAction(action) }
+                SessionStatusCard(
+                    session = state.session,
+                    breakpoint = breakpoint,
+                    cardPadding = cardPadding,
+                    onToggleMicrophone = onToggleMicrophone,
+                    onStopSession = onStopSession,
+                    onOpenSettings = onOpenSettings
+                )
+            }
+
+            if (state.session.status == SessionStatus.PermissionRequired) {
+                item {
+                    PermissionGuidanceCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onRequestPermission = onRequestPermission,
+                        onOpenPermissionSettings = onOpenPermissionSettings
+                    )
+                }
+            }
+
+            item {
+                InputModeSelector(
+                    selected = state.input.selectedMode,
+                    breakpoint = breakpoint,
+                    onInputModeSelected = onInputModeSelected
+                )
+            }
+
+            when (state.input.selectedMode) {
+                TranslationInputMode.Voice -> {
+                    item {
+                        VoiceModeCard(
+                            session = state.session,
+                            breakpoint = breakpoint,
+                            cardPadding = cardPadding
+                        )
+                    }
+                }
+
+                TranslationInputMode.Text -> {
+                    item {
+                        TextInputCard(
+                            state = state.input,
+                            breakpoint = breakpoint,
+                            cardPadding = cardPadding,
+                            onTextChanged = onTextChanged,
+                            onTranslateText = onTranslateText
+                        )
+                    }
+                }
+
+                TranslationInputMode.Image -> {
+                    item {
+                        ImageInputCard(
+                            state = state.input,
+                            breakpoint = breakpoint,
+                            cardPadding = cardPadding,
+                            onPickImage = onPickImage
                         )
                     }
                 }
             }
-        }
 
-        item {
-            SessionStatusCard(
-                session = state.session,
-                onToggleMicrophone = onToggleMicrophone,
-                onStopSession = onStopSession,
-                onOpenSettings = onOpenSettings
-            )
-        }
-
-        if (state.session.status == SessionStatus.PermissionRequired) {
-            item {
-                PermissionGuidanceCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onRequestPermission = onRequestPermission,
-                    onOpenPermissionSettings = onOpenPermissionSettings
-                )
-            }
-        }
-
-        item {
-            InputModeSelector(
-                selected = state.input.selectedMode,
-                onInputModeSelected = onInputModeSelected
-            )
-        }
-
-        when (state.input.selectedMode) {
-            TranslationInputMode.Voice -> {
+            if (state.timeline.entries.isNotEmpty()) {
                 item {
-                    VoiceModeCard(
-                        session = state.session
-                    )
+                    TimelineHeader(onOpenHistory = onOpenHistory, breakpoint = breakpoint)
                 }
             }
 
-            TranslationInputMode.Text -> {
-                item {
-                    TextInputCard(
-                        state = state.input,
-                        onTextChanged = onTextChanged,
-                        onTranslateText = onTranslateText
+            if (state.timeline.entries.isEmpty()) {
+                item { HistoryPreviewCard(onOpenHistory = onOpenHistory, breakpoint = breakpoint) }
+                item { EmptyTimelinePlaceholder() }
+            } else {
+                itemsIndexed(state.timeline.entries) { index, item ->
+                    SubtitleTimelineItem(
+                        content = item,
+                        isFirst = index == 0,
+                        isLast = index == state.timeline.entries.lastIndex
                     )
                 }
-            }
-
-            TranslationInputMode.Image -> {
-                item {
-                    ImageInputCard(
-                        state = state.input,
-                        onPickImage = onPickImage
-                    )
-                }
-            }
-        }
-
-        item {
-            HistoryPreviewCard(onOpenHistory = onOpenHistory)
-        }
-
-        item {
-            TimelineHeader(onOpenHistory = onOpenHistory)
-        }
-
-        if (state.timeline.entries.isEmpty()) {
-            item {
-                EmptyTimelinePlaceholder()
-            }
-        } else {
-            itemsIndexed(state.timeline.entries) { index, item ->
-                SubtitleTimelineItem(
-                    content = item,
-                    isFirst = index == 0,
-                    isLast = index == state.timeline.entries.lastIndex
-                )
             }
         }
     }
@@ -339,12 +400,15 @@ private fun HomeMessageBanner(
 @Composable
 private fun SessionStatusCard(
     session: SessionUiState,
+    breakpoint: WindowBreakpoint,
+    cardPadding: Dp,
     onToggleMicrophone: () -> Unit,
     onStopSession: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val spacing = LocalSpacing.current
     val colorScheme = MaterialTheme.colorScheme
+    val isCompact = breakpoint == WindowBreakpoint.Compact
 
     val (statusLabel, statusIcon, statusColor) = when (session.status) {
         SessionStatus.Streaming -> Triple(
@@ -352,25 +416,21 @@ private fun SessionStatusCard(
             Icons.Outlined.GraphicEq,
             colorScheme.primary
         )
-
         SessionStatus.Connecting -> Triple(
             stringResource(id = R.string.home_status_connecting),
             Icons.Outlined.Sync,
             colorScheme.tertiary
         )
-
         SessionStatus.PermissionRequired -> Triple(
             stringResource(id = R.string.home_status_permission),
             Icons.Outlined.Lock,
             colorScheme.error
         )
-
         SessionStatus.Error -> Triple(
             session.lastErrorMessage ?: stringResource(id = R.string.home_status_inactive),
             Icons.Outlined.ErrorOutline,
             colorScheme.error
         )
-
         SessionStatus.Idle -> Triple(
             stringResource(id = R.string.home_status_inactive),
             Icons.Outlined.MicOff,
@@ -382,49 +442,43 @@ private fun SessionStatusCard(
         ?: stringResource(id = R.string.home_language_auto_detect)
     val targetLabel = session.direction.targetLanguage.displayName
 
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(cardPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm)
             ) {
-                Icon(
-                    imageVector = statusIcon,
-                    contentDescription = null,
-                    tint = statusColor
-                )
-            Text(
-                text = statusLabel,
-                style = MaterialTheme.typography.titleMedium,
-                color = statusColor
-            )
-            AssistChip(
-                    onClick = {},
-                    label = {
-                        Text(text = "${sourceLabel} → ${targetLabel}")
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Mic,
-                            contentDescription = null
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors()
-                )
+                Icon(imageVector = statusIcon, contentDescription = null, tint = statusColor)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xs)
+                ) {
+                    Text(text = statusLabel, style = MaterialTheme.typography.titleMedium, color = statusColor)
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(text = "$sourceLabel → $targetLabel") },
+                        leadingIcon = { Icon(imageVector = Icons.Outlined.Mic, contentDescription = null) },
+                        colors = AssistChipDefaults.assistChipColors()
+                    )
+                    Text(
+                        text = stringResource(id = R.string.home_model_label, session.model.displayName),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(id = R.string.home_open_settings)
+                    )
+                }
             }
-
-            Text(
-                text = stringResource(id = R.string.home_model_label, session.model.displayName),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
 
             SessionStatusIndicator(
                 latencyMetrics = session.latency,
@@ -433,6 +487,7 @@ private fun SessionStatusCard(
             )
 
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -444,7 +499,8 @@ private fun SessionStatusCard(
                 val micIcon = if (session.isMicrophoneOpen) Icons.Outlined.MicOff else Icons.Outlined.Mic
                 Button(
                     onClick = onToggleMicrophone,
-                    enabled = session.status != SessionStatus.PermissionRequired
+                    enabled = session.status != SessionStatus.PermissionRequired,
+                    modifier = if (isCompact) Modifier.weight(1f) else Modifier
                 ) {
                     Icon(imageVector = micIcon, contentDescription = null)
                     Spacer(modifier = Modifier.width(spacing.xs))
@@ -452,58 +508,82 @@ private fun SessionStatusCard(
                 }
                 OutlinedButton(
                     onClick = onStopSession,
-                    enabled = session.status == SessionStatus.Streaming || session.status == SessionStatus.Connecting
+                    enabled = session.status == SessionStatus.Streaming || session.status == SessionStatus.Connecting,
+                    modifier = if (isCompact) Modifier.weight(1f) else Modifier
                 ) {
                     Text(text = stringResource(id = R.string.home_stop_session))
-                }
-                TextButton(onClick = onOpenSettings) {
-                    Icon(imageVector = Icons.Outlined.Settings, contentDescription = null)
-                    Spacer(modifier = Modifier.width(spacing.xs))
-                    Text(text = stringResource(id = R.string.home_open_settings))
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InputModeSelector(
     selected: TranslationInputMode,
+    breakpoint: WindowBreakpoint,
     onInputModeSelected: (TranslationInputMode) -> Unit
 ) {
     val spacing = LocalSpacing.current
+    val cardPadding = spacing.cardPadding(breakpoint)
+    val isCompact = breakpoint == WindowBreakpoint.Compact
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(cardPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
             Text(
                 text = stringResource(id = R.string.home_input_mode_label),
                 style = MaterialTheme.typography.titleSmall
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-            ) {
-                InputModeChip(
-                    label = stringResource(id = R.string.home_input_mode_voice),
-                    icon = Icons.Outlined.Mic,
-                    selected = selected == TranslationInputMode.Voice,
-                    onClick = { onInputModeSelected(TranslationInputMode.Voice) }
-                )
-                InputModeChip(
-                    label = stringResource(id = R.string.home_input_mode_text),
-                    icon = Icons.Outlined.Edit,
-                    selected = selected == TranslationInputMode.Text,
-                    onClick = { onInputModeSelected(TranslationInputMode.Text) }
-                )
-                InputModeChip(
-                    label = stringResource(id = R.string.home_input_mode_image),
-                    icon = Icons.Outlined.Image,
-                    selected = selected == TranslationInputMode.Image,
-                    onClick = { onInputModeSelected(TranslationInputMode.Image) }
-                )
+            if (isCompact) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(spacing.sm)
+                ) {
+                    InputModeChip(
+                        label = stringResource(id = R.string.home_input_mode_voice),
+                        icon = Icons.Outlined.Mic,
+                        selected = selected == TranslationInputMode.Voice,
+                        onClick = { onInputModeSelected(TranslationInputMode.Voice) }
+                    )
+                    InputModeChip(
+                        label = stringResource(id = R.string.home_input_mode_text),
+                        icon = Icons.Outlined.Edit,
+                        selected = selected == TranslationInputMode.Text,
+                        onClick = { onInputModeSelected(TranslationInputMode.Text) }
+                    )
+                    InputModeChip(
+                        label = stringResource(id = R.string.home_input_mode_image),
+                        icon = Icons.Outlined.Image,
+                        selected = selected == TranslationInputMode.Image,
+                        onClick = { onInputModeSelected(TranslationInputMode.Image) }
+                    )
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    InputModeChip(
+                        label = stringResource(id = R.string.home_input_mode_voice),
+                        icon = Icons.Outlined.Mic,
+                        selected = selected == TranslationInputMode.Voice,
+                        onClick = { onInputModeSelected(TranslationInputMode.Voice) }
+                    )
+                    InputModeChip(
+                        label = stringResource(id = R.string.home_input_mode_text),
+                        icon = Icons.Outlined.Edit,
+                        selected = selected == TranslationInputMode.Text,
+                        onClick = { onInputModeSelected(TranslationInputMode.Text) }
+                    )
+                    InputModeChip(
+                        label = stringResource(id = R.string.home_input_mode_image),
+                        icon = Icons.Outlined.Image,
+                        selected = selected == TranslationInputMode.Image,
+                        onClick = { onInputModeSelected(TranslationInputMode.Image) }
+                    )
+                }
             }
         }
     }
@@ -530,7 +610,9 @@ private fun InputModeChip(
 
 @Composable
 private fun VoiceModeCard(
-    session: SessionUiState
+    session: SessionUiState,
+    breakpoint: WindowBreakpoint,
+    cardPadding: Dp
 ) {
     val spacing = LocalSpacing.current
     ElevatedCard(
@@ -539,7 +621,7 @@ private fun VoiceModeCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(cardPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.sm)
         ) {
             Text(
@@ -551,10 +633,12 @@ private fun VoiceModeCard(
             } else {
                 stringResource(id = R.string.home_voice_inactive_description)
             }
+            val maxLines = if (breakpoint == WindowBreakpoint.Compact) 3 else Int.MAX_VALUE
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = maxLines
             )
             HorizontalDivider()
             SessionStatusIndicator(
@@ -569,17 +653,19 @@ private fun VoiceModeCard(
 @Composable
 private fun TextInputCard(
     state: InputUiState,
+    breakpoint: WindowBreakpoint,
+    cardPadding: Dp,
     onTextChanged: (String) -> Unit,
     onTranslateText: () -> Unit
 ) {
     val spacing = LocalSpacing.current
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    val isCompact = breakpoint == WindowBreakpoint.Compact
+    val minLines = if (isCompact) 4 else 6
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(cardPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
             Text(
@@ -589,10 +675,10 @@ private fun TextInputCard(
             OutlinedTextField(
                 value = state.textValue,
                 onValueChange = onTextChanged,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp),
-                label = { Text(text = stringResource(id = R.string.home_text_input_label)) }
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(text = stringResource(id = R.string.home_text_input_label)) },
+                minLines = minLines,
+                maxLines = minLines + 2
             )
             state.detectedLanguage?.let { detected ->
                 Text(
@@ -601,9 +687,10 @@ private fun TextInputCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            val buttonModifier = if (isCompact) Modifier.fillMaxWidth() else Modifier.align(Alignment.End)
             Button(
                 onClick = onTranslateText,
-                modifier = Modifier.align(Alignment.End),
+                modifier = buttonModifier,
                 enabled = !state.isTextTranslating
             ) {
                 if (state.isTextTranslating) {
@@ -623,16 +710,17 @@ private fun TextInputCard(
 @Composable
 private fun ImageInputCard(
     state: InputUiState,
+    breakpoint: WindowBreakpoint,
+    cardPadding: Dp,
     onPickImage: () -> Unit
 ) {
     val spacing = LocalSpacing.current
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    val isCompact = breakpoint == WindowBreakpoint.Compact
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(cardPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
             Text(
@@ -644,9 +732,10 @@ private fun ImageInputCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            val buttonModifier = if (isCompact) Modifier.fillMaxWidth() else Modifier.align(Alignment.End)
             Button(
                 onClick = onPickImage,
-                modifier = Modifier.align(Alignment.End),
+                modifier = buttonModifier,
                 enabled = !state.isImageTranslating
             ) {
                 if (state.isImageTranslating) {
@@ -665,16 +754,17 @@ private fun ImageInputCard(
 
 @Composable
 private fun HistoryPreviewCard(
-    onOpenHistory: () -> Unit
+    onOpenHistory: () -> Unit,
+    breakpoint: WindowBreakpoint
 ) {
     val spacing = LocalSpacing.current
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    val cardPadding = spacing.cardPadding(breakpoint)
+    val isCompact = breakpoint == WindowBreakpoint.Compact
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(cardPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.sm)
         ) {
             Row(
@@ -696,9 +786,10 @@ private fun HistoryPreviewCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            val buttonModifier = if (isCompact) Modifier.fillMaxWidth() else Modifier.align(Alignment.End)
             OutlinedButton(
                 onClick = onOpenHistory,
-                modifier = Modifier.align(Alignment.End)
+                modifier = buttonModifier
             ) {
                 Text(text = stringResource(id = R.string.home_open_history))
             }
@@ -708,18 +799,16 @@ private fun HistoryPreviewCard(
 
 @Composable
 private fun TimelineHeader(
-    onOpenHistory: () -> Unit
+    onOpenHistory: () -> Unit,
+    breakpoint: WindowBreakpoint
 ) {
     val spacing = LocalSpacing.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    val isCompact = breakpoint == WindowBreakpoint.Compact
+    if (isCompact) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = stringResource(id = R.string.subtitle_timeline_title),
@@ -728,12 +817,39 @@ private fun TimelineHeader(
             Text(
                 text = stringResource(id = R.string.home_timeline_description),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
+            TextButton(onClick = onOpenHistory) {
+                Text(text = stringResource(id = R.string.home_open_history))
+                Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null)
+            }
         }
-        TextButton(onClick = onOpenHistory) {
-            Text(text = stringResource(id = R.string.home_open_history))
-            Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null)
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.subtitle_timeline_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(id = R.string.home_timeline_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = onOpenHistory) {
+                Text(text = stringResource(id = R.string.home_open_history))
+                Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null)
+            }
         }
     }
 }
@@ -760,4 +876,10 @@ private fun EmptyTimelinePlaceholder() {
             )
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
