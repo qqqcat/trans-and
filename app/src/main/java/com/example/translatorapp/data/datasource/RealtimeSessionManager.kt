@@ -7,18 +7,21 @@ import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.TranslationSession
 import com.example.translatorapp.domain.model.TranslationSessionState
 import com.example.translatorapp.domain.model.UserSettings
+import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.IceServerDto
 import com.example.translatorapp.network.RealtimeApi
+import com.example.translatorapp.network.RealtimeApiFactory
 import com.example.translatorapp.network.SessionStartRequest
+import com.example.translatorapp.network.ensureTrailingSlash
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.webrtc.WebRtcClient
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,13 +31,16 @@ import org.webrtc.PeerConnection
 import org.webrtc.SessionDescription
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.jvm.Volatile
 
 @Singleton
 class RealtimeSessionManager @Inject constructor(
-    private val realtimeApi: RealtimeApi,
+    private val realtimeApiFactory: RealtimeApiFactory,
+    private val preferencesDataSource: UserPreferencesDataSource,
     private val audioSessionController: AudioSessionController,
     private val webRtcClient: WebRtcClient,
-    private val dispatcherProvider: DispatcherProvider
+    private val dispatcherProvider: DispatcherProvider,
+    private val apiConfig: ApiConfig
 ) : TranslationSession {
 
     private val coroutineScope = CoroutineScope(dispatcherProvider.io)
@@ -47,9 +53,23 @@ class RealtimeSessionManager @Inject constructor(
     override val transcriptStream = _transcripts.asSharedFlow()
 
     private var sessionId: String? = null
-    private var remoteAudioJob: Job? = null
-    private var eventStreamJob: Job? = null
+    private var sessionJob: Job? = null
     private var lastAudioTimestamp: Instant? = null
+
+    @Volatile
+    private var cachedApi: Pair<String, RealtimeApi>? = null
+
+    private suspend fun realtimeApi(): RealtimeApi {
+        val settings = preferencesDataSource.settings.first()
+        val baseUrl = (settings.apiEndpoint.takeIf { it.isNotBlank() } ?: apiConfig.baseUrl).ensureTrailingSlash()
+        val cached = cachedApi
+        if (cached != null && cached.first == baseUrl) {
+            return cached.second
+        }
+        val fresh = realtimeApiFactory.create(baseUrl)
+        cachedApi = baseUrl to fresh
+        return fresh
+    }
 
     override suspend fun start(settings: UserSettings) {
         mutex.withLock {
@@ -60,7 +80,8 @@ class RealtimeSessionManager @Inject constructor(
                 errorMessage = null
             )
             try {
-                val response = realtimeApi.startSession(
+                val api = realtimeApi()
+                val response = api.startSession(
                     SessionStartRequest(
                         direction = settings.direction.encode(),
                         model = settings.translationProfile.name,
@@ -74,7 +95,7 @@ class RealtimeSessionManager @Inject constructor(
                 )
                 val answer = webRtcClient.createAnswer()
                     ?: error("Unable to create local SDP answer")
-                realtimeApi.sendSdpAnswer(response.sessionId, answer.description)
+                api.sendSdpAnswer(response.sessionId, answer.description)
                 audioSessionController.startCapture { buffer ->
                     if (webRtcClient.sendAudioFrame(buffer)) {
                         lastAudioTimestamp = Clock.System.now()
@@ -96,8 +117,7 @@ class RealtimeSessionManager @Inject constructor(
                 lastAudioTimestamp = null
                 _state.value = TranslationSessionState(
                     direction = settings.direction,
-                    errorMessage = t.message
-                        ?: "Failed to establish realtime session"
+                    errorMessage = t.message ?: "Failed to establish realtime session"
                 )
             }
         }
@@ -110,9 +130,8 @@ class RealtimeSessionManager @Inject constructor(
             audioSessionController.stopCapture()
             audioSessionController.releasePlayback()
             webRtcClient.close()
-            sessionId?.let {
-                runCatching { realtimeApi.stopSession(it) }
-            }
+            val api = realtimeApi()
+            sessionId?.let { runCatching { api.stopSession(it) } }
             sessionId = null
             lastAudioTimestamp = null
             _state.value = TranslationSessionState()
@@ -120,7 +139,7 @@ class RealtimeSessionManager @Inject constructor(
     }
 
     override suspend fun sendTextPrompt(prompt: String) {
-        // Could be used for translation without microphone.
+        // Reserved for non-voice prompts.
     }
 
     suspend fun toggleMicrophone(): Boolean = mutex.withLock {
@@ -144,35 +163,19 @@ class RealtimeSessionManager @Inject constructor(
     suspend fun updateDirection(direction: LanguageDirection) {
         mutex.withLock {
             _state.value = _state.value.copy(direction = direction)
-            sessionId?.let {
+            sessionId?.let { id ->
                 runCatching {
-                    realtimeApi.updateSession(it, direction = direction.encode())
+                    realtimeApi().updateSession(id, direction = direction.encode())
                 }
             }
         }
     }
 
     suspend fun updateModel(profile: TranslationModelProfile) {
-        sessionId?.let {
+        sessionId?.let { id ->
             runCatching {
-                realtimeApi.updateSession(it, model = profile.name)
+                realtimeApi().updateSession(id, model = profile.name)
             }
-        }
-    }
-
-    private suspend fun tearDownSession(notifyBackend: Boolean) {
-        remoteAudioJob?.cancel()
-        remoteAudioJob = null
-        eventStreamJob?.cancel()
-        eventStreamJob = null
-        audioSessionController.stopCapture()
-        audioSessionController.releasePlayback()
-        webRtcClient.close()
-        val id = sessionId
-        sessionId = null
-        lastAudioTimestamp = null
-        if (notifyBackend) {
-            id?.let { runCatching { realtimeApi.stopSession(it) } }
         }
     }
 
@@ -187,7 +190,7 @@ class RealtimeSessionManager @Inject constructor(
             lastAudioTimestamp?.let { start ->
                 val latency = (Clock.System.now() - start).inWholeMilliseconds
                 runCatching {
-                    realtimeApi.sendMetrics(id, latency)
+                    realtimeApi().sendMetrics(id, latency)
                 }
                 _state.value = _state.value.copy(
                     latencyMetrics = _state.value.latencyMetrics.copy(translationLatencyMs = latency)

@@ -34,6 +34,7 @@ class UserPreferencesDataSource @Inject constructor(
         val accountEmail = stringPreferencesKey("account_email")
         val accountDisplayName = stringPreferencesKey("account_display_name")
         val lastSyncedAt = stringPreferencesKey("last_synced_at")
+        val apiHost = stringPreferencesKey("api_host")
     }
 
     val settings: Flow<UserSettings> = context.userPrefsDataStore.data.map { prefs ->
@@ -60,7 +61,8 @@ class UserPreferencesDataSource @Inject constructor(
             accountId = prefs[Keys.accountId],
             accountEmail = prefs[Keys.accountEmail],
             accountDisplayName = prefs[Keys.accountDisplayName],
-            lastSyncedAt = prefs[Keys.lastSyncedAt]?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            lastSyncedAt = prefs[Keys.lastSyncedAt]?.let { runCatching { Instant.parse(it) }.getOrNull() },
+            apiEndpoint = prefs[Keys.apiHost] ?: ""
         )
     }
 
@@ -97,6 +99,11 @@ class UserPreferencesDataSource @Inject constructor(
             settings.lastSyncedAt?.let {
                 prefs[Keys.lastSyncedAt] = it.toString()
             } ?: prefs.remove(Keys.lastSyncedAt)
+            if (settings.apiEndpoint.isBlank()) {
+                prefs.remove(Keys.apiHost)
+            } else {
+                prefs[Keys.apiHost] = settings.apiEndpoint
+            }
         }
     }
 }

@@ -1,12 +1,14 @@
 package com.example.translatorapp.domain.usecase
 
-import com.example.translatorapp.domain.model.LanguageCatalog
+import com.example.translatorapp.domain.model.AccountProfile
+import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.TranslationSessionState
 import com.example.translatorapp.domain.model.UserSettings
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.repository.TranslationRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -60,7 +62,40 @@ private class FakeRepository : TranslationRepository {
     override suspend fun clearHistory() {}
 
     override suspend fun refreshSettings(): UserSettings = UserSettings()
+
+    override suspend fun translateText(
+        text: String,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent = TranslationContent(
+        transcript = text,
+        translation = "translated"
+    )
+
+    override suspend fun translateImage(
+        imageBytes: ByteArray,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent = TranslationContent(
+        transcript = "image",
+        translation = "translated"
+    )
+
+    override suspend fun detectLanguage(text: String): SupportedLanguage? = null
+
+    override suspend fun updateHistoryFavorite(id: Long, isFavorite: Boolean) {}
+
+    override suspend fun updateHistoryTags(id: Long, tags: Set<String>) {}
+
+    override suspend fun syncAccount(): AccountSyncStatus = AccountSyncStatus(success = true)
+
+    override suspend fun updateAccountProfile(profile: AccountProfile) {}
+
+    override suspend fun updateSyncEnabled(enabled: Boolean) {}
+
+    override suspend fun updateApiEndpoint(endpoint: String) {}
 }
+
 
 class StartRealtimeSessionUseCaseTest {
 
@@ -68,7 +103,12 @@ class StartRealtimeSessionUseCaseTest {
     fun `starting session forwards settings`() = runTest {
         val fakeRepository = FakeRepository()
         val useCase = StartRealtimeSessionUseCase(fakeRepository)
-        val settings = UserSettings(direction = LanguageCatalog.defaultDirection.reverse())
+        val settings = UserSettings(
+            direction = LanguageDirection(
+                sourceLanguage = SupportedLanguage.ChineseSimplified,
+                targetLanguage = SupportedLanguage.English
+            )
+        )
 
         useCase(settings)
 

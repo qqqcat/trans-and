@@ -2,17 +2,14 @@ package com.example.translatorapp.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.LatencyMetrics
+import com.example.translatorapp.presentation.theme.LocalSpacing
 
 @Composable
 fun SessionStatusIndicator(
@@ -21,17 +18,32 @@ fun SessionStatusIndicator(
     errorMessage: String?,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()) {
-                Text(text = if (isMicrophoneActive) "麦克风已开启" else "麦克风已关闭", style = MaterialTheme.typography.titleMedium)
-                Text(text = "ASR ${latencyMetrics.asrLatencyMs}ms / 翻译 ${latencyMetrics.translationLatencyMs}ms / TTS ${latencyMetrics.ttsLatencyMs}ms",
-                    style = MaterialTheme.typography.bodyMedium)
-            }
-            if (errorMessage != null) {
-                Text(text = errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-            }
+    val spacing = LocalSpacing.current
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(spacing.extraSmall)
+    ) {
+        Text(
+            text = if (isMicrophoneActive) stringResource(R.string.home_status_indicator_on) else stringResource(R.string.home_status_indicator_off),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isMicrophoneActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = stringResource(
+                id = R.string.home_latency_label,
+                latencyMetrics.asrLatencyMs,
+                latencyMetrics.translationLatencyMs,
+                latencyMetrics.ttsLatencyMs
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (!errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 }

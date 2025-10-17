@@ -67,6 +67,8 @@ class RealtimeEventStream @Inject constructor(
             close(cause)
         }
 
+        lateinit var connect: () -> Unit
+
         fun scheduleReconnect(lastError: Throwable?) {
             if (!shouldReconnect.get()) return
             val maxAttempts = config.maxReconnectAttempts
@@ -92,7 +94,7 @@ class RealtimeEventStream @Inject constructor(
                 .coerceAtMost(config.maxRetryDelayMs)
         }
 
-        fun connect() {
+        connect = {
             val request = Request.Builder().url(url).build()
             val listener = object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {

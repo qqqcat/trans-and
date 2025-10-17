@@ -7,13 +7,14 @@ import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.usecase.LoadSettingsUseCase
+import com.example.translatorapp.domain.usecase.SyncAccountUseCase
+import com.example.translatorapp.domain.usecase.UpdateAccountProfileUseCase
+import com.example.translatorapp.domain.usecase.UpdateApiEndpointUseCase
 import com.example.translatorapp.domain.usecase.UpdateDirectionUseCase
 import com.example.translatorapp.domain.usecase.UpdateModelUseCase
 import com.example.translatorapp.domain.usecase.UpdateOfflineFallbackUseCase
-import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
-import com.example.translatorapp.domain.usecase.UpdateAccountProfileUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
-import com.example.translatorapp.domain.usecase.SyncAccountUseCase
+import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
 import com.example.translatorapp.util.DispatcherProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -36,6 +37,7 @@ class SettingsViewModel @Inject constructor(
     private val updateAccountProfileUseCase: UpdateAccountProfileUseCase,
     private val updateSyncEnabledUseCase: UpdateSyncEnabledUseCase,
     private val syncAccountUseCase: SyncAccountUseCase,
+    private val updateApiEndpointUseCase: UpdateApiEndpointUseCase,
     private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
 
@@ -46,7 +48,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(dispatcherProvider.io) {
-            refreshSettings(preserveAccountInputs = false)
+            refreshSettings(preserveInputs = false)
         }
     }
 
@@ -63,8 +65,10 @@ class SettingsViewModel @Inject constructor(
             val current = loadSettingsUseCase()
             if (!current.direction.isAutoDetect) {
                 updateDirectionUseCase(current.direction.withSource(language))
+                refreshSettings(message = "源语言已更新")
+            } else {
+                refreshSettings()
             }
-            refreshSettings(message = "源语言已更新")
         }
     }
 
@@ -86,28 +90,28 @@ class SettingsViewModel @Inject constructor(
                 current.direction.withSource(manualSourceLanguage)
             }
             updateDirectionUseCase(direction)
-            refreshSettings(message = "自动检测已更新")
+            refreshSettings(message = if (enabled) "已开启自动检测" else "已切换为手动选择")
         }
     }
 
     fun onModelSelected(profile: TranslationModelProfile) {
         viewModelScope.launch(dispatcherProvider.io) {
             updateModelUseCase(profile)
-            refreshSettings(message = "模型已切换")
+            refreshSettings(message = "模型已切换为 ${profile.displayName}")
         }
     }
 
     fun onOfflineFallbackChanged(enabled: Boolean) {
         viewModelScope.launch(dispatcherProvider.io) {
             updateOfflineFallbackUseCase(enabled)
-            refreshSettings()
+            refreshSettings(message = if (enabled) "已启用离线备用" else "已关闭离线备用")
         }
     }
 
     fun onTelemetryChanged(consent: Boolean) {
         viewModelScope.launch(dispatcherProvider.io) {
             updateTelemetryConsentUseCase(consent)
-            refreshSettings()
+            refreshSettings(message = if (consent) "已开启体验数据" else "已关闭体验数据")
         }
     }
 
@@ -119,15 +123,39 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(accountDisplayName = value) }
     }
 
+    fun onApiEndpointChange(value: String) {
+        _uiState.update { it.copy(apiEndpoint = value, apiEndpointError = null, message = null) }
+    }
+
+    fun onSaveApiEndpoint() {
+        val raw = uiState.value.apiEndpoint.trim()
+        val error = validateEndpoint(raw)
+        if (error != null) {
+            _uiState.update { it.copy(apiEndpointError = error) }
+            return
+        }
+        viewModelScope.launch(dispatcherProvider.io) {
+            updateApiEndpointUseCase(normalizeEndpoint(raw))
+            refreshSettings(message = if (raw.isBlank()) "已恢复默认服务地址" else "服务地址已更新")
+        }
+    }
+
+    fun onResetApiEndpoint() {
+        viewModelScope.launch(dispatcherProvider.io) {
+            updateApiEndpointUseCase("")
+            refreshSettings(message = "已恢复默认服务地址")
+        }
+    }
+
     fun onSaveAccount() {
+        val email = uiState.value.accountEmail.trim()
+        if (email.isEmpty()) {
+            _uiState.update { it.copy(message = "请输入有效邮箱") }
+            return
+        }
         viewModelScope.launch(dispatcherProvider.io) {
             val settings = loadSettingsUseCase()
             val accountId = settings.accountId ?: java.util.UUID.randomUUID().toString()
-            val email = uiState.value.accountEmail
-            if (email.isBlank()) {
-                _uiState.update { it.copy(message = "请输入有效邮箱") }
-                return@launch
-            }
             updateAccountProfileUseCase(
                 AccountProfile(
                     accountId = accountId,
@@ -135,14 +163,14 @@ class SettingsViewModel @Inject constructor(
                     displayName = uiState.value.accountDisplayName.ifBlank { null }
                 )
             )
-            refreshSettings(message = "账号信息已更新", preserveAccountInputs = false)
+            refreshSettings(message = "账户信息已更新", preserveInputs = false)
         }
     }
 
     fun onSyncToggle(enabled: Boolean) {
         viewModelScope.launch(dispatcherProvider.io) {
             updateSyncEnabledUseCase(enabled)
-            refreshSettings()
+            refreshSettings(message = if (enabled) "已开启同步" else "已关闭同步")
         }
     }
 
@@ -150,25 +178,24 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(dispatcherProvider.io) {
             _uiState.update { it.copy(isSyncing = true, message = null) }
             val result = syncAccountUseCase()
-            refreshSettings(
-                message = result.message ?: if (result.success) "同步成功" else "同步失败"
-            )
+            val message = result.message ?: if (result.success) "同步完成" else "同步失败"
+            refreshSettings(message = message)
         }
     }
 
-    private suspend fun refreshSettings(message: String? = null, preserveAccountInputs: Boolean = true) {
+    private suspend fun refreshSettings(message: String? = null, preserveInputs: Boolean = true) {
         val settings = loadSettingsUseCase()
         manualSourceLanguage = settings.direction.sourceLanguage ?: manualSourceLanguage
         _uiState.update { current ->
-            val email = if (preserveAccountInputs && current.accountEmail.isNotBlank() && current.accountEmail != settings.accountEmail.orElseEmpty()) {
+            val email = if (preserveInputs && current.accountEmail.isNotBlank() && current.accountEmail != settings.accountEmail.orEmpty()) {
                 current.accountEmail
             } else {
-                settings.accountEmail.orElseEmpty()
+                settings.accountEmail.orEmpty()
             }
-            val displayName = if (preserveAccountInputs && current.accountDisplayName.isNotBlank() && current.accountDisplayName != settings.accountDisplayName.orElseEmpty()) {
+            val displayName = if (preserveInputs && current.accountDisplayName.isNotBlank() && current.accountDisplayName != settings.accountDisplayName.orEmpty()) {
                 current.accountDisplayName
             } else {
-                settings.accountDisplayName.orElseEmpty()
+                settings.accountDisplayName.orEmpty()
             }
             current.copy(
                 settings = settings,
@@ -179,9 +206,19 @@ class SettingsViewModel @Inject constructor(
                 isSyncing = false,
                 lastSyncDisplay = formatInstant(settings.lastSyncedAt),
                 accountEmail = email,
-                accountDisplayName = displayName
+                accountDisplayName = displayName,
+                apiEndpoint = settings.apiEndpoint,
+                apiEndpointError = null
             )
         }
+    }
+
+    private fun normalizeEndpoint(endpoint: String): String = endpoint.trim().removeSuffix("/")
+
+    private fun validateEndpoint(endpoint: String): String? {
+        if (endpoint.isBlank()) return null
+        return if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) null
+        else "请输入以 http(s):// 开头的有效地址，或留空使用默认服务。"
     }
 
     private fun formatInstant(instant: Instant?): String? {
@@ -192,4 +229,3 @@ class SettingsViewModel @Inject constructor(
 }
 
 private fun String?.orElseEmpty(): String = this ?: ""
-}

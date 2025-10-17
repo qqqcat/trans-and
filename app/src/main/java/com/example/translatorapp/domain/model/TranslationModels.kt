@@ -76,10 +76,6 @@ data class LanguageDirection(
             }
         }
     }
-
-    fun findLanguage(code: String): Language? = languages.find { it.code == code }
-
-    fun findDirection(id: String): LanguageDirection? = LanguageDirection.fromId(id)
 }
 
 enum class TranslationModelProfile(val displayName: String) {
@@ -107,6 +103,7 @@ data class UserSettings(
     val accountEmail: String? = null,
     val accountDisplayName: String? = null,
     val lastSyncedAt: Instant? = null,
+    val apiEndpoint: String = ""
 )
 
 data class TranslationContent(

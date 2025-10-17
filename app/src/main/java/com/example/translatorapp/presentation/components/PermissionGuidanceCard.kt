@@ -1,13 +1,15 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.example.translatorapp.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
@@ -70,15 +72,20 @@ fun PermissionGuidanceCard(
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(onClick = onRequestPermission, modifier = Modifier.weight(1f)) {
+                Button(
+                    onClick = onRequestPermission,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(text = stringResource(id = R.string.permission_guidance_request))
                 }
-                TextButton(onClick = onOpenPermissionSettings) {
+                TextButton(
+                    onClick = onOpenPermissionSettings,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
                     Icon(imageVector = Icons.Outlined.Settings, contentDescription = null)
                     Text(
                         modifier = Modifier.padding(start = 4.dp),

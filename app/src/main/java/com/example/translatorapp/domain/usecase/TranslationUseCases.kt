@@ -146,3 +146,10 @@ class UpdateSyncEnabledUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(enabled: Boolean) = repository.updateSyncEnabled(enabled)
 }
+
+class UpdateApiEndpointUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(endpoint: String) = repository.updateApiEndpoint(endpoint)
+}
+

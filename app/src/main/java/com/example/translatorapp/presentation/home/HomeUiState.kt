@@ -1,24 +1,53 @@
 package com.example.translatorapp.presentation.home
 
+import com.example.translatorapp.domain.model.LatencyMetrics
+import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
-import com.example.translatorapp.domain.model.TranslationSessionState
+import com.example.translatorapp.domain.model.TranslationModelProfile
+import com.example.translatorapp.domain.model.UiMessage
 import com.example.translatorapp.domain.model.UserSettings
 
 data class HomeUiState(
     val isLoading: Boolean = true,
-    val sessionState: TranslationSessionState = TranslationSessionState(),
-    val transcriptHistory: List<TranslationContent> = emptyList(),
+    val session: SessionUiState = SessionUiState(),
+    val input: InputUiState = InputUiState(),
+    val timeline: TimelineUiState = TimelineUiState(),
     val settings: UserSettings = UserSettings(),
-    val isMicActive: Boolean = false,
-    val errorMessage: String? = null,
-    val isRecordAudioPermissionGranted: Boolean = false,
-    val textInput: String = "",
-    val isTranslatingText: Boolean = false,
-    val isTranslatingImage: Boolean = false,
-    val detectedLanguage: SupportedLanguage? = null,
-    val manualTranslationError: String? = null,
-    val selectedInputMode: TranslationInputMode = TranslationInputMode.Voice,
-    val lastManualTranslation: TranslationContent? = null,
+    val messages: List<UiMessage> = emptyList()
 )
+
+data class SessionUiState(
+    val status: SessionStatus = SessionStatus.Idle,
+    val direction: LanguageDirection = UserSettings().direction,
+    val model: TranslationModelProfile = UserSettings().translationProfile,
+    val latency: LatencyMetrics = LatencyMetrics(),
+    val isMicrophoneOpen: Boolean = false,
+    val activeSegment: TranslationContent? = null,
+    val lastErrorMessage: String? = null,
+    val requiresPermission: Boolean = false
+)
+
+enum class SessionStatus {
+    Idle,
+    Connecting,
+    Streaming,
+    Error,
+    PermissionRequired
+}
+
+data class InputUiState(
+    val selectedMode: TranslationInputMode = TranslationInputMode.Voice,
+    val textValue: String = "",
+    val isTextTranslating: Boolean = false,
+    val isImageTranslating: Boolean = false,
+    val isRecordAudioPermissionGranted: Boolean = false,
+    val detectedLanguage: SupportedLanguage? = null
+)
+
+data class TimelineUiState(
+    val entries: List<TranslationContent> = emptyList()
+) {
+    val isEmpty: Boolean get() = entries.isEmpty()
+}

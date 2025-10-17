@@ -30,14 +30,49 @@ class HistoryViewModel @Inject constructor(
     init {
         viewModelScope.launch(dispatcherProvider.io) {
             observeHistoryUseCase().collect { items ->
-                _uiState.update {
-                    it.copy(
+                _uiState.update { current ->
+                    val sanitizedVisibleCount = if (items.isEmpty()) {
+                        HISTORY_PAGE_SIZE
+                    } else {
+                        current.visibleCount.coerceAtMost(items.size).coerceAtLeast(HISTORY_PAGE_SIZE)
+                    }
+                    current.copy(
                         history = items,
                         tagDrafts = items.associate { item ->
                             item.id to item.tags.joinToString(separator = ", ")
-                        }
+                        },
+                        visibleCount = sanitizedVisibleCount,
+                        isRefreshing = false,
+                        isLoadingMore = false
                     )
                 }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, visibleCount = HISTORY_PAGE_SIZE) }
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+
+    fun loadMore() {
+        viewModelScope.launch {
+            var shouldReset = false
+            _uiState.update { state ->
+                if (!state.canLoadMore) {
+                    state
+                } else {
+                    shouldReset = true
+                    state.copy(
+                        isLoadingMore = true,
+                        visibleCount = state.visibleCount + HISTORY_PAGE_SIZE
+                    )
+                }
+            }
+            if (shouldReset) {
+                _uiState.update { it.copy(isLoadingMore = false) }
             }
         }
     }
@@ -49,11 +84,11 @@ class HistoryViewModel @Inject constructor(
     }
 
     fun onSearchQueryChange(query: String) {
-        _uiState.update { it.copy(query = query) }
+        _uiState.update { it.copy(query = query, visibleCount = HISTORY_PAGE_SIZE) }
     }
 
     fun toggleFavoriteFilter() {
-        _uiState.update { it.copy(showFavoritesOnly = !it.showFavoritesOnly) }
+        _uiState.update { it.copy(showFavoritesOnly = !it.showFavoritesOnly, visibleCount = HISTORY_PAGE_SIZE) }
     }
 
     fun onTagFilterToggle(tag: String) {
@@ -61,7 +96,7 @@ class HistoryViewModel @Inject constructor(
             val newSelection = state.selectedTags.toMutableSet().apply {
                 if (!add(tag)) remove(tag)
             }
-            state.copy(selectedTags = newSelection)
+            state.copy(selectedTags = newSelection, visibleCount = HISTORY_PAGE_SIZE)
         }
     }
 
@@ -77,7 +112,7 @@ class HistoryViewModel @Inject constructor(
 
     fun onTagDraftCommit(id: Long) {
         val draft = _uiState.value.tagDrafts[id] ?: return
-        val tags = draft.split(',', '；', ';', ' ').mapNotNull { token ->
+        val tags = draft.split(',', ';', '；', ' ').mapNotNull { token ->
             val trimmed = token.trim()
             trimmed.takeIf { it.isNotEmpty() }
         }.toSet()

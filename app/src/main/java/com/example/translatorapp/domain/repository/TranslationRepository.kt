@@ -44,4 +44,5 @@ interface TranslationRepository {
     suspend fun syncAccount(): AccountSyncStatus
     suspend fun updateAccountProfile(profile: AccountProfile)
     suspend fun updateSyncEnabled(enabled: Boolean)
+    suspend fun updateApiEndpoint(endpoint: String)
 }

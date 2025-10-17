@@ -1,7 +1,10 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.example.translatorapp.presentation.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,8 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,7 +49,7 @@ fun SubtitleTimelineItem(
     ) {
         TimelineIndicator(isFirst = isFirst, isLast = isLast)
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
@@ -72,7 +74,7 @@ fun SubtitleTimelineItem(
                         text = content.transcript,
                         style = MaterialTheme.typography.bodyLarge
                     )
-                    Divider()
+                    HorizontalDivider()
                     Text(
                         text = stringResource(id = R.string.subtitle_timeline_translation_label),
                         style = MaterialTheme.typography.labelMedium,
