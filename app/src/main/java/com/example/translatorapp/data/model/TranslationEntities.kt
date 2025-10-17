@@ -3,7 +3,7 @@ package com.example.translatorapp.data.model
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.LanguageCatalog
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import kotlinx.datetime.toInstant
 
@@ -17,7 +17,7 @@ data class TranslationHistoryEntity(
 ) {
     fun toDomain(): TranslationHistoryItem = TranslationHistoryItem(
         id = id,
-        direction = LanguageDirection.valueOf(direction),
+        direction = LanguageCatalog.findDirection(direction) ?: LanguageCatalog.defaultDirection,
         sourceText = sourceText,
         translatedText = translatedText,
         createdAt = createdAt.toInstant()
@@ -26,7 +26,7 @@ data class TranslationHistoryEntity(
     companion object {
         fun fromDomain(item: TranslationHistoryItem): TranslationHistoryEntity = TranslationHistoryEntity(
             id = item.id,
-            direction = item.direction.name,
+            direction = item.direction.id,
             sourceText = item.sourceText,
             translatedText = item.translatedText,
             createdAt = item.createdAt.toString()

@@ -59,7 +59,7 @@ fun SettingsScreen(
     ) {
         Text(text = "方向选择")
         FlowRow(items = state.availableDirections, selected = state.settings.direction, onSelected = onDirectionSelected) {
-            it.displayName()
+            it.displayName
         }
         Text(text = "模型选择")
         FlowRow(items = state.availableModels, selected = state.settings.translationProfile, onSelected = onModelSelected) {
@@ -117,11 +117,6 @@ private fun SwitchRow(
         Text(text = title)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
-}
-
-private fun LanguageDirection.displayName(): String = when (this) {
-    LanguageDirection.ChineseToFrench -> "中文 → 法语"
-    LanguageDirection.FrenchToChinese -> "法语 → 中文"
 }
 
 private fun TranslationModelProfile.displayName(): String = when (this) {
