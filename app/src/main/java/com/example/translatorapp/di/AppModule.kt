@@ -80,7 +80,9 @@ object AppModule {
         context,
         HistoryDatabase::class.java,
         "translator-history.db"
-    ).build()
+    )
+        .addMigrations(HistoryDatabase.MIGRATION_1_2)
+        .build()
 
     @Provides
     fun provideHistoryDao(db: HistoryDatabase): HistoryDao = db.historyDao()

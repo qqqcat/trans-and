@@ -1,14 +1,15 @@
 package com.example.translatorapp.data.datasource
 
 import android.content.Context
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.UserSettings
+import kotlinx.datetime.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -25,25 +26,77 @@ class UserPreferencesDataSource @Inject constructor(
         val modelProfile = stringPreferencesKey("model_profile")
         val offlineFallback = booleanPreferencesKey("offline_fallback")
         val telemetry = booleanPreferencesKey("telemetry")
+        val sourceLanguage = stringPreferencesKey("source_language")
+        val targetLanguage = stringPreferencesKey("target_language")
+        val autoDetect = booleanPreferencesKey("auto_detect_source")
+        val syncEnabled = booleanPreferencesKey("sync_enabled")
+        val accountId = stringPreferencesKey("account_id")
+        val accountEmail = stringPreferencesKey("account_email")
+        val accountDisplayName = stringPreferencesKey("account_display_name")
+        val lastSyncedAt = stringPreferencesKey("last_synced_at")
     }
 
     val settings: Flow<UserSettings> = context.userPrefsDataStore.data.map { prefs ->
+        val legacyDirection = prefs[Keys.direction]?.let { LanguageDirection.decode(it) }
+        val autoDetect = prefs[Keys.autoDetect] ?: legacyDirection?.isAutoDetect ?: false
+        val sourceLanguage = prefs[Keys.sourceLanguage]?.let { SupportedLanguage.fromCode(it) }
+            ?: legacyDirection?.sourceLanguage
+        val targetLanguage = prefs[Keys.targetLanguage]?.let { SupportedLanguage.fromCode(it) }
+            ?: legacyDirection?.targetLanguage
+            ?: UserSettings().direction.targetLanguage
+        val direction = if (autoDetect) {
+            LanguageDirection(null, targetLanguage)
+        } else {
+            LanguageDirection(sourceLanguage ?: UserSettings().direction.sourceLanguage, targetLanguage)
+        }
         UserSettings(
-            direction = prefs[Keys.direction]?.let { runCatching { LanguageDirection.valueOf(it) }.getOrNull() }
-                ?: UserSettings().direction,
-            translationProfile = prefs[Keys.modelProfile]?.let { runCatching { TranslationModelProfile.valueOf(it) }.getOrNull() }
-                ?: UserSettings().translationProfile,
+            direction = direction,
+            translationProfile = prefs[Keys.modelProfile]?.let {
+                runCatching { TranslationModelProfile.valueOf(it) }.getOrNull()
+            } ?: UserSettings().translationProfile,
             offlineFallbackEnabled = prefs[Keys.offlineFallback] ?: UserSettings().offlineFallbackEnabled,
-            allowTelemetry = prefs[Keys.telemetry] ?: UserSettings().allowTelemetry
+            allowTelemetry = prefs[Keys.telemetry] ?: UserSettings().allowTelemetry,
+            syncEnabled = prefs[Keys.syncEnabled] ?: UserSettings().syncEnabled,
+            accountId = prefs[Keys.accountId],
+            accountEmail = prefs[Keys.accountEmail],
+            accountDisplayName = prefs[Keys.accountDisplayName],
+            lastSyncedAt = prefs[Keys.lastSyncedAt]?.let { runCatching { Instant.parse(it) }.getOrNull() }
         )
     }
 
     suspend fun update(settings: UserSettings) {
         context.userPrefsDataStore.edit { prefs ->
-            prefs[Keys.direction] = settings.direction.name
+            prefs[Keys.direction] = settings.direction.encode()
+            if (settings.direction.sourceLanguage == null) {
+                prefs.remove(Keys.sourceLanguage)
+                prefs[Keys.autoDetect] = true
+            } else {
+                prefs[Keys.sourceLanguage] = settings.direction.sourceLanguage.code
+                prefs[Keys.autoDetect] = false
+            }
+            prefs[Keys.targetLanguage] = settings.direction.targetLanguage.code
             prefs[Keys.modelProfile] = settings.translationProfile.name
             prefs[Keys.offlineFallback] = settings.offlineFallbackEnabled
             prefs[Keys.telemetry] = settings.allowTelemetry
+            prefs[Keys.syncEnabled] = settings.syncEnabled
+            if (settings.accountId.isNullOrBlank()) {
+                prefs.remove(Keys.accountId)
+            } else {
+                prefs[Keys.accountId] = settings.accountId
+            }
+            if (settings.accountEmail.isNullOrBlank()) {
+                prefs.remove(Keys.accountEmail)
+            } else {
+                prefs[Keys.accountEmail] = settings.accountEmail
+            }
+            if (settings.accountDisplayName.isNullOrBlank()) {
+                prefs.remove(Keys.accountDisplayName)
+            } else {
+                prefs[Keys.accountDisplayName] = settings.accountDisplayName
+            }
+            settings.lastSyncedAt?.let {
+                prefs[Keys.lastSyncedAt] = it.toString()
+            } ?: prefs.remove(Keys.lastSyncedAt)
         }
     }
 }

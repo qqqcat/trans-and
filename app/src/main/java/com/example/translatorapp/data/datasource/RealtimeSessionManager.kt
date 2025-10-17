@@ -62,7 +62,7 @@ class RealtimeSessionManager @Inject constructor(
             try {
                 val response = realtimeApi.startSession(
                     SessionStartRequest(
-                        direction = settings.direction.name,
+                        direction = settings.direction.encode(),
                         model = settings.translationProfile.name,
                         offlineFallback = settings.offlineFallbackEnabled
                     )
@@ -146,7 +146,7 @@ class RealtimeSessionManager @Inject constructor(
             _state.value = _state.value.copy(direction = direction)
             sessionId?.let {
                 runCatching {
-                    realtimeApi.updateSession(it, direction = direction.name)
+                    realtimeApi.updateSession(it, direction = direction.encode())
                 }
             }
         }
@@ -177,8 +177,12 @@ class RealtimeSessionManager @Inject constructor(
     }
 
     suspend fun onTranslationReceived(content: TranslationContent) {
-        _transcripts.emit(content)
-        _state.value = _state.value.copy(currentSegment = content)
+        val normalized = content.copy(
+            targetLanguage = content.targetLanguage ?: _state.value.direction.targetLanguage,
+            detectedSourceLanguage = content.detectedSourceLanguage ?: _state.value.direction.sourceLanguage
+        )
+        _transcripts.emit(normalized)
+        _state.value = _state.value.copy(currentSegment = normalized)
         sessionId?.let { id ->
             lastAudioTimestamp?.let { start ->
                 val latency = (Clock.System.now() - start).inWholeMilliseconds

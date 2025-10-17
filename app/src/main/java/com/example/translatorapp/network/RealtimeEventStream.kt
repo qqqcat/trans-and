@@ -1,6 +1,8 @@
 package com.example.translatorapp.network
 
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
+import com.example.translatorapp.domain.model.TranslationInputMode
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -189,11 +191,19 @@ class RealtimeEventStream @Inject constructor(
                     if (translation.transcript.isNullOrBlank() && translation.translation.isNullOrBlank()) {
                         return null
                     }
+                    val detectedLanguage = translation.detectedLanguage
+                        ?: translation.sourceLanguage
+                    val inputMode = translation.inputMode?.let {
+                        runCatching { TranslationInputMode.valueOf(it) }.getOrNull()
+                    } ?: TranslationInputMode.Voice
                     RelayEventAction.Translation(
                         TranslationContent(
                             transcript = translation.transcript.orEmpty(),
                             translation = translation.translation.orEmpty(),
-                            synthesizedAudioPath = translation.audioUrl
+                            synthesizedAudioPath = translation.audioUrl,
+                            detectedSourceLanguage = SupportedLanguage.fromCode(detectedLanguage),
+                            targetLanguage = SupportedLanguage.fromCode(translation.targetLanguage),
+                            inputMode = inputMode
                         )
                     )
                 }
@@ -240,7 +250,11 @@ private data class RelayEventDto(
 private data class TranslationPayloadDto(
     @SerialName("transcript") val transcript: String? = null,
     @SerialName("translation") val translation: String? = null,
-    @SerialName("audioUrl") val audioUrl: String? = null
+    @SerialName("audioUrl") val audioUrl: String? = null,
+    @SerialName("detectedLanguage") val detectedLanguage: String? = null,
+    @SerialName("sourceLanguage") val sourceLanguage: String? = null,
+    @SerialName("targetLanguage") val targetLanguage: String? = null,
+    @SerialName("inputMode") val inputMode: String? = null,
 )
 
 private sealed interface RelayEventAction {
