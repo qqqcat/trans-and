@@ -1,9 +1,8 @@
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
-
-val localProperties = gradleLocalProperties(rootDir)
-val realtimeBaseUrl =
-    (localProperties.getProperty("realtime.apiBaseUrl") ?: "https://api.realtime-proxy.example/")
-        .replace("\"", "\\\"")
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoReport
+import java.nio.file.Files
+import java.time.Instant
 
 plugins {
     id("com.android.application")
@@ -11,7 +10,13 @@ plugins {
     id("org.jetbrains.kotlin.kapt")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.dagger.hilt.android")
+    id("jacoco")
 }
+
+val localProperties = gradleLocalProperties(rootDir, providers)
+val realtimeBaseUrl =
+    (localProperties.getProperty("realtime.apiBaseUrl") ?: "https://api.realtime-proxy.example/")
+        .replace("\"", "\\\"")
 
 android {
     namespace = "com.example.translatorapp"
@@ -57,6 +62,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -77,6 +83,128 @@ kapt {
 
 configurations.all {
     resolutionStrategy.cacheChangingModulesFor(0, "seconds")
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+tasks.withType<Test>().configureEach {
+    extensions.configure(JacocoTaskExtension::class.java) {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val variantName = variant.name
+        val capitalizedVariant = variantName.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        val unitTestTaskName = "test${capitalizedVariant}UnitTest"
+        val jacocoTaskName = "jacoco${capitalizedVariant}Report"
+        tasks.register<JacocoReport>(jacocoTaskName) {
+            group = "verification"
+            description = "Generates Jacoco coverage for the $variantName unit tests."
+            dependsOn(unitTestTaskName)
+
+            val javaClasses = layout.buildDirectory.dir("intermediates/javac/${variantName}/classes")
+            val kotlinClasses = layout.buildDirectory.dir("tmp/kotlin-classes/${variantName}")
+
+            classDirectories.setFrom(
+                files(
+                    javaClasses.map { directory ->
+                        project.fileTree(directory) {
+                            exclude("**/R.class", "**/R$*.class", "**/BuildConfig.class", "**/Manifest*.*", "**/*Test*.*")
+                        }
+                    },
+                    kotlinClasses.map { directory ->
+                        project.fileTree(directory) {
+                            exclude("**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*", "**/*Test*.*")
+                        }
+                    }
+                )
+            )
+            sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+            executionData.setFrom(
+                files(
+                    layout.buildDirectory.file("jacoco/${unitTestTaskName}.exec"),
+                    layout.buildDirectory.file("outputs/unit_test_code_coverage/${variantName}UnitTest/${unitTestTaskName}.exec")
+                )
+            )
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+            }
+        }
+    }
+}
+
+val collectTestMetrics by tasks.registering {
+    group = "verification"
+    description = "Runs unit tests, generates coverage, and persists summary metrics."
+    val variant = "debug"
+    val capitalizedVariant = variant.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+    dependsOn(
+        tasks.named("test${capitalizedVariant}UnitTest"),
+        tasks.named("jacoco${capitalizedVariant}Report")
+    )
+    doLast {
+        val resultsDir = layout.buildDirectory.dir("test-results/test${capitalizedVariant}UnitTest").get().asFile.toPath()
+        val coverageFile = layout.buildDirectory.file("reports/jacoco/jacoco${capitalizedVariant}Report/jacoco${capitalizedVariant}Report.xml").get().asFile.toPath()
+        var totalTests = 0
+        var totalFailures = 0
+        var totalErrors = 0
+        var totalSkipped = 0
+        if (Files.exists(resultsDir)) {
+            Files.list(resultsDir).use { stream ->
+                stream.filter { path -> Files.isRegularFile(path) && path.fileName.toString().endsWith(".xml") }
+                    .forEach { path ->
+                        val content = Files.readString(path)
+                        Regex("""tests="(\d+)" failures="(\d+)" errors="(\d+)" skipped="(\d+)"""")
+                            .findAll(content)
+                            .forEach { match ->
+                                totalTests += match.groupValues[1].toInt()
+                                totalFailures += match.groupValues[2].toInt()
+                                totalErrors += match.groupValues[3].toInt()
+                                totalSkipped += match.groupValues[4].toInt()
+                            }
+                    }
+            }
+        }
+        var lineCoverage = 0.0
+        if (Files.exists(coverageFile)) {
+            val content = Files.readString(coverageFile)
+            Regex("""<counter type="LINE" missed="(\d+)" covered="(\d+)"""")
+                .find(content)
+                ?.let { counter ->
+                    val missed = counter.groupValues[1].toDouble()
+                    val covered = counter.groupValues[2].toDouble()
+                    val total = missed + covered
+                    if (total > 0) {
+                        lineCoverage = covered / total * 100.0
+                    }
+                }
+        }
+        val metricsDir = layout.buildDirectory.dir("metrics").get().asFile
+        metricsDir.mkdirs()
+        val metricsFile = metricsDir.resolve("test-metrics.json")
+        val payload = """
+            {
+              "timestamp": "${Instant.now()}",
+              "variant": "$variant",
+              "totalTests": $totalTests,
+              "failures": $totalFailures,
+              "errors": $totalErrors,
+              "skipped": $totalSkipped,
+              "lineCoveragePercent": ${"%.2f".format(lineCoverage)}
+            }
+        """.trimIndent()
+        metricsFile.writeText(payload)
+        println("Test metrics written to ${metricsFile.relativeTo(projectDir)}")
+    }
 }
 
 dependencies {
@@ -113,7 +241,7 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.52")
     kapt("com.google.dagger:hilt-compiler:2.52")
 
-    implementation("org.webrtc:google-webrtc:1.0.32006")
+    implementation("io.github.webrtc-sdk:android:125.6422.07")
 
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
