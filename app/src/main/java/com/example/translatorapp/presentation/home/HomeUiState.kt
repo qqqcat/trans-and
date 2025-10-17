@@ -1,6 +1,8 @@
 package com.example.translatorapp.presentation.home
 
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
+import com.example.translatorapp.domain.model.TranslationInputMode
 import com.example.translatorapp.domain.model.TranslationSessionState
 import com.example.translatorapp.domain.model.UserSettings
 
@@ -12,4 +14,11 @@ data class HomeUiState(
     val isMicActive: Boolean = false,
     val errorMessage: String? = null,
     val isRecordAudioPermissionGranted: Boolean = false,
+    val textInput: String = "",
+    val isTranslatingText: Boolean = false,
+    val isTranslatingImage: Boolean = false,
+    val detectedLanguage: SupportedLanguage? = null,
+    val manualTranslationError: String? = null,
+    val selectedInputMode: TranslationInputMode = TranslationInputMode.Voice,
+    val lastManualTranslation: TranslationContent? = null,
 )

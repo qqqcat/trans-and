@@ -44,3 +44,75 @@ data class IceServerDto(
     @SerialName("username") val username: String? = null,
     @SerialName("credential") val credential: String? = null
 )
+
+@Serializable
+data class TextTranslationRequest(
+    @SerialName("text") val text: String,
+    @SerialName("sourceLanguage") val sourceLanguage: String? = null,
+    @SerialName("targetLanguage") val targetLanguage: String,
+    @SerialName("model") val model: String
+)
+
+@Serializable
+data class TextTranslationResponse(
+    @SerialName("translation") val translation: String,
+    @SerialName("detectedLanguage") val detectedLanguage: String? = null,
+    @SerialName("targetLanguage") val targetLanguage: String? = null,
+    @SerialName("sourceText") val sourceText: String? = null
+)
+
+@Serializable
+data class ImageTranslationRequest(
+    @SerialName("imageBase64") val imageBase64: String,
+    @SerialName("sourceLanguage") val sourceLanguage: String? = null,
+    @SerialName("targetLanguage") val targetLanguage: String,
+    @SerialName("model") val model: String
+)
+
+@Serializable
+data class LanguageDetectionRequest(
+    @SerialName("text") val text: String
+)
+
+@Serializable
+data class LanguageDetectionResponse(
+    @SerialName("language") val language: String
+)
+
+@Serializable
+data class AccountHistoryItemDto(
+    @SerialName("id") val id: Long,
+    @SerialName("sourceText") val sourceText: String,
+    @SerialName("translatedText") val translatedText: String,
+    @SerialName("direction") val direction: String,
+    @SerialName("inputMode") val inputMode: String,
+    @SerialName("detectedLanguage") val detectedLanguage: String? = null,
+    @SerialName("tags") val tags: List<String> = emptyList(),
+    @SerialName("isFavorite") val isFavorite: Boolean = false,
+    @SerialName("createdAt") val createdAt: String
+)
+
+@Serializable
+data class AccountSyncRequest(
+    @SerialName("accountId") val accountId: String,
+    @SerialName("history") val history: List<AccountHistoryItemDto>
+)
+
+@Serializable
+data class AccountSyncResponse(
+    @SerialName("syncedAt") val syncedAt: String
+)
+
+@Serializable
+data class AccountProfileRequest(
+    @SerialName("accountId") val accountId: String?,
+    @SerialName("email") val email: String,
+    @SerialName("displayName") val displayName: String? = null
+)
+
+@Serializable
+data class AccountProfileResponse(
+    @SerialName("accountId") val accountId: String,
+    @SerialName("email") val email: String,
+    @SerialName("displayName") val displayName: String? = null
+)

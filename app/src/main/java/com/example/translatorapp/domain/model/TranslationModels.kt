@@ -1,59 +1,79 @@
 package com.example.translatorapp.domain.model
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.coroutines.flow.Flow
 
-private const val LANGUAGE_DIRECTION_SEPARATOR = "->"
+private const val AUTO_DETECT_LANGUAGE_CODE = "auto"
 
-data class Language(
-    val code: String,
-    val displayName: String
-)
-
-data class LanguageDirection(
-    val source: Language,
-    val target: Language
-) {
-    val id: String = buildId(source.code, target.code)
-    val displayName: String get() = "${source.displayName} → ${target.displayName}"
-
-    fun reverse(): LanguageDirection = LanguageDirection(target, source)
+enum class SupportedLanguage(val code: String, val displayName: String) {
+    ChineseSimplified("zh-CN", "简体中文"),
+    English("en-US", "English"),
+    French("fr-FR", "Français"),
+    Spanish("es-ES", "Español"),
+    German("de-DE", "Deutsch"),
+    Japanese("ja-JP", "日本語"),
+    Korean("ko-KR", "한국어"),
+    Portuguese("pt-BR", "Português"),
+    Russian("ru-RU", "Русский"),
+    Arabic("ar-SA", "العربية");
 
     companion object {
-        fun buildId(sourceCode: String, targetCode: String): String =
-            "$sourceCode$LANGUAGE_DIRECTION_SEPARATOR$targetCode"
-
-        fun fromId(id: String): LanguageDirection? {
-            val parts = id.split(LANGUAGE_DIRECTION_SEPARATOR)
-            if (parts.size != 2) return null
-            val (sourceCode, targetCode) = parts
-            val source = LanguageCatalog.findLanguage(sourceCode) ?: return null
-            val target = LanguageCatalog.findLanguage(targetCode) ?: return null
-            if (source == target) return null
-            return LanguageDirection(source, target)
-        }
+        fun fromCode(code: String?): SupportedLanguage? = entries.firstOrNull { it.code == code }
     }
 }
 
-object LanguageCatalog {
-    val languages: List<Language> = listOf(
-        Language(code = "zh-CN", displayName = "中文"),
-        Language(code = "fr-FR", displayName = "法语"),
-        Language(code = "en-US", displayName = "英语"),
-        Language(code = "es-ES", displayName = "西班牙语"),
-        Language(code = "de-DE", displayName = "德语"),
-        Language(code = "ja-JP", displayName = "日语")
-    )
+data class LanguageDirection(
+    val sourceLanguage: SupportedLanguage?,
+    val targetLanguage: SupportedLanguage,
+) {
+    val isAutoDetect: Boolean
+        get() = sourceLanguage == null
 
-    val defaultDirection: LanguageDirection = LanguageDirection(
-        source = languages.first { it.code == "zh-CN" },
-        target = languages.first { it.code == "fr-FR" }
-    )
+    fun encode(): String = "${sourceLanguage?.code ?: AUTO_DETECT_LANGUAGE_CODE}|${targetLanguage.code}"
 
-    val directions: List<LanguageDirection> = languages.flatMap { source ->
-        languages.filter { target -> target != source }.map { target ->
-            LanguageDirection(source, target)
+    fun withSource(language: SupportedLanguage?): LanguageDirection = copy(sourceLanguage = language)
+
+    fun withTarget(language: SupportedLanguage): LanguageDirection = copy(targetLanguage = language)
+
+    companion object {
+        fun decode(value: String?): LanguageDirection {
+            if (value.isNullOrBlank()) {
+                return LanguageDirection(
+                    sourceLanguage = SupportedLanguage.ChineseSimplified,
+                    targetLanguage = SupportedLanguage.English
+                )
+            }
+            return when {
+                value.contains("|") -> {
+                    val (source, target) = value.split("|", limit = 2).let {
+                        it.firstOrNull() to it.getOrNull(1)
+                    }
+                    val sourceLanguage = if (source.isNullOrBlank() || source == AUTO_DETECT_LANGUAGE_CODE) {
+                        null
+                    } else {
+                        SupportedLanguage.fromCode(source)
+                    }
+                    val targetLanguage = SupportedLanguage.fromCode(target)
+                        ?: SupportedLanguage.English
+                    LanguageDirection(sourceLanguage, targetLanguage)
+                }
+
+                value == "ChineseToFrench" -> LanguageDirection(
+                    SupportedLanguage.ChineseSimplified,
+                    SupportedLanguage.French
+                )
+
+                value == "FrenchToChinese" -> LanguageDirection(
+                    SupportedLanguage.French,
+                    SupportedLanguage.ChineseSimplified
+                )
+
+                else -> LanguageDirection(
+                    sourceLanguage = SupportedLanguage.fromCode(value),
+                    targetLanguage = SupportedLanguage.English
+                )
+            }
         }
     }
 
@@ -68,11 +88,25 @@ enum class TranslationModelProfile(val displayName: String) {
     Offline("Whisper v3")
 }
 
+enum class TranslationInputMode {
+    Voice,
+    Text,
+    Image,
+}
+
 data class UserSettings(
-    val direction: LanguageDirection = LanguageCatalog.defaultDirection,
+    val direction: LanguageDirection = LanguageDirection(
+        SupportedLanguage.ChineseSimplified,
+        SupportedLanguage.English
+    ),
     val translationProfile: TranslationModelProfile = TranslationModelProfile.Balanced,
     val offlineFallbackEnabled: Boolean = true,
-    val allowTelemetry: Boolean = false
+    val allowTelemetry: Boolean = false,
+    val syncEnabled: Boolean = true,
+    val accountId: String? = null,
+    val accountEmail: String? = null,
+    val accountDisplayName: String? = null,
+    val lastSyncedAt: Instant? = null,
 )
 
 data class TranslationContent(
@@ -80,13 +114,20 @@ data class TranslationContent(
     val translation: String,
     val synthesizedAudioPath: String? = null,
     val timestamp: Instant = Clock.System.now(),
+    val detectedSourceLanguage: SupportedLanguage? = null,
+    val targetLanguage: SupportedLanguage? = null,
+    val inputMode: TranslationInputMode = TranslationInputMode.Voice,
 )
 
 data class TranslationSessionState(
     val isActive: Boolean = false,
     val isMicrophoneOpen: Boolean = false,
     val latencyMetrics: LatencyMetrics = LatencyMetrics(),
-    val direction: LanguageDirection = LanguageCatalog.defaultDirection,
+    val direction: LanguageDirection = LanguageDirection(
+        SupportedLanguage.ChineseSimplified,
+        SupportedLanguage.English
+    ),
+    val availableInputModes: Set<TranslationInputMode> = TranslationInputMode.entries.toSet(),
     val currentSegment: TranslationContent? = null,
     val errorMessage: String? = null,
 )
@@ -102,7 +143,24 @@ data class TranslationHistoryItem(
     val direction: LanguageDirection,
     val sourceText: String,
     val translatedText: String,
-    val createdAt: Instant
+    val createdAt: Instant,
+    val inputMode: TranslationInputMode = TranslationInputMode.Voice,
+    val detectedSourceLanguage: SupportedLanguage? = null,
+    val isFavorite: Boolean = false,
+    val tags: Set<String> = emptySet(),
+)
+
+data class AccountProfile(
+    val accountId: String,
+    val email: String,
+    val displayName: String? = null,
+    val lastSyncedAt: Instant? = null,
+)
+
+data class AccountSyncStatus(
+    val success: Boolean,
+    val message: String? = null,
+    val syncedAt: Instant? = null,
 )
 
 interface TranslationSession {
