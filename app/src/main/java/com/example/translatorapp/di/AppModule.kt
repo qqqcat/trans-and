@@ -9,6 +9,8 @@ import com.example.translatorapp.data.datasource.HistoryDatabase
 import com.example.translatorapp.data.datasource.UserPreferencesDataSource
 import com.example.translatorapp.data.repository.TranslationRepositoryImpl
 import com.example.translatorapp.domain.repository.TranslationRepository
+import com.example.translatorapp.localmodel.LocalSpeechRecognizer
+import com.example.translatorapp.localmodel.WhisperLocalEngine
 import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.ApiRelayService
 import com.example.translatorapp.network.RealtimeApi
@@ -114,4 +116,10 @@ object AppModule {
     fun provideTranslationRepository(
         impl: TranslationRepositoryImpl
     ): TranslationRepository = impl
+
+    @Provides
+    @Singleton
+    fun provideLocalSpeechRecognizer(
+        engine: WhisperLocalEngine
+    ): LocalSpeechRecognizer = engine
 }
