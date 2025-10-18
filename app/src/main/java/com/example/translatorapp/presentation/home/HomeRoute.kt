@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Edit
@@ -54,9 +55,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -71,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -580,7 +579,6 @@ private fun InputModeSelector(
     val primaryModes = listOf(TranslationInputMode.Voice, TranslationInputMode.Text)
     val secondaryModes = TranslationInputMode.entries.filterNot { it in primaryModes }
     var isSheetOpen by remember { mutableStateOf(false) }
-    val segmentCount = primaryModes.size + if (secondaryModes.isNotEmpty()) 1 else 0
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -593,47 +591,43 @@ private fun InputModeSelector(
                 text = stringResource(id = R.string.home_input_mode_label),
                 style = MaterialTheme.typography.titleSmall
             )
-            SingleChoiceSegmentedButtonRow {
-                primaryModes.forEachIndexed { index, mode ->
-                    val selectedPrimary = selected == mode
-                    SegmentedButton(
-                        selected = selectedPrimary,
-                        onClick = { onInputModeSelected(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = segmentCount)
-                    ) {
-                        InputModeSegment(
-                            label = stringResource(id = mode.labelRes),
-                            icon = mode.icon,
-                            selected = selectedPrimary
+            ModeOption(
+                mode = TranslationInputMode.Voice,
+                selected = selected == TranslationInputMode.Voice,
+                onClick = { onInputModeSelected(TranslationInputMode.Voice) }
+            )
+            ModeOption(
+                mode = TranslationInputMode.Text,
+                selected = selected == TranslationInputMode.Text,
+                onClick = { onInputModeSelected(TranslationInputMode.Text) }
+            )
+            if (secondaryModes.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = { isSheetOpen = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreHoriz,
+                        contentDescription = stringResource(id = R.string.home_input_mode_more)
+                    )
+                    Spacer(modifier = Modifier.width(spacing.xs))
+                    Text(text = stringResource(id = R.string.home_input_mode_more))
+                    if (selected in secondaryModes) {
+                        Spacer(modifier = Modifier.width(spacing.sm))
+                        Text(
+                            text = stringResource(id = selected.labelRes),
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
-                if (secondaryModes.isNotEmpty()) {
-                    val moreSelected = selected in secondaryModes
-                    SegmentedButton(
-                        selected = moreSelected,
-                        onClick = { isSheetOpen = true },
-                        shape = SegmentedButtonDefaults.itemShape(index = primaryModes.size, count = segmentCount)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xs),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.MoreHoriz,
-                                contentDescription = stringResource(id = R.string.home_input_mode_more)
-                            )
-                            Text(text = stringResource(id = R.string.home_input_mode_more))
-                        }
-                    }
-                }
             }
-            Text(
-                text = stringResource(id = selected.descriptionRes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (selected !in primaryModes && selected in TranslationInputMode.entries) {
+                Text(
+                    text = stringResource(id = selected.descriptionRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 
@@ -655,7 +649,7 @@ private fun InputModeSelector(
                     modifier = Modifier
                         .padding(horizontal = spacing.lg)
                 )
-                TranslationInputMode.entries.forEach { mode ->
+                secondaryModes.forEach { mode ->
                     val isSelected = mode == selected
                     ListItem(
                         headlineContent = { Text(text = stringResource(id = mode.labelRes)) },
@@ -682,6 +676,59 @@ private fun InputModeSelector(
                             }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModeOption(
+    mode: TranslationInputMode,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    val shape = MaterialTheme.shapes.medium
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(onClick = onClick),
+        color = containerColor,
+        tonalElevation = if (selected) 4.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.md, vertical = spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            Icon(imageVector = mode.icon, contentDescription = null, tint = contentColor)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(id = mode.labelRes),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = contentColor
+                )
+                Text(
+                    text = stringResource(id = mode.descriptionRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.8f)
+                )
+            }
+            if (selected) {
+                Icon(imageVector = Icons.Outlined.Check, contentDescription = null, tint = contentColor)
             }
         }
     }

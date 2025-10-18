@@ -366,10 +366,9 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun maybeStartSession() {
-        val settings = currentSettings ?: return
         if (!uiState.value.input.isRecordAudioPermissionGranted) {
             pushMessage(
-                message = "需要麦克风权限才能启动实时翻译",
+                message = "��Ҫ��˷�Ȩ�޲�������ʵʱ����",
                 level = UiMessageLevel.Warning,
                 action = UiAction.CheckPermissions
             )
@@ -380,11 +379,20 @@ class HomeViewModel @Inject constructor(
         isStartingSession = true
         recalculateStatus()
         viewModelScope.launch(dispatcherProvider.io) {
-            runCatching { startRealtimeSession(settings) }
+            val latestSettings = runCatching { loadSettingsUseCase() }
+                .onSuccess { applySettings(it) }
+                .getOrElse { throwable ->
+                    isStartingSession = false
+                    hasStartedSession = false
+                    pushMessageFromThrowable(throwable, fallback = "�������ù���������")
+                    recalculateStatus()
+                    return@launch
+                }
+            runCatching { startRealtimeSession(latestSettings) }
                 .onFailure { throwable ->
                     isStartingSession = false
                     hasStartedSession = false
-                    pushMessageFromThrowable(throwable, fallback = "实时会话启动失败")
+                    pushMessageFromThrowable(throwable, fallback = "ʵʱ�Ự����ʧ��")
                     recalculateStatus()
                 }
         }

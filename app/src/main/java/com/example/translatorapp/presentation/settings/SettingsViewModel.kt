@@ -16,6 +16,8 @@ import com.example.translatorapp.domain.usecase.UpdateOfflineFallbackUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
 import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
 import com.example.translatorapp.util.DispatcherProvider
+import com.example.translatorapp.offline.OfflineModelManager
+import com.example.translatorapp.offline.OfflineModelProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +40,7 @@ class SettingsViewModel @Inject constructor(
     private val updateSyncEnabledUseCase: UpdateSyncEnabledUseCase,
     private val syncAccountUseCase: SyncAccountUseCase,
     private val updateApiEndpointUseCase: UpdateApiEndpointUseCase,
+    private val offlineModelManager: OfflineModelManager,
     private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
 
@@ -49,6 +52,11 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch(dispatcherProvider.io) {
             refreshSettings(preserveInputs = false)
+        }
+        viewModelScope.launch {
+            offlineModelManager.state.collect { offline ->
+                _uiState.update { it.copy(offlineState = offline) }
+            }
         }
     }
 
@@ -98,6 +106,28 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(dispatcherProvider.io) {
             updateModelUseCase(profile)
             refreshSettings(message = "模型已切换为 ${profile.displayName}")
+        }
+    }
+
+    fun onDownloadOfflineModel(profile: OfflineModelProfile) {
+        viewModelScope.launch(dispatcherProvider.io) {
+            val label = profile.displayLabel()
+            runCatching { offlineModelManager.ensureModel(profile) }
+                .onSuccess { refreshSettings(message = label + " 已准备就绪") }
+                .onFailure { throwable ->
+                    _uiState.update { it.copy(message = label + " 下载失败：" + throwable.userMessage()) }
+                }
+        }
+    }
+
+    fun onRemoveOfflineModel(profile: OfflineModelProfile) {
+        viewModelScope.launch(dispatcherProvider.io) {
+            val label = profile.displayLabel()
+            runCatching { offlineModelManager.removeModel(profile) }
+                .onSuccess { refreshSettings(message = label + " 已移除") }
+                .onFailure { throwable ->
+                    _uiState.update { it.copy(message = label + " 移除失败：" + throwable.userMessage()) }
+                }
         }
     }
 
@@ -229,3 +259,11 @@ class SettingsViewModel @Inject constructor(
 }
 
 private fun String?.orElseEmpty(): String = this ?: ""
+
+private fun OfflineModelProfile.displayLabel(): String = when (this) {
+    OfflineModelProfile.Tiny -> "Whisper Tiny"
+    OfflineModelProfile.Turbo -> "Whisper Turbo"
+}
+
+private fun Throwable.userMessage(): String = message?.takeIf { it.isNotBlank() } ?: "未知错误"
+
