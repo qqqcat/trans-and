@@ -10,9 +10,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,21 +36,27 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MicOff
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,7 +66,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -74,11 +82,15 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.translatorapp.R
+import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
 import com.example.translatorapp.domain.model.UiAction
 import com.example.translatorapp.domain.model.UiMessage
 import com.example.translatorapp.domain.model.UiMessageLevel
+import com.example.translatorapp.presentation.components.LanguagePickerSheet
+import com.example.translatorapp.presentation.components.LanguagePickerTarget
 import com.example.translatorapp.presentation.components.PermissionGuidanceCard
 import com.example.translatorapp.presentation.components.SessionStatusIndicator
 import com.example.translatorapp.presentation.theme.LocalElevation
@@ -95,7 +107,6 @@ import java.io.InputStream
 fun HomeRoute(
     viewModel: HomeViewModel,
     paddingValues: PaddingValues,
-    onOpenSettings: () -> Unit,
     onOpenHistory: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -160,12 +171,15 @@ fun HomeRoute(
         onStopSession = viewModel::onStopSession,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenPermissionSettings = openPermissionSettings,
-        onOpenSettings = onOpenSettings,
         onOpenHistory = onOpenHistory,
         onTextChanged = viewModel::onTextInputChanged,
         onTranslateText = viewModel::onTranslateText,
         onPickImage = { imagePickerLauncher.launch("image/*") },
         onInputModeSelected = viewModel::onInputModeSelected,
+        onAutoDetectChanged = viewModel::onAutoDetectChanged,
+        onSourceLanguageSelected = viewModel::onSourceLanguageSelected,
+        onTargetLanguageSelected = viewModel::onTargetLanguageSelected,
+        onDirectionSelected = viewModel::onDirectionSelected,
         onMessageDismissed = viewModel::onMessageDismissed,
         onMessageAction = viewModel::onMessageAction
     )
@@ -179,12 +193,15 @@ private fun HomeScreen(
     onStopSession: () -> Unit,
     onRequestPermission: () -> Unit,
     onOpenPermissionSettings: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenHistory: () -> Unit,
     onTextChanged: (String) -> Unit,
     onTranslateText: () -> Unit,
     onPickImage: () -> Unit,
     onInputModeSelected: (TranslationInputMode) -> Unit,
+    onAutoDetectChanged: (Boolean) -> Unit,
+    onSourceLanguageSelected: (SupportedLanguage) -> Unit,
+    onTargetLanguageSelected: (SupportedLanguage) -> Unit,
+    onDirectionSelected: (LanguageDirection) -> Unit,
     onMessageDismissed: (String) -> Unit,
     onMessageAction: (UiAction) -> Unit
 ) {
@@ -214,6 +231,8 @@ private fun HomeScreen(
         val horizontalPadding = spacing.horizontalPadding(breakpoint)
         val verticalSpacing = spacing.sectionSpacing(breakpoint)
         val cardPadding = spacing.cardPadding(breakpoint)
+        var languagePickerTarget by remember { mutableStateOf(LanguagePickerTarget.Source) }
+        var isLanguageSheetVisible by remember { mutableStateOf(false) }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -246,7 +265,10 @@ private fun HomeScreen(
                     cardPadding = cardPadding,
                     onToggleMicrophone = onToggleMicrophone,
                     onStopSession = onStopSession,
-                    onOpenSettings = onOpenSettings
+                                onOpenLanguagePicker = { target ->
+                        languagePickerTarget = target
+                        isLanguageSheetVisible = true
+                    }
                 )
             }
 
@@ -321,6 +343,39 @@ private fun HomeScreen(
                     )
                 }
             }
+        }
+
+        if (isLanguageSheetVisible) {
+            LanguagePickerSheet(
+                target = languagePickerTarget,
+                currentDirection = state.settings.direction,
+                availableLanguages = SupportedLanguage.entries,
+                favorites = emptyList(),
+                isAutoDetectEnabled = state.settings.direction.isAutoDetect,
+                onDismiss = { isLanguageSheetVisible = false },
+                onTargetChange = { languagePickerTarget = it },
+                onFavoriteSelected = { direction ->
+                    onDirectionSelected(direction)
+                    isLanguageSheetVisible = false
+                },
+                onSourceSelected = { language ->
+                    if (language == null) {
+                        if (!state.settings.direction.isAutoDetect) {
+                            onAutoDetectChanged(true)
+                        }
+                    } else {
+                        if (state.settings.direction.isAutoDetect) {
+                            onAutoDetectChanged(false)
+                        }
+                        onSourceLanguageSelected(language)
+                    }
+                    isLanguageSheetVisible = false
+                },
+                onTargetSelected = { language ->
+                    onTargetLanguageSelected(language)
+                    isLanguageSheetVisible = false
+                }
+            )
         }
     }
 }
@@ -404,7 +459,7 @@ private fun SessionStatusCard(
     cardPadding: Dp,
     onToggleMicrophone: () -> Unit,
     onStopSession: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenLanguagePicker: (LanguagePickerTarget) -> Unit
 ) {
     val spacing = LocalSpacing.current
     val colorScheme = MaterialTheme.colorScheme
@@ -460,22 +515,16 @@ private fun SessionStatusCard(
                     verticalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
                     Text(text = statusLabel, style = MaterialTheme.typography.titleMedium, color = statusColor)
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(text = "$sourceLabel → $targetLabel") },
-                        leadingIcon = { Icon(imageVector = Icons.Outlined.Mic, contentDescription = null) },
-                        colors = AssistChipDefaults.assistChipColors()
+                    LanguageSummaryCard(
+                        sourceLabel = sourceLabel,
+                        targetLabel = targetLabel,
+                        onSourceClick = { onOpenLanguagePicker(LanguagePickerTarget.Source) },
+                        onTargetClick = { onOpenLanguagePicker(LanguagePickerTarget.Target) }
                     )
                     Text(
                         text = stringResource(id = R.string.home_model_label, session.model.displayName),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = onOpenSettings) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = stringResource(id = R.string.home_open_settings)
                     )
                 }
             }
@@ -518,7 +567,6 @@ private fun SessionStatusCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InputModeSelector(
     selected: TranslationInputMode,
@@ -527,7 +575,11 @@ private fun InputModeSelector(
 ) {
     val spacing = LocalSpacing.current
     val cardPadding = spacing.cardPadding(breakpoint)
-    val isCompact = breakpoint == WindowBreakpoint.Compact
+    val primaryModes = listOf(TranslationInputMode.Voice, TranslationInputMode.Text)
+    val secondaryModes = TranslationInputMode.entries.filterNot { it in primaryModes }
+    var isSheetOpen by remember { mutableStateOf(false) }
+    val segmentCount = primaryModes.size + if (secondaryModes.isNotEmpty()) 1 else 0
+
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -539,49 +591,93 @@ private fun InputModeSelector(
                 text = stringResource(id = R.string.home_input_mode_label),
                 style = MaterialTheme.typography.titleSmall
             )
-            if (isCompact) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm)
-                ) {
-                    InputModeChip(
-                        label = stringResource(id = R.string.home_input_mode_voice),
-                        icon = Icons.Outlined.Mic,
-                        selected = selected == TranslationInputMode.Voice,
-                        onClick = { onInputModeSelected(TranslationInputMode.Voice) }
-                    )
-                    InputModeChip(
-                        label = stringResource(id = R.string.home_input_mode_text),
-                        icon = Icons.Outlined.Edit,
-                        selected = selected == TranslationInputMode.Text,
-                        onClick = { onInputModeSelected(TranslationInputMode.Text) }
-                    )
-                    InputModeChip(
-                        label = stringResource(id = R.string.home_input_mode_image),
-                        icon = Icons.Outlined.Image,
-                        selected = selected == TranslationInputMode.Image,
-                        onClick = { onInputModeSelected(TranslationInputMode.Image) }
-                    )
+            SingleChoiceSegmentedButtonRow {
+                primaryModes.forEachIndexed { index, mode ->
+                    val selectedPrimary = selected == mode
+                    SegmentedButton(
+                        selected = selectedPrimary,
+                        onClick = { onInputModeSelected(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = segmentCount)
+                    ) {
+                        InputModeSegment(
+                            label = stringResource(id = mode.labelRes),
+                            icon = mode.icon,
+                            selected = selectedPrimary
+                        )
+                    }
                 }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    InputModeChip(
-                        label = stringResource(id = R.string.home_input_mode_voice),
-                        icon = Icons.Outlined.Mic,
-                        selected = selected == TranslationInputMode.Voice,
-                        onClick = { onInputModeSelected(TranslationInputMode.Voice) }
-                    )
-                    InputModeChip(
-                        label = stringResource(id = R.string.home_input_mode_text),
-                        icon = Icons.Outlined.Edit,
-                        selected = selected == TranslationInputMode.Text,
-                        onClick = { onInputModeSelected(TranslationInputMode.Text) }
-                    )
-                    InputModeChip(
-                        label = stringResource(id = R.string.home_input_mode_image),
-                        icon = Icons.Outlined.Image,
-                        selected = selected == TranslationInputMode.Image,
-                        onClick = { onInputModeSelected(TranslationInputMode.Image) }
+                if (secondaryModes.isNotEmpty()) {
+                    val moreSelected = selected in secondaryModes
+                    SegmentedButton(
+                        selected = moreSelected,
+                        onClick = { isSheetOpen = true },
+                        shape = SegmentedButtonDefaults.itemShape(index = primaryModes.size, count = segmentCount)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.MoreHoriz,
+                                contentDescription = stringResource(id = R.string.home_input_mode_more)
+                            )
+                            Text(text = stringResource(id = R.string.home_input_mode_more))
+                        }
+                    }
+                }
+            }
+            Text(
+                text = stringResource(id = selected.descriptionRes),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
+    if (secondaryModes.isNotEmpty() && isSheetOpen) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { isSheetOpen = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.sm)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.home_input_mode_more_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .padding(horizontal = spacing.lg)
+                )
+                TranslationInputMode.entries.forEach { mode ->
+                    val isSelected = mode == selected
+                    ListItem(
+                        headlineContent = { Text(text = stringResource(id = mode.labelRes)) },
+                        supportingContent = {
+                            Text(
+                                text = stringResource(id = mode.descriptionRes),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = mode.icon,
+                                contentDescription = null
+                            )
+                        },
+                        trailingContent = {
+                            RadioButton(selected = isSelected, onClick = null)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onInputModeSelected(mode)
+                                isSheetOpen = false
+                            }
                     )
                 }
             }
@@ -589,23 +685,115 @@ private fun InputModeSelector(
     }
 }
 
+private val TranslationInputMode.labelRes: Int
+    get() = when (this) {
+        TranslationInputMode.Voice -> R.string.home_input_mode_voice
+        TranslationInputMode.Text -> R.string.home_input_mode_text
+        TranslationInputMode.Image -> R.string.home_input_mode_image
+    }
+
+private val TranslationInputMode.descriptionRes: Int
+    get() = when (this) {
+        TranslationInputMode.Voice -> R.string.home_input_mode_voice_subtitle
+        TranslationInputMode.Text -> R.string.home_input_mode_text_subtitle
+        TranslationInputMode.Image -> R.string.home_input_mode_image_subtitle
+    }
+
+private val TranslationInputMode.icon: ImageVector
+    get() = when (this) {
+        TranslationInputMode.Voice -> Icons.Outlined.Mic
+        TranslationInputMode.Text -> Icons.Outlined.Edit
+        TranslationInputMode.Image -> Icons.Outlined.Image
+    }
+
 @Composable
-private fun InputModeChip(
+private fun InputModeSegment(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit
+    icon: ImageVector,
+    selected: Boolean
 ) {
-    AssistChip(
-        onClick = onClick,
-        label = { Text(text = label) },
-        leadingIcon = { Icon(imageVector = icon, contentDescription = null) },
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
-            labelColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            leadingIconContentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val spacing = LocalSpacing.current
+    Row(
+        modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.height(if (selected) 24.dp else 22.dp)
         )
-    )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageSummaryCard(
+    sourceLabel: String,
+    targetLabel: String,
+    onSourceClick: () -> Unit,
+    onTargetClick: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 60.dp),
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.md, vertical = spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onSourceClick),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.settings_language_tab_source),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = sourceLabel,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(text = "→", style = MaterialTheme.typography.titleMedium)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onTargetClick),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = stringResource(id = R.string.settings_language_tab_target),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = targetLabel,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -687,10 +875,9 @@ private fun TextInputCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            val buttonModifier = if (isCompact) Modifier.fillMaxWidth() else Modifier.align(Alignment.End)
             Button(
                 onClick = onTranslateText,
-                modifier = buttonModifier,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
                 enabled = !state.isTextTranslating
             ) {
                 if (state.isTextTranslating) {
@@ -732,10 +919,9 @@ private fun ImageInputCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            val buttonModifier = if (isCompact) Modifier.fillMaxWidth() else Modifier.align(Alignment.End)
             Button(
                 onClick = onPickImage,
-                modifier = buttonModifier,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
                 enabled = !state.isImageTranslating
             ) {
                 if (state.isImageTranslating) {
@@ -786,10 +972,9 @@ private fun HistoryPreviewCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            val buttonModifier = if (isCompact) Modifier.fillMaxWidth() else Modifier.align(Alignment.End)
             OutlinedButton(
                 onClick = onOpenHistory,
-                modifier = buttonModifier
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Text(text = stringResource(id = R.string.home_open_history))
             }

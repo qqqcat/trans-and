@@ -3,8 +3,10 @@ package com.example.translatorapp.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
+import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.TranslationSessionState
 import com.example.translatorapp.domain.model.TranslatorException
 import com.example.translatorapp.domain.model.UiAction
@@ -22,6 +24,8 @@ import com.example.translatorapp.domain.usecase.StopRealtimeSessionUseCase
 import com.example.translatorapp.domain.usecase.ToggleMicrophoneUseCase
 import com.example.translatorapp.domain.usecase.TranslateImageUseCase
 import com.example.translatorapp.domain.usecase.TranslateTextUseCase
+import com.example.translatorapp.domain.usecase.UpdateDirectionUseCase
+import com.example.translatorapp.domain.usecase.UpdateModelUseCase
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.util.PermissionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,6 +46,8 @@ class HomeViewModel @Inject constructor(
     private val stopRealtimeSession: StopRealtimeSessionUseCase,
     private val toggleMicrophoneUseCase: ToggleMicrophoneUseCase,
     private val loadSettingsUseCase: LoadSettingsUseCase,
+    private val updateDirectionUseCase: UpdateDirectionUseCase,
+    private val updateModelUseCase: UpdateModelUseCase,
     private val persistHistoryUseCase: PersistHistoryUseCase,
     private val translateTextUseCase: TranslateTextUseCase,
     private val translateImageUseCase: TranslateImageUseCase,
@@ -59,6 +65,7 @@ class HomeViewModel @Inject constructor(
     private var isStartingSession = false
     private var settingsLoaded = false
     private var permissionChecked = false
+    private var manualSourceLanguage: SupportedLanguage = SupportedLanguage.ChineseSimplified
 
     init {
         observeSessionChanges()
@@ -127,23 +134,81 @@ class HomeViewModel @Inject constructor(
     private fun loadInitialSettings() {
         viewModelScope.launch(dispatcherProvider.io) {
             val settings = loadSettingsUseCase()
-            currentSettings = settings
+            applySettings(settings)
             settingsLoaded = true
-            _uiState.update { current ->
-                val snapshot = current.copy(
-                    settings = settings,
-                    session = current.session.copy(
-                        direction = settings.direction,
-                        model = settings.translationProfile
-                    )
-                )
-                snapshot.copy(
-                    session = snapshot.session.copy(
-                        status = computeSessionStatus(snapshot)
-                    )
-                )
-            }
             finalizeInitialization()
+        }
+    }
+
+    fun onAutoDetectChanged(enabled: Boolean) {
+        viewModelScope.launch(dispatcherProvider.io) {
+            val settings = currentSettings ?: loadSettingsUseCase()
+            val baseDirection = settings.direction
+            val updated = if (enabled) {
+                baseDirection.withSource(null)
+            } else {
+                baseDirection.withSource(manualSourceLanguage)
+            }
+            updateDirectionUseCase(updated)
+            reloadSettings()
+        }
+    }
+
+    fun onSourceLanguageSelected(language: SupportedLanguage) {
+        manualSourceLanguage = language
+        viewModelScope.launch(dispatcherProvider.io) {
+            val settings = currentSettings ?: loadSettingsUseCase()
+            val direction = settings.direction.withSource(language)
+            updateDirectionUseCase(direction)
+            reloadSettings()
+        }
+    }
+
+    fun onTargetLanguageSelected(language: SupportedLanguage) {
+        viewModelScope.launch(dispatcherProvider.io) {
+            val settings = currentSettings ?: loadSettingsUseCase()
+            val direction = settings.direction.withTarget(language)
+            updateDirectionUseCase(direction)
+            reloadSettings()
+        }
+    }
+
+    fun onDirectionSelected(direction: LanguageDirection) {
+        viewModelScope.launch(dispatcherProvider.io) {
+            manualSourceLanguage = direction.sourceLanguage ?: manualSourceLanguage
+            updateDirectionUseCase(direction)
+            reloadSettings()
+        }
+    }
+
+    fun onModelSelected(profile: TranslationModelProfile) {
+        viewModelScope.launch(dispatcherProvider.io) {
+            updateModelUseCase(profile)
+            reloadSettings()
+        }
+    }
+
+    private suspend fun reloadSettings() {
+        val refreshed = loadSettingsUseCase()
+        applySettings(refreshed)
+    }
+
+    private fun applySettings(settings: UserSettings) {
+        currentSettings = settings
+        manualSourceLanguage = settings.direction.sourceLanguage ?: manualSourceLanguage
+        _uiState.update { current ->
+            val snapshot = current.copy(
+                settings = settings,
+                session = current.session.copy(
+                    direction = settings.direction,
+                    model = settings.translationProfile
+                )
+            )
+            snapshot.copy(
+                session = snapshot.session.copy(
+                    status = computeSessionStatus(snapshot)
+                )
+            )
         }
     }
 

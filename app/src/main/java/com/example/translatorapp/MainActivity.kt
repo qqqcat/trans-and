@@ -89,7 +89,6 @@ private fun TranslatorApp() {
                 HomeRoute(
                     viewModel = viewModel,
                     paddingValues = padding,
-                    onOpenSettings = { appState.navigateTo(TranslatorDestination.Settings) },
                     onOpenHistory = { appState.navigateTo(TranslatorDestination.History) }
                 )
             }
