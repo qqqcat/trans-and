@@ -168,3 +168,9 @@ interface TranslationSession {
     suspend fun stop()
     suspend fun sendTextPrompt(prompt: String)
 }
+
+interface ManagedVoiceSession : TranslationSession {
+    suspend fun toggleMicrophone(): Boolean
+    suspend fun updateDirection(direction: LanguageDirection)
+    suspend fun updateModel(profile: TranslationModelProfile)
+}

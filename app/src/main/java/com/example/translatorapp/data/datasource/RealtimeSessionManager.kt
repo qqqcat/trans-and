@@ -3,8 +3,8 @@ package com.example.translatorapp.data.datasource
 import com.example.translatorapp.audio.AudioSessionController
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.TranslationContent
+import com.example.translatorapp.domain.model.ManagedVoiceSession
 import com.example.translatorapp.domain.model.TranslationModelProfile
-import com.example.translatorapp.domain.model.TranslationSession
 import com.example.translatorapp.domain.model.TranslationSessionState
 import com.example.translatorapp.domain.model.UserSettings
 import com.example.translatorapp.network.ApiConfig
@@ -41,7 +41,7 @@ class RealtimeSessionManager @Inject constructor(
     private val webRtcClient: WebRtcClient,
     private val dispatcherProvider: DispatcherProvider,
     private val apiConfig: ApiConfig
-) : TranslationSession {
+) : ManagedVoiceSession {
 
     private val coroutineScope = CoroutineScope(dispatcherProvider.io)
     private val mutex = Mutex()
@@ -142,7 +142,7 @@ class RealtimeSessionManager @Inject constructor(
         // Reserved for non-voice prompts.
     }
 
-    suspend fun toggleMicrophone(): Boolean = mutex.withLock {
+    override suspend fun toggleMicrophone(): Boolean = mutex.withLock {
         val newState = !_state.value.isMicrophoneOpen
         if (newState) {
             if (sessionId == null) {
@@ -160,7 +160,7 @@ class RealtimeSessionManager @Inject constructor(
         newState
     }
 
-    suspend fun updateDirection(direction: LanguageDirection) {
+    override suspend fun updateDirection(direction: LanguageDirection) {
         mutex.withLock {
             _state.value = _state.value.copy(direction = direction)
             sessionId?.let { id ->
@@ -171,7 +171,7 @@ class RealtimeSessionManager @Inject constructor(
         }
     }
 
-    suspend fun updateModel(profile: TranslationModelProfile) {
+    override suspend fun updateModel(profile: TranslationModelProfile) {
         sessionId?.let { id ->
             runCatching {
                 realtimeApi().updateSession(id, model = profile.name)

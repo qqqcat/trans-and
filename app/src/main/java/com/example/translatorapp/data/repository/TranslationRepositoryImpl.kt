@@ -8,6 +8,7 @@ import com.example.translatorapp.data.model.TranslationHistoryEntity
 import com.example.translatorapp.domain.model.AccountProfile
 import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.ManagedVoiceSession
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
@@ -19,6 +20,7 @@ import com.example.translatorapp.domain.model.UiAction
 import com.example.translatorapp.domain.model.UiMessageLevel
 import com.example.translatorapp.domain.model.UserSettings
 import com.example.translatorapp.domain.repository.TranslationRepository
+import com.example.translatorapp.offline.OfflineSessionManager
 import com.example.translatorapp.network.AccountHistoryItemDto
 import com.example.translatorapp.network.AccountProfileRequest
 import com.example.translatorapp.network.AccountSyncRequest
@@ -35,14 +37,19 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import retrofit2.HttpException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Singleton
 class TranslationRepositoryImpl @Inject constructor(
     private val realtimeSessionManager: RealtimeSessionManager,
+    private val offlineSessionManager: OfflineSessionManager,
     private val historyDao: HistoryDao,
     private val preferencesDataSource: UserPreferencesDataSource,
     private val apiFactory: RealtimeApiFactory,
@@ -50,12 +57,23 @@ class TranslationRepositoryImpl @Inject constructor(
     private val dispatcherProvider: DispatcherProvider
 ) : TranslationRepository {
 
+    private val sessionMutex = Mutex()
+
+    @Volatile
+    private var activeSession: ManagedVoiceSession = realtimeSessionManager
+
     @Volatile
     private var cachedApi: Pair<String, RealtimeApi>? = null
 
-    override val sessionState: Flow<TranslationSessionState> = realtimeSessionManager.state
+    override val sessionState: Flow<TranslationSessionState> = merge(
+        realtimeSessionManager.state,
+        offlineSessionManager.state
+    ).onStart { emit(TranslationSessionState()) }
 
-    override val liveTranscription: Flow<TranslationContent> = realtimeSessionManager.transcriptStream
+    override val liveTranscription: Flow<TranslationContent> = merge(
+        realtimeSessionManager.transcriptStream,
+        offlineSessionManager.transcriptStream
+    )
 
     override val history: Flow<List<TranslationHistoryItem>> =
         historyDao.observeHistory().map { entities ->
@@ -64,25 +82,46 @@ class TranslationRepositoryImpl @Inject constructor(
 
     override suspend fun startRealtimeSession(settings: UserSettings) {
         preferencesDataSource.update(settings)
-        realtimeSessionManager.start(settings)
+        sessionMutex.withLock {
+            val session = resolveSession(settings.translationProfile)
+            if (session !== activeSession) {
+                activeSession.stop()
+                activeSession = session
+            }
+            activeSession.start(settings)
+        }
     }
 
     override suspend fun stopRealtimeSession() {
-        realtimeSessionManager.stop()
+        sessionMutex.withLock {
+            activeSession.stop()
+            activeSession = realtimeSessionManager
+        }
     }
 
-    override suspend fun toggleMicrophone(): Boolean = realtimeSessionManager.toggleMicrophone()
+    override suspend fun toggleMicrophone(): Boolean = sessionMutex.withLock {
+        activeSession.toggleMicrophone()
+    }
 
     override suspend fun updateDirection(direction: LanguageDirection) {
         val current = preferencesDataSource.settings.first()
         preferencesDataSource.update(current.copy(direction = direction))
-        realtimeSessionManager.updateDirection(direction)
+        sessionMutex.withLock {
+            activeSession.updateDirection(direction)
+        }
     }
 
     override suspend fun updateModel(profile: TranslationModelProfile) {
         val current = preferencesDataSource.settings.first()
         preferencesDataSource.update(current.copy(translationProfile = profile))
-        realtimeSessionManager.updateModel(profile)
+        sessionMutex.withLock {
+            val nextSession = resolveSession(profile)
+            if (nextSession !== activeSession) {
+                activeSession.stop()
+                activeSession = nextSession
+            }
+            activeSession.updateModel(profile)
+        }
     }
 
     override suspend fun updateOfflineFallback(enabled: Boolean) {
@@ -265,6 +304,13 @@ class TranslationRepositoryImpl @Inject constructor(
         cachedApi = null
         realtimeSessionManager.stop()
     }
+
+    private fun resolveSession(profile: TranslationModelProfile): ManagedVoiceSession =
+        if (profile == TranslationModelProfile.Offline) {
+            offlineSessionManager
+        } else {
+            realtimeSessionManager
+        }
 
     private suspend fun <T> runWithApi(block: suspend (RealtimeApi) -> T): T = block(retrieveApi())
 
