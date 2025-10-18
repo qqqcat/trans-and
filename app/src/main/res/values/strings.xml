@@ -77,6 +77,7 @@
     <string name="settings_title">设置</string>
     <string name="settings_section_language">语言方向</string>
     <string name="settings_section_model">翻译模型</string>
+    <string name="settings_section_offline_models">�����ڵ�</string>
     <string name="settings_section_network">网络与服务</string>
     <string name="settings_section_preferences">通用偏好</string>
     <string name="settings_section_account">账号与同步</string>
@@ -116,6 +117,19 @@
     <string name="settings_model_open_picker">选择模型</string>
     <!-- Misc -->
     <string name="history_tag_separator">•</string>
+    <string name="settings_offline_tiny_title">Whisper Tiny��</string>
+    <string name="settings_offline_tiny_subtitle">�� App ���������ṩ������������</string>
+    <string name="settings_offline_tiny_action">���±���</string>
+    <string name="settings_offline_turbo_title">Whisper Turbo</string>
+    <string name="settings_offline_turbo_description">����������ڵ������ɶ����Զ�����ͷ��롣</string>
+    <string name="settings_offline_turbo_installed">�Ѿ����أ������ڵ��Զ�����ʶ��</string>
+    <string name="settings_offline_turbo_download">���� Turbo</string>
+    <string name="settings_offline_turbo_refresh">��������</string>
+    <string name="settings_offline_remove">ɾ��ģ��</string>
+    <string name="settings_offline_status_installing">������������</string>
+    <string name="settings_offline_status_ready">���ñ���</string>
+    <string name="settings_offline_status_missing">δ��װ</string>
+
 </resources>
 
 

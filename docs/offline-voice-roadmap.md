@@ -6,6 +6,12 @@
 - Keep application size reasonable by using split delivery or on-demand downloads.
 - Reuse existing audio capture, repository, and UI flows with minimal disruption.
 
+## Current Status
+- ✅ Whisper tiny packaged with the app (copied from assets on first launch).
+- ✅ Offline session routing uses native whisper.cpp JNI path.
+- ✅ Settings exposes turbo model download/removal with progress feedback.
+- ✅ Voice/Text input selector redesigned vertically with dedicated “更多” actions sheet.
+
 ## Target Architecture
 - `AudioSessionController` keeps ownership of PCM capture at 16 kHz mono.
 - `OfflineVoiceController` coordinates capture, buffering, voice activity detection, whisper inference, translation, and synthesis.

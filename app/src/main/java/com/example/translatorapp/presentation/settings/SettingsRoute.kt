@@ -31,6 +31,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +66,7 @@ import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.TranslationModelProfile
+import com.example.translatorapp.offline.OfflineModelProfile
 import com.example.translatorapp.presentation.components.LanguagePickerSheet
 import com.example.translatorapp.presentation.components.LanguagePickerTarget
 import com.example.translatorapp.presentation.theme.LocalSpacing
@@ -87,6 +90,8 @@ fun SettingsRoute(
         onSourceLanguageSelected = viewModel::onSourceLanguageSelected,
         onTargetLanguageSelected = viewModel::onTargetLanguageSelected,
         onModelSelected = viewModel::onModelSelected,
+        onDownloadOfflineModel = viewModel::onDownloadOfflineModel,
+        onRemoveOfflineModel = viewModel::onRemoveOfflineModel,
         onOfflineFallbackChanged = viewModel::onOfflineFallbackChanged,
         onTelemetryChanged = viewModel::onTelemetryChanged,
         onAccountEmailChange = viewModel::onAccountEmailChange,
@@ -110,6 +115,8 @@ private fun SettingsScreen(
     onSourceLanguageSelected: (SupportedLanguage) -> Unit,
     onTargetLanguageSelected: (SupportedLanguage) -> Unit,
     onModelSelected: (TranslationModelProfile) -> Unit,
+    onDownloadOfflineModel: (OfflineModelProfile) -> Unit,
+    onRemoveOfflineModel: (OfflineModelProfile) -> Unit,
     onOfflineFallbackChanged: (Boolean) -> Unit,
     onTelemetryChanged: (Boolean) -> Unit,
     onAccountEmailChange: (String) -> Unit,
@@ -197,6 +204,19 @@ private fun SettingsScreen(
                     ModelSelectionCard(
                         currentModel = state.settings.translationProfile,
                         onOpenPicker = { modelPickerVisible = true }
+                    )
+                }
+            }
+
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_offline_models),
+                    contentPadding = cardPadding
+                ) {
+                    OfflineModelsCard(
+                        state = state,
+                        onDownload = onDownloadOfflineModel,
+                        onRemove = onRemoveOfflineModel
                     )
                 }
             }
@@ -576,6 +596,113 @@ private fun ModelSelectionCard(
         OutlinedButton(onClick = onOpenPicker) {
             Text(text = stringResource(id = R.string.settings_model_open_picker))
         }
+    }
+}
+
+@Composable
+private fun OfflineModelsCard(
+    state: SettingsUiState,
+    onDownload: (OfflineModelProfile) -> Unit,
+    onRemove: (OfflineModelProfile) -> Unit
+) {
+    val spacing = LocalSpacing.current
+    val offlineState = state.offlineState
+    val installing = offlineState.installingProfile
+    val progress = offlineState.downloadProgress[installing]?.coerceIn(0f, 1f)
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        OfflineModelRow(
+            title = stringResource(id = R.string.settings_offline_tiny_title),
+            subtitle = stringResource(id = R.string.settings_offline_tiny_subtitle),
+            installed = offlineState.installedProfiles.contains(OfflineModelProfile.Tiny),
+            isBusy = installing == OfflineModelProfile.Tiny,
+            progress = if (installing == OfflineModelProfile.Tiny) progress else null,
+            primaryActionLabel = stringResource(id = R.string.settings_offline_tiny_action),
+            onPrimaryAction = { onDownload(OfflineModelProfile.Tiny) },
+            canRemove = false,
+            onRemove = null
+        )
+        OfflineModelRow(
+            title = stringResource(id = R.string.settings_offline_turbo_title),
+            subtitle = if (offlineState.installedProfiles.contains(OfflineModelProfile.Turbo)) {
+                stringResource(id = R.string.settings_offline_turbo_installed)
+            } else {
+                stringResource(id = R.string.settings_offline_turbo_description)
+            },
+            installed = offlineState.installedProfiles.contains(OfflineModelProfile.Turbo),
+            isBusy = installing == OfflineModelProfile.Turbo,
+            progress = if (installing == OfflineModelProfile.Turbo) progress else null,
+            primaryActionLabel = if (offlineState.installedProfiles.contains(OfflineModelProfile.Turbo)) {
+                stringResource(id = R.string.settings_offline_turbo_refresh)
+            } else {
+                stringResource(id = R.string.settings_offline_turbo_download)
+            },
+            onPrimaryAction = { onDownload(OfflineModelProfile.Turbo) },
+            canRemove = offlineState.installedProfiles.contains(OfflineModelProfile.Turbo),
+            onRemove = { onRemove(OfflineModelProfile.Turbo) }
+        )
+    }
+}
+
+@Composable
+private fun OfflineModelRow(
+    title: String,
+    subtitle: String,
+    installed: Boolean,
+    isBusy: Boolean,
+    progress: Float?,
+    primaryActionLabel: String,
+    onPrimaryAction: () -> Unit,
+    canRemove: Boolean,
+    onRemove: (() -> Unit)?
+) {
+    val spacing = LocalSpacing.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            val statusText = if (isBusy) {
+                stringResource(id = R.string.settings_offline_status_installing)
+            } else if (installed) {
+                stringResource(id = R.string.settings_offline_status_ready)
+            } else {
+                stringResource(id = R.string.settings_offline_status_missing)
+            }
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        progress?.let { value -> LinearProgressIndicator(progress = { value }) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            OutlinedButton(
+                onClick = onPrimaryAction,
+                enabled = !isBusy
+            ) {
+                Text(text = primaryActionLabel)
+            }
+            if (canRemove && onRemove != null) {
+                TextButton(
+                    onClick = onRemove,
+                    enabled = !isBusy
+                ) {
+                    Text(text = stringResource(id = R.string.settings_offline_remove))
+                }
+            }
+        }
+        HorizontalDivider()
     }
 }
 
