@@ -15,6 +15,7 @@ import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
+import kotlin.math.min
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -34,6 +35,7 @@ class OfflineSessionManager @Inject constructor(
     private val audioSessionController: AudioSessionController,
     private val modelManager: OfflineModelManager,
     private val speechRecognizer: LocalSpeechRecognizer,
+    private val ttsSynthesizer: LocalTtsSynthesizer,
     private val dispatcherProvider: DispatcherProvider
 ) : ManagedVoiceSession {
 
@@ -63,6 +65,7 @@ class OfflineSessionManager @Inject constructor(
             }
         sessionSettings = settings
         currentModel = offlineModel
+        ttsSynthesizer.warmUp(settings.direction.targetLanguage)
         startProcessing(settings, offlineModel)
     }
 
@@ -70,6 +73,7 @@ class OfflineSessionManager @Inject constructor(
         stopProcessing()
         audioSessionController.stopCapture()
         audioSessionController.releasePlayback()
+        ttsSynthesizer.shutdown()
         sessionSettings = null
         currentModel = null
         _state.value = TranslationSessionState()
@@ -186,10 +190,12 @@ class OfflineSessionManager @Inject constructor(
             sourceLanguage = settings.direction.sourceLanguage,
             targetLanguage = settings.direction.targetLanguage,
             enableTranslation = model.supportsTranslation,
-            modelProfile = model.profile
+            modelProfile = model.profile,
+            modelPath = model.file.absolutePath,
+            threadCount = calculateThreadCount(model.profile)
         )
         val result = speechRecognizer.transcribe(audioBytes, request)
-        val emitted = TranslationContent(
+        var emitted = TranslationContent(
             transcript = result.transcript,
             translation = result.translation ?: result.transcript,
             detectedSourceLanguage = result.detectedLanguage,
@@ -197,6 +203,11 @@ class OfflineSessionManager @Inject constructor(
             timestamp = Clock.System.now(),
             inputMode = TranslationInputMode.Voice
         )
+        val tts = ttsSynthesizer.synthesize(result.translation ?: result.transcript, settings.direction.targetLanguage)
+        if (tts != null) {
+            audioSessionController.playAudio(tts.pcm, tts.sampleRate)
+            emitted = emitted.copy(synthesizedAudioPath = tts.cachePath)
+        }
         _transcripts.emit(emitted)
         _state.update { current ->
             current.copy(
@@ -211,6 +222,12 @@ class OfflineSessionManager @Inject constructor(
     private fun computeLatency(start: Instant): Long {
         val duration = (Clock.System.now() - start).inWholeMilliseconds
         return max(0L, duration)
+    }
+
+    private fun calculateThreadCount(profile: OfflineModelProfile): Int {
+        val available = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val upperBound = if (profile == OfflineModelProfile.Turbo) 6 else 4
+        return min(available, upperBound).coerceAtLeast(2)
     }
 
     companion object {

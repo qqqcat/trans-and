@@ -22,6 +22,7 @@ class AudioSessionController @Inject constructor() {
 
     private var record: AudioRecord? = null
     private var play: AudioTrack? = null
+    private var playbackSampleRate = SAMPLE_RATE
     private var audioJob: Job? = null
     private val ioScope = CoroutineScope(Dispatchers.IO)
 
@@ -64,8 +65,17 @@ class AudioSessionController @Inject constructor() {
         record = null
     }
 
-    fun playAudio(stream: ByteArray) {
-        val track = play ?: createAudioTrack().also { play = it }
+    fun playAudio(stream: ByteArray, sampleRate: Int = SAMPLE_RATE) {
+        val track = if (play == null || playbackSampleRate != sampleRate) {
+            play?.stop()
+            play?.release()
+            createAudioTrack(sampleRate).also {
+                play = it
+                playbackSampleRate = sampleRate
+            }
+        } else {
+            play!!
+        }
         track.write(stream, 0, stream.size)
         track.play()
     }
@@ -74,9 +84,10 @@ class AudioSessionController @Inject constructor() {
         play?.stop()
         play?.release()
         play = null
+        playbackSampleRate = SAMPLE_RATE
     }
 
-    private fun createAudioTrack(): AudioTrack =
+    private fun createAudioTrack(sampleRate: Int): AudioTrack =
         AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -86,13 +97,13 @@ class AudioSessionController @Inject constructor() {
             )
             .setAudioFormat(
                 AudioFormat.Builder()
-                    .setSampleRate(SAMPLE_RATE)
+                    .setSampleRate(sampleRate)
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
             )
             .setTransferMode(AudioTrack.MODE_STREAM)
-            .setBufferSizeInBytes(SAMPLE_RATE)
+            .setBufferSizeInBytes(sampleRate)
             .build()
 
     companion object {
