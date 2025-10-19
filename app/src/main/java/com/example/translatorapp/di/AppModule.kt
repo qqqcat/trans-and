@@ -14,6 +14,9 @@ import com.example.translatorapp.localmodel.WhisperLocalEngine
 import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.ApiRelayService
 import com.example.translatorapp.network.RealtimeApi
+import com.example.translatorapp.offline.DiagnosticsManager
+import com.example.translatorapp.offline.OfflineModelController
+import com.example.translatorapp.offline.OfflineModelManager
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.webrtc.WebRtcClient
 import dagger.Module
@@ -22,6 +25,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.webrtc.DefaultVideoDecoderFactory
@@ -30,8 +35,6 @@ import org.webrtc.EglBase
 import org.webrtc.PeerConnectionFactory
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import javax.inject.Singleton
 
 @Module
@@ -122,4 +125,10 @@ object AppModule {
     fun provideLocalSpeechRecognizer(
         engine: WhisperLocalEngine
     ): LocalSpeechRecognizer = engine
+
+    @Provides
+    @Singleton
+    fun provideOfflineModelController(
+        manager: OfflineModelManager
+    ): OfflineModelController = manager
 }

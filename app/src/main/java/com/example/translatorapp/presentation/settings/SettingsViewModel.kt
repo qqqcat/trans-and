@@ -16,7 +16,8 @@ import com.example.translatorapp.domain.usecase.UpdateOfflineFallbackUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
 import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
 import com.example.translatorapp.util.DispatcherProvider
-import com.example.translatorapp.offline.OfflineModelManager
+import com.example.translatorapp.offline.DiagnosticsManager
+import com.example.translatorapp.offline.OfflineModelController
 import com.example.translatorapp.offline.OfflineModelProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -40,7 +41,8 @@ class SettingsViewModel @Inject constructor(
     private val updateSyncEnabledUseCase: UpdateSyncEnabledUseCase,
     private val syncAccountUseCase: SyncAccountUseCase,
     private val updateApiEndpointUseCase: UpdateApiEndpointUseCase,
-    private val offlineModelManager: OfflineModelManager,
+    private val offlineModelController: OfflineModelController,
+    private val diagnosticsManager: DiagnosticsManager,
     private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
 
@@ -54,7 +56,7 @@ class SettingsViewModel @Inject constructor(
             refreshSettings(preserveInputs = false)
         }
         viewModelScope.launch {
-            offlineModelManager.state.collect { offline ->
+            offlineModelController.state.collect { offline ->
                 _uiState.update { it.copy(offlineState = offline) }
             }
         }
@@ -90,17 +92,30 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onAutoDetectChanged(enabled: Boolean) {
+
         viewModelScope.launch(dispatcherProvider.io) {
+
             val current = loadSettingsUseCase()
+
             val direction = if (enabled) {
+
                 current.direction.withSource(null)
+
             } else {
+
                 current.direction.withSource(manualSourceLanguage)
+
             }
+
             updateDirectionUseCase(direction)
+
             refreshSettings(message = if (enabled) "已开启自动检测" else "已切换为手动选择")
+
         }
+
     }
+
+
 
     fun onModelSelected(profile: TranslationModelProfile) {
         viewModelScope.launch(dispatcherProvider.io) {
@@ -112,38 +127,84 @@ class SettingsViewModel @Inject constructor(
     fun onDownloadOfflineModel(profile: OfflineModelProfile) {
         viewModelScope.launch(dispatcherProvider.io) {
             val label = profile.displayLabel()
-            runCatching { offlineModelManager.ensureModel(profile) }
-                .onSuccess { refreshSettings(message = label + " 已准备就绪") }
+            runCatching { offlineModelController.ensureModel(profile) }
+                .onSuccess { refreshSettings(message = "$label 已准备就绪") }
                 .onFailure { throwable ->
-                    _uiState.update { it.copy(message = label + " 下载失败：" + throwable.userMessage()) }
+                    _uiState.update { it.copy(message = "$label 下载失败：${throwable.userMessage()}") }
                 }
+        }
+    }
+
+    fun onRunMicrophoneTest() {
+        viewModelScope.launch(dispatcherProvider.io) {
+            _uiState.update { it.copy(message = "正在检测麦克风...", isDiagnosticsRunning = true) }
+            val result = runCatching { diagnosticsManager.runMicrophoneTest() }
+                .map { (it * 100).toInt() }
+            val message = result.fold(
+                onSuccess = { level ->
+                    if (level > 5) "麦克风检测通过，平均幅值约 ${level}%" else "麦克风检测完成，但信号偏弱 (约 ${level}%)"
+                },
+                onFailure = { error -> error.userMessage() }
+            )
+            _uiState.update { it.copy(message = message, isDiagnosticsRunning = false) }
+        }
+    }
+
+    fun onRunTtsTest() {
+        viewModelScope.launch(dispatcherProvider.io) {
+            val language = runCatching { loadSettingsUseCase().direction.targetLanguage }.getOrNull()
+            if (language == null) {
+                _uiState.update { it.copy(message = "无法确定目标语言，请先在设置里选择翻译语言") }
+                return@launch
+            }
+            _uiState.update { it.copy(message = "正在检测 TTS...", isDiagnosticsRunning = true) }
+            val passed = runCatching { diagnosticsManager.runTtsTest(language) }.getOrElse { error ->
+                _uiState.update { it.copy(message = error.userMessage(), isDiagnosticsRunning = false) }
+                return@launch
+            }
+            val message = if (passed) "系统 TTS 可用，语音合成正常" else "TTS 合成失败，请检查系统语音包"
+            _uiState.update { it.copy(message = message, isDiagnosticsRunning = false) }
         }
     }
 
     fun onRemoveOfflineModel(profile: OfflineModelProfile) {
         viewModelScope.launch(dispatcherProvider.io) {
             val label = profile.displayLabel()
-            runCatching { offlineModelManager.removeModel(profile) }
-                .onSuccess { refreshSettings(message = label + " 已移除") }
+            runCatching { offlineModelController.removeModel(profile) }
+                .onSuccess { refreshSettings(message = "$label 已移除") }
                 .onFailure { throwable ->
-                    _uiState.update { it.copy(message = label + " 移除失败：" + throwable.userMessage()) }
+                    _uiState.update { it.copy(message = "$label 移除失败：${throwable.userMessage()}") }
                 }
         }
     }
 
     fun onOfflineFallbackChanged(enabled: Boolean) {
+
         viewModelScope.launch(dispatcherProvider.io) {
+
             updateOfflineFallbackUseCase(enabled)
-            refreshSettings(message = if (enabled) "已启用离线备用" else "已关闭离线备用")
+
+            refreshSettings(message = if (enabled) "已开启离线兜底" else "已关闭离线兜底")
+
         }
+
     }
 
+
+
     fun onTelemetryChanged(consent: Boolean) {
+
         viewModelScope.launch(dispatcherProvider.io) {
+
             updateTelemetryConsentUseCase(consent)
-            refreshSettings(message = if (consent) "已开启体验数据" else "已关闭体验数据")
+
+            refreshSettings(message = if (consent) "已开启数据共享" else "已关闭数据共享")
+
         }
+
     }
+
+
 
     fun onAccountEmailChange(value: String) {
         _uiState.update { it.copy(accountEmail = value) }
@@ -198,11 +259,18 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onSyncToggle(enabled: Boolean) {
+
         viewModelScope.launch(dispatcherProvider.io) {
+
             updateSyncEnabledUseCase(enabled)
+
             refreshSettings(message = if (enabled) "已开启同步" else "已关闭同步")
+
         }
+
     }
+
+
 
     fun onSyncNow() {
         viewModelScope.launch(dispatcherProvider.io) {
@@ -238,7 +306,8 @@ class SettingsViewModel @Inject constructor(
                 accountEmail = email,
                 accountDisplayName = displayName,
                 apiEndpoint = settings.apiEndpoint,
-                apiEndpointError = null
+                apiEndpointError = null,
+                isDiagnosticsRunning = false
             )
         }
     }

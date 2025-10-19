@@ -9,6 +9,7 @@
 ## Current Status
 - ✅ Whisper tiny packaged with the app (copied from assets on first launch).
 - ✅ Offline session routing uses native whisper.cpp JNI path.
+- ✅ Turbo 模型不足内存时自动降级到 Tiny，并把具体错误反馈给前端。
 - ✅ Settings exposes turbo model download/removal with progress feedback.
 - ✅ Voice/Text input selector redesigned vertically with dedicated “更多” actions sheet.
 

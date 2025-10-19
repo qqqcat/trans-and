@@ -368,7 +368,7 @@ class HomeViewModel @Inject constructor(
     private fun maybeStartSession() {
         if (!uiState.value.input.isRecordAudioPermissionGranted) {
             pushMessage(
-                message = "��Ҫ��˷�Ȩ�޲�������ʵʱ����",
+                message = "需要麦克风权限才能启动实时翻译",
                 level = UiMessageLevel.Warning,
                 action = UiAction.CheckPermissions
             )
@@ -384,7 +384,7 @@ class HomeViewModel @Inject constructor(
                 .getOrElse { throwable ->
                     isStartingSession = false
                     hasStartedSession = false
-                    pushMessageFromThrowable(throwable, fallback = "�������ù���������")
+                    pushMessageFromThrowable(throwable, fallback = "加载配置失败")
                     recalculateStatus()
                     return@launch
                 }
@@ -392,7 +392,7 @@ class HomeViewModel @Inject constructor(
                 .onFailure { throwable ->
                     isStartingSession = false
                     hasStartedSession = false
-                    pushMessageFromThrowable(throwable, fallback = "ʵʱ�Ự����ʧ��")
+                    pushMessageFromThrowable(throwable, fallback = "实时会话启动失败")
                     recalculateStatus()
                 }
         }

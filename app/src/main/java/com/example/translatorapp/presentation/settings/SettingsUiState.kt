@@ -22,7 +22,8 @@ data class SettingsUiState(
     val isSyncing: Boolean = false,
     val lastSyncDisplay: String? = settings.lastSyncedAt?.toReadableString(),
     val apiEndpoint: String = settings.apiEndpoint,
-    val apiEndpointError: String? = null
+    val apiEndpointError: String? = null,
+    val isDiagnosticsRunning: Boolean = false
 )
 
 private fun Instant.toReadableString(): String {

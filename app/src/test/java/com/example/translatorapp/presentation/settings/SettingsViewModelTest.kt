@@ -19,11 +19,17 @@ import com.example.translatorapp.domain.usecase.UpdateModelUseCase
 import com.example.translatorapp.domain.usecase.UpdateOfflineFallbackUseCase
 import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
+import com.example.translatorapp.offline.OfflineModel
+import com.example.translatorapp.offline.OfflineModelController
+import com.example.translatorapp.offline.OfflineModelProfile
+import com.example.translatorapp.offline.OfflineModelState
 import com.example.translatorapp.util.DispatcherProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
@@ -32,6 +38,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
@@ -46,7 +53,9 @@ class SettingsViewModelTest {
     @Test
     fun onDirectionSelected_updatesRepositoryAndUiState() = runTest {
         val repository = FakeTranslationRepository()
-        val viewModel = createViewModel(repository)
+        val offlineController = FakeOfflineModelController()
+        val diagnosticsManager = FakeDiagnosticsManager()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
         val newDirection = LanguageDirection(
             sourceLanguage = SupportedLanguage.English,
             targetLanguage = SupportedLanguage.Japanese
@@ -67,7 +76,9 @@ class SettingsViewModelTest {
                 )
             )
         )
-        val viewModel = createViewModel(repository)
+        val offlineController = FakeOfflineModelController()
+        val diagnosticsManager = FakeDiagnosticsManager()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
 
         viewModel.onAutoDetectChanged(true)
 
@@ -88,7 +99,9 @@ class SettingsViewModelTest {
                 accountDisplayName = ""
             )
         )
-        val viewModel = createViewModel(repository)
+        val offlineController = FakeOfflineModelController()
+        val diagnosticsManager = FakeDiagnosticsManager()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
 
         viewModel.onAccountEmailChange("user@example.com")
         viewModel.onAccountDisplayNameChange("Test User")
@@ -107,7 +120,9 @@ class SettingsViewModelTest {
             message = "synced",
             syncedAt = syncedAt
         )
-        val viewModel = createViewModel(repository)
+        val offlineController = FakeOfflineModelController()
+        val diagnosticsManager = FakeDiagnosticsManager()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
 
         viewModel.onSyncNow()
 
@@ -116,7 +131,11 @@ class SettingsViewModelTest {
         assertTrue(viewModel.uiState.value.lastSyncDisplay?.contains("2024-06-01") == true)
     }
 
-    private fun createViewModel(repository: FakeTranslationRepository): SettingsViewModel {
+    private fun createViewModel(
+        repository: FakeTranslationRepository,
+        offlineController: OfflineModelController,
+        diagnosticsManager: FakeDiagnosticsManager
+    ): SettingsViewModel {
         return SettingsViewModel(
             loadSettingsUseCase = LoadSettingsUseCase(repository),
             updateDirectionUseCase = UpdateDirectionUseCase(repository),
@@ -127,8 +146,33 @@ class SettingsViewModelTest {
             updateSyncEnabledUseCase = UpdateSyncEnabledUseCase(repository),
             syncAccountUseCase = SyncAccountUseCase(repository),
             updateApiEndpointUseCase = UpdateApiEndpointUseCase(repository),
+            offlineModelController = offlineController,
+            diagnosticsManager = diagnosticsManager,
             dispatcherProvider = dispatcherProvider
         )
+    }
+}
+
+private class FakeOfflineModelController : OfflineModelController {
+    private val _state = MutableStateFlow(OfflineModelState())
+    override val state: StateFlow<OfflineModelState> = _state
+
+    var ensureCalls: MutableList<OfflineModelProfile> = mutableListOf()
+    var removeCalls: MutableList<OfflineModelProfile> = mutableListOf()
+
+    override suspend fun ensureModel(profile: OfflineModelProfile): OfflineModel {
+        ensureCalls.add(profile)
+        _state.update { current ->
+            current.copy(installedProfiles = current.installedProfiles + profile)
+        }
+        return OfflineModel(profile, File(profile.defaultFileName))
+    }
+
+    override suspend fun removeModel(profile: OfflineModelProfile) {
+        removeCalls.add(profile)
+        _state.update { current ->
+            current.copy(installedProfiles = current.installedProfiles - profile)
+        }
     }
 }
 

@@ -35,8 +35,15 @@ data class OfflineModel(
 data class OfflineModelState(
     val installedProfiles: Set<OfflineModelProfile> = emptySet(),
     val installingProfile: OfflineModelProfile? = null,
-    val downloadProgress: Map<OfflineModelProfile, Float> = emptyMap()
+    val downloadProgress: Map<OfflineModelProfile, Float> = emptyMap(),
+    val activeProfile: OfflineModelProfile? = null
 )
+
+interface OfflineModelController {
+    val state: StateFlow<OfflineModelState>
+    suspend fun ensureModel(profile: OfflineModelProfile): OfflineModel
+    suspend fun removeModel(profile: OfflineModelProfile)
+}
 
 private data class ModelDescriptor(
     val profile: OfflineModelProfile,
@@ -50,7 +57,7 @@ private data class ModelDescriptor(
 class OfflineModelManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient
-) {
+) : OfflineModelController {
 
     private val descriptors = mapOf(
         OfflineModelProfile.Tiny to ModelDescriptor(
@@ -70,7 +77,7 @@ class OfflineModelManager @Inject constructor(
 
     private val modelsDir: File = File(context.filesDir, "whisper/models")
     private val _state = MutableStateFlow(OfflineModelState())
-    val state: StateFlow<OfflineModelState> = _state.asStateFlow()
+    override val state: StateFlow<OfflineModelState> = _state.asStateFlow()
     init {
         if (modelsDir.exists()) {
             val installed = modelsDir.listFiles()?.mapNotNull { file ->
@@ -82,7 +89,7 @@ class OfflineModelManager @Inject constructor(
         }
     }
 
-    suspend fun ensureModel(profile: OfflineModelProfile): OfflineModel = withContext(Dispatchers.IO) {
+    override suspend fun ensureModel(profile: OfflineModelProfile): OfflineModel = withContext(Dispatchers.IO) {
         if (!modelsDir.exists()) {
             modelsDir.mkdirs()
         }
@@ -214,7 +221,7 @@ class OfflineModelManager @Inject constructor(
         }
     }
 
-    suspend fun removeModel(profile: OfflineModelProfile) = withContext(Dispatchers.IO) {
+    override suspend fun removeModel(profile: OfflineModelProfile) = withContext(Dispatchers.IO) {
         descriptors[profile] ?: return@withContext
         val modelFile = File(modelsDir, profile.defaultFileName)
         val tempFile = File(modelsDir, profile.defaultFileName + ".download")
@@ -230,7 +237,8 @@ class OfflineModelManager @Inject constructor(
             state.copy(
                 installingProfile = state.installingProfile.takeIf { it != profile },
                 installedProfiles = state.installedProfiles - profile,
-                downloadProgress = progress
+                downloadProgress = progress,
+                activeProfile = state.activeProfile.takeIf { it != profile }
             )
         }
     }
@@ -251,6 +259,12 @@ class OfflineModelManager @Inject constructor(
 
     fun markInstalling(profile: OfflineModelProfile) {
         _state.update { it.copy(installingProfile = profile) }
+    }
+
+    fun markActive(profile: OfflineModelProfile?) {
+        _state.update { current ->
+            current.copy(activeProfile = profile)
+        }
     }
 
     companion object {

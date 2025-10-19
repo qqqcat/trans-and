@@ -62,9 +62,10 @@ class OfflineSessionManager @Inject constructor(
                     errorMessage = throwable.message ?: "Failed to prepare offline model"
                 )
                 return
-            }
+        }
         sessionSettings = settings
         currentModel = offlineModel
+        modelManager.markActive(offlineModel.profile)
         ttsSynthesizer.warmUp(settings.direction.targetLanguage)
         startProcessing(settings, offlineModel)
     }
@@ -75,6 +76,7 @@ class OfflineSessionManager @Inject constructor(
         audioSessionController.releasePlayback()
         ttsSynthesizer.shutdown()
         sessionSettings = null
+        modelManager.markActive(null)
         currentModel = null
         _state.value = TranslationSessionState()
     }
@@ -194,7 +196,15 @@ class OfflineSessionManager @Inject constructor(
             modelPath = model.file.absolutePath,
             threadCount = calculateThreadCount(model.profile)
         )
-        val result = speechRecognizer.transcribe(audioBytes, request)
+        val result = try {
+            speechRecognizer.transcribe(audioBytes, request)
+        } catch (error: Throwable) {
+            if (error is CancellationException) {
+                return
+            }
+            handleTranscriptionError(error, settings, model, audioBytes)
+            return
+        }
         var emitted = TranslationContent(
             transcript = result.transcript,
             translation = result.translation ?: result.transcript,
@@ -203,7 +213,12 @@ class OfflineSessionManager @Inject constructor(
             timestamp = Clock.System.now(),
             inputMode = TranslationInputMode.Voice
         )
-        val tts = ttsSynthesizer.synthesize(result.translation ?: result.transcript, settings.direction.targetLanguage)
+        val tts = runCatching {
+            ttsSynthesizer.synthesize(result.translation ?: result.transcript, settings.direction.targetLanguage)
+        }.getOrElse { throwable ->
+            _state.update { current -> current.copy(errorMessage = "TTS 语音合成失败：${throwable.userMessage()}") }
+            null
+        }
         if (tts != null) {
             audioSessionController.playAudio(tts.pcm, tts.sampleRate)
             emitted = emitted.copy(synthesizedAudioPath = tts.cachePath)
@@ -214,7 +229,40 @@ class OfflineSessionManager @Inject constructor(
                 currentSegment = emitted,
                 latencyMetrics = current.latencyMetrics.copy(
                     asrLatencyMs = computeLatency(startTime)
-                )
+                ),
+                errorMessage = null
+            )
+        }
+    }
+
+    private suspend fun handleTranscriptionError(
+        error: Throwable,
+        settings: UserSettings,
+        model: OfflineModel,
+        audioBytes: ByteArray
+    ) {
+        if (model.profile == OfflineModelProfile.Turbo) {
+            val fallback = runCatching { modelManager.ensureModel(OfflineModelProfile.Tiny) }.getOrNull()
+            if (fallback != null) {
+                currentModel = fallback
+                modelManager.markActive(fallback.profile)
+                ttsSynthesizer.warmUp(settings.direction.targetLanguage)
+                _state.update {
+                    it.copy(
+                        errorMessage = "Whisper Turbo 加载失败，已自动切换至 Whisper Tiny"
+                    )
+                }
+                postTranscription(audioBytes, settings, fallback)
+                return
+            }
+        }
+        audioSessionController.stopCapture()
+        _state.update {
+            it.copy(
+                isActive = false,
+                isMicrophoneOpen = false,
+                currentSegment = null,
+                errorMessage = "离线识别失败：${error.userMessage()}"
             )
         }
     }
@@ -237,3 +285,5 @@ class OfflineSessionManager @Inject constructor(
         private val MIN_SAMPLES_PER_CHUNK = (SAMPLE_RATE * MIN_WINDOW_MS) / 1_000
     }
 }
+
+private fun Throwable.userMessage(): String = message?.takeIf { it.isNotBlank() } ?: "未知错误"

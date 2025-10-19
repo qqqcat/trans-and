@@ -92,6 +92,8 @@ fun SettingsRoute(
         onModelSelected = viewModel::onModelSelected,
         onDownloadOfflineModel = viewModel::onDownloadOfflineModel,
         onRemoveOfflineModel = viewModel::onRemoveOfflineModel,
+        onRunMicrophoneTest = viewModel::onRunMicrophoneTest,
+        onRunTtsTest = viewModel::onRunTtsTest,
         onOfflineFallbackChanged = viewModel::onOfflineFallbackChanged,
         onTelemetryChanged = viewModel::onTelemetryChanged,
         onAccountEmailChange = viewModel::onAccountEmailChange,
@@ -117,6 +119,8 @@ private fun SettingsScreen(
     onModelSelected: (TranslationModelProfile) -> Unit,
     onDownloadOfflineModel: (OfflineModelProfile) -> Unit,
     onRemoveOfflineModel: (OfflineModelProfile) -> Unit,
+    onRunMicrophoneTest: () -> Unit,
+    onRunTtsTest: () -> Unit,
     onOfflineFallbackChanged: (Boolean) -> Unit,
     onTelemetryChanged: (Boolean) -> Unit,
     onAccountEmailChange: (String) -> Unit,
@@ -217,6 +221,19 @@ private fun SettingsScreen(
                         state = state,
                         onDownload = onDownloadOfflineModel,
                         onRemove = onRemoveOfflineModel
+                    )
+                }
+            }
+
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_diagnostics),
+                    contentPadding = cardPadding
+                ) {
+                    DiagnosticsCard(
+                        isRunning = state.isDiagnosticsRunning,
+                        onRunMicrophoneTest = onRunMicrophoneTest,
+                        onRunTtsTest = onRunTtsTest
                     )
                 }
             }
@@ -609,6 +626,7 @@ private fun OfflineModelsCard(
     val offlineState = state.offlineState
     val installing = offlineState.installingProfile
     val progress = offlineState.downloadProgress[installing]?.coerceIn(0f, 1f)
+    val activeProfile = offlineState.activeProfile
     Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
         OfflineModelRow(
             title = stringResource(id = R.string.settings_offline_tiny_title),
@@ -619,7 +637,8 @@ private fun OfflineModelsCard(
             primaryActionLabel = stringResource(id = R.string.settings_offline_tiny_action),
             onPrimaryAction = { onDownload(OfflineModelProfile.Tiny) },
             canRemove = false,
-            onRemove = null
+            onRemove = null,
+            isActive = activeProfile == OfflineModelProfile.Tiny
         )
         OfflineModelRow(
             title = stringResource(id = R.string.settings_offline_turbo_title),
@@ -638,8 +657,51 @@ private fun OfflineModelsCard(
             },
             onPrimaryAction = { onDownload(OfflineModelProfile.Turbo) },
             canRemove = offlineState.installedProfiles.contains(OfflineModelProfile.Turbo),
-            onRemove = { onRemove(OfflineModelProfile.Turbo) }
+            onRemove = { onRemove(OfflineModelProfile.Turbo) },
+            isActive = activeProfile == OfflineModelProfile.Turbo
         )
+    }
+}
+
+@Composable
+private fun DiagnosticsCard(
+    isRunning: Boolean,
+    onRunMicrophoneTest: () -> Unit,
+    onRunTtsTest: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        Text(
+            text = stringResource(id = R.string.settings_diagnostics_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            OutlinedButton(
+                onClick = onRunMicrophoneTest,
+                enabled = !isRunning,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(id = R.string.settings_diagnostics_microphone))
+            }
+            OutlinedButton(
+                onClick = onRunTtsTest,
+                enabled = !isRunning,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(id = R.string.settings_diagnostics_tts))
+            }
+        }
+        if (isRunning) {
+            Text(
+                text = stringResource(id = R.string.settings_diagnostics_running),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
     }
 }
 
@@ -653,7 +715,8 @@ private fun OfflineModelRow(
     primaryActionLabel: String,
     onPrimaryAction: () -> Unit,
     canRemove: Boolean,
-    onRemove: (() -> Unit)?
+    onRemove: (() -> Unit)?,
+    isActive: Boolean
 ) {
     val spacing = LocalSpacing.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
@@ -669,12 +732,11 @@ private fun OfflineModelRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            val statusText = if (isBusy) {
-                stringResource(id = R.string.settings_offline_status_installing)
-            } else if (installed) {
-                stringResource(id = R.string.settings_offline_status_ready)
-            } else {
-                stringResource(id = R.string.settings_offline_status_missing)
+            val statusText = when {
+                isBusy -> stringResource(id = R.string.settings_offline_status_installing)
+                isActive -> stringResource(id = R.string.settings_offline_status_active)
+                installed -> stringResource(id = R.string.settings_offline_status_ready)
+                else -> stringResource(id = R.string.settings_offline_status_missing)
             }
             Text(
                 text = statusText,

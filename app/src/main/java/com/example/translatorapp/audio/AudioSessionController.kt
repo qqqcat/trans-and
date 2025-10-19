@@ -20,6 +20,8 @@ class AudioSessionController @Inject constructor() {
     private val _isRecording = MutableStateFlow(false)
     val isRecording: Flow<Boolean> = _isRecording.asStateFlow()
 
+    fun isRecordingNow(): Boolean = _isRecording.value
+
     private var record: AudioRecord? = null
     private var play: AudioTrack? = null
     private var playbackSampleRate = SAMPLE_RATE
