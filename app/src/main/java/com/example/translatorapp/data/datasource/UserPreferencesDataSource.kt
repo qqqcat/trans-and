@@ -24,7 +24,6 @@ class UserPreferencesDataSource @Inject constructor(
     private object Keys {
         val direction = stringPreferencesKey("direction")
         val modelProfile = stringPreferencesKey("model_profile")
-        val offlineFallback = booleanPreferencesKey("offline_fallback")
         val telemetry = booleanPreferencesKey("telemetry")
         val sourceLanguage = stringPreferencesKey("source_language")
         val targetLanguage = stringPreferencesKey("target_language")
@@ -55,7 +54,6 @@ class UserPreferencesDataSource @Inject constructor(
             translationProfile = prefs[Keys.modelProfile]?.let {
                 runCatching { TranslationModelProfile.valueOf(it) }.getOrNull()
             } ?: UserSettings().translationProfile,
-            offlineFallbackEnabled = prefs[Keys.offlineFallback] ?: UserSettings().offlineFallbackEnabled,
             allowTelemetry = prefs[Keys.telemetry] ?: UserSettings().allowTelemetry,
             syncEnabled = prefs[Keys.syncEnabled] ?: UserSettings().syncEnabled,
             accountId = prefs[Keys.accountId],
@@ -78,7 +76,6 @@ class UserPreferencesDataSource @Inject constructor(
             }
             prefs[Keys.targetLanguage] = settings.direction.targetLanguage.code
             prefs[Keys.modelProfile] = settings.translationProfile.name
-            prefs[Keys.offlineFallback] = settings.offlineFallbackEnabled
             prefs[Keys.telemetry] = settings.allowTelemetry
             prefs[Keys.syncEnabled] = settings.syncEnabled
             if (settings.accountId.isNullOrBlank()) {

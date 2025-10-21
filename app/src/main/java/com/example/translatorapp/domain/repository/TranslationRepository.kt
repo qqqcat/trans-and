@@ -21,7 +21,6 @@ interface TranslationRepository {
     suspend fun toggleMicrophone(): Boolean
     suspend fun updateDirection(direction: LanguageDirection)
     suspend fun updateModel(profile: TranslationModelProfile)
-    suspend fun updateOfflineFallback(enabled: Boolean)
     suspend fun updateTelemetryConsent(consent: Boolean)
     suspend fun persistHistoryItem(content: TranslationContent)
     suspend fun clearHistory()

@@ -6,11 +6,13 @@ import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.ManagedVoiceSession
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.TranslationSessionState
+import com.example.translatorapp.domain.model.SessionInitializationStatus
 import com.example.translatorapp.domain.model.UserSettings
 import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.IceServerDto
-import com.example.translatorapp.network.RealtimeApi
 import com.example.translatorapp.network.RealtimeApiFactory
+import com.example.translatorapp.network.RealtimeApi
+import com.example.translatorapp.network.RealtimeEventStream
 import com.example.translatorapp.network.SessionStartRequest
 import com.example.translatorapp.network.ensureTrailingSlash
 import com.example.translatorapp.util.DispatcherProvider
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -40,7 +43,8 @@ class RealtimeSessionManager @Inject constructor(
     private val audioSessionController: AudioSessionController,
     private val webRtcClient: WebRtcClient,
     private val dispatcherProvider: DispatcherProvider,
-    private val apiConfig: ApiConfig
+    private val apiConfig: ApiConfig,
+    private val eventStream: RealtimeEventStream
 ) : ManagedVoiceSession {
 
     private val coroutineScope = CoroutineScope(dispatcherProvider.io)
@@ -54,22 +58,26 @@ class RealtimeSessionManager @Inject constructor(
 
     private var sessionId: String? = null
     private var sessionJob: Job? = null
+    private var eventJob: Job? = null
     private var lastAudioTimestamp: Instant? = null
 
     @Volatile
     private var cachedApi: Pair<String, RealtimeApi>? = null
 
-    private suspend fun realtimeApi(): RealtimeApi {
+    private suspend fun resolveApiWithBase(): Pair<String, RealtimeApi> {
         val settings = preferencesDataSource.settings.first()
         val baseUrl = (settings.apiEndpoint.takeIf { it.isNotBlank() } ?: apiConfig.baseUrl).ensureTrailingSlash()
         val cached = cachedApi
         if (cached != null && cached.first == baseUrl) {
-            return cached.second
+            return cached
         }
         val fresh = realtimeApiFactory.create(baseUrl)
-        cachedApi = baseUrl to fresh
-        return fresh
+        val resolved = baseUrl to fresh
+        cachedApi = resolved
+        return resolved
     }
+
+    private suspend fun realtimeApi(): RealtimeApi = resolveApiWithBase().second
 
     override suspend fun start(settings: UserSettings) {
         mutex.withLock {
@@ -77,15 +85,16 @@ class RealtimeSessionManager @Inject constructor(
             _state.value = _state.value.copy(
                 isActive = true,
                 direction = settings.direction,
-                errorMessage = null
+                errorMessage = null,
+                initializationStatus = SessionInitializationStatus.Preparing,
+                initializationProgress = 0f
             )
             try {
-                val api = realtimeApi()
+                val (baseUrl, api) = resolveApiWithBase()
                 val response = api.startSession(
                     SessionStartRequest(
                         direction = settings.direction.encode(),
-                        model = settings.translationProfile.name,
-                        offlineFallback = settings.offlineFallbackEnabled
+                        model = settings.translationProfile.name
                     )
                 )
                 sessionId = response.sessionId
@@ -101,7 +110,24 @@ class RealtimeSessionManager @Inject constructor(
                         lastAudioTimestamp = Clock.System.now()
                     }
                 }
-                _state.value = _state.value.copy(isMicrophoneOpen = true)
+                _state.value = _state.value.copy(
+                    isMicrophoneOpen = true,
+                    initializationStatus = SessionInitializationStatus.Ready,
+                    initializationProgress = 1f
+                )
+                eventJob?.cancel()
+                if (response.token.isNotBlank()) {
+                    eventJob = coroutineScope.launch {
+                        eventStream
+                            .listen(baseUrl, response.sessionId, response.token)
+                            .catch { error ->
+                                _state.value = _state.value.copy(
+                                    errorMessage = error.message ?: "Realtime stream interrupted"
+                                )
+                            }
+                            .collect { content -> onTranslationReceived(content) }
+                    }
+                }
                 sessionJob = coroutineScope.launch {
                     webRtcClient.remoteAudio.collect { audioBytes ->
                         audioSessionController.playAudio(audioBytes)
@@ -113,6 +139,8 @@ class RealtimeSessionManager @Inject constructor(
                 webRtcClient.close()
                 sessionJob?.cancel()
                 sessionJob = null
+                eventJob?.cancel()
+                eventJob = null
                 sessionId = null
                 lastAudioTimestamp = null
                 _state.value = TranslationSessionState(
@@ -127,6 +155,8 @@ class RealtimeSessionManager @Inject constructor(
         mutex.withLock {
             sessionJob?.cancel()
             sessionJob = null
+            eventJob?.cancel()
+            eventJob = null
             audioSessionController.stopCapture()
             audioSessionController.releasePlayback()
             webRtcClient.close()
@@ -156,7 +186,11 @@ class RealtimeSessionManager @Inject constructor(
         } else {
             audioSessionController.stopCapture()
         }
-        _state.value = _state.value.copy(isMicrophoneOpen = newState)
+        _state.value = _state.value.copy(
+            isMicrophoneOpen = newState,
+            initializationStatus = if (newState) SessionInitializationStatus.Ready else _state.value.initializationStatus,
+            initializationProgress = if (newState) 1f else _state.value.initializationProgress
+        )
         newState
     }
 

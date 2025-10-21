@@ -6,6 +6,7 @@ import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
 import com.example.translatorapp.domain.model.TranslationModelProfile
+import com.example.translatorapp.domain.model.SessionInitializationStatus
 import com.example.translatorapp.domain.model.UiMessage
 import com.example.translatorapp.domain.model.UserSettings
 
@@ -23,10 +24,15 @@ data class SessionUiState(
     val direction: LanguageDirection = UserSettings().direction,
     val model: TranslationModelProfile = UserSettings().translationProfile,
     val latency: LatencyMetrics = LatencyMetrics(),
+    val initializationStatus: SessionInitializationStatus = SessionInitializationStatus.Idle,
+    val initializationProgress: Float = 0f,
     val isMicrophoneOpen: Boolean = false,
     val activeSegment: TranslationContent? = null,
     val lastErrorMessage: String? = null,
-    val requiresPermission: Boolean = false
+    val requiresPermission: Boolean = false,
+    val isMicActionInProgress: Boolean = false,
+    val isStopInProgress: Boolean = false,
+    val pendingMicState: Boolean? = null
 )
 
 enum class SessionStatus {

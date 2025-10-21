@@ -6,8 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SessionStartRequest(
     @SerialName("direction") val direction: String,
-    @SerialName("model") val model: String,
-    @SerialName("offlineFallback") val offlineFallback: Boolean
+    @SerialName("model") val model: String
 )
 
 @Serializable

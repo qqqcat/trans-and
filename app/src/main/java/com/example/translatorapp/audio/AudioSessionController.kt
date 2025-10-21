@@ -34,7 +34,7 @@ class AudioSessionController @Inject constructor() {
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT
-        )
+        ).coerceAtLeast(SAMPLE_RATE) * 2
         record = AudioRecord.Builder()
             .setAudioSource(MediaRecorder.AudioSource.MIC)
             .setAudioFormat(

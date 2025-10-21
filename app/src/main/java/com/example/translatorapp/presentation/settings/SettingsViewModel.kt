@@ -12,13 +12,9 @@ import com.example.translatorapp.domain.usecase.UpdateAccountProfileUseCase
 import com.example.translatorapp.domain.usecase.UpdateApiEndpointUseCase
 import com.example.translatorapp.domain.usecase.UpdateDirectionUseCase
 import com.example.translatorapp.domain.usecase.UpdateModelUseCase
-import com.example.translatorapp.domain.usecase.UpdateOfflineFallbackUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
 import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
 import com.example.translatorapp.util.DispatcherProvider
-import com.example.translatorapp.offline.DiagnosticsManager
-import com.example.translatorapp.offline.OfflineModelController
-import com.example.translatorapp.offline.OfflineModelProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +38,7 @@ class SettingsViewModel @Inject constructor(
     private val syncAccountUseCase: SyncAccountUseCase,
     private val updateApiEndpointUseCase: UpdateApiEndpointUseCase,
     private val offlineModelController: OfflineModelController,
-    private val diagnosticsManager: DiagnosticsManager,
+    private val diagnosticsController: DiagnosticsController,
     private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
 
@@ -138,7 +134,7 @@ class SettingsViewModel @Inject constructor(
     fun onRunMicrophoneTest() {
         viewModelScope.launch(dispatcherProvider.io) {
             _uiState.update { it.copy(message = "正在检测麦克风...", isDiagnosticsRunning = true) }
-            val result = runCatching { diagnosticsManager.runMicrophoneTest() }
+            val result = runCatching { diagnosticsController.runMicrophoneTest() }
                 .map { (it * 100).toInt() }
             val message = result.fold(
                 onSuccess = { level ->
@@ -158,7 +154,7 @@ class SettingsViewModel @Inject constructor(
                 return@launch
             }
             _uiState.update { it.copy(message = "正在检测 TTS...", isDiagnosticsRunning = true) }
-            val passed = runCatching { diagnosticsManager.runTtsTest(language) }.getOrElse { error ->
+            val passed = runCatching { diagnosticsController.runTtsTest(language) }.getOrElse { error ->
                 _uiState.update { it.copy(message = error.userMessage(), isDiagnosticsRunning = false) }
                 return@launch
             }

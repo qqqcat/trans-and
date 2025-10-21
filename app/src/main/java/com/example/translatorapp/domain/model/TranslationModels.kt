@@ -80,8 +80,7 @@ data class LanguageDirection(
 
 enum class TranslationModelProfile(val displayName: String) {
     Balanced("GPT-4o mini"),
-    Accuracy("GPT-4.1"),
-    Offline("Whisper v3")
+    Accuracy("GPT-4.1")
 }
 
 enum class TranslationInputMode {
@@ -96,7 +95,6 @@ data class UserSettings(
         SupportedLanguage.English
     ),
     val translationProfile: TranslationModelProfile = TranslationModelProfile.Balanced,
-    val offlineFallbackEnabled: Boolean = true,
     val allowTelemetry: Boolean = false,
     val syncEnabled: Boolean = true,
     val accountId: String? = null,
@@ -120,6 +118,8 @@ data class TranslationSessionState(
     val isActive: Boolean = false,
     val isMicrophoneOpen: Boolean = false,
     val latencyMetrics: LatencyMetrics = LatencyMetrics(),
+    val initializationStatus: SessionInitializationStatus = SessionInitializationStatus.Idle,
+    val initializationProgress: Float = 0f,
     val direction: LanguageDirection = LanguageDirection(
         SupportedLanguage.ChineseSimplified,
         SupportedLanguage.English
@@ -159,6 +159,13 @@ data class AccountSyncStatus(
     val message: String? = null,
     val syncedAt: Instant? = null,
 )
+
+enum class SessionInitializationStatus {
+    Idle,
+    Downloading,
+    Preparing,
+    Ready
+}
 
 interface TranslationSession {
     val state: Flow<TranslationSessionState>

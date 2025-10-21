@@ -42,9 +42,9 @@ class RealtimeEventStream @Inject constructor(
         .pingInterval(config.heartbeatIntervalSeconds, TimeUnit.SECONDS)
         .build()
 
-    fun listen(sessionId: String, token: String): Flow<TranslationContent> = callbackFlow {
+    fun listen(baseUrl: String, sessionId: String, token: String): Flow<TranslationContent> = callbackFlow {
         val shouldReconnect = AtomicBoolean(true)
-        val url = buildUrl(sessionId, token)
+        val url = buildUrl(baseUrl, sessionId, token)
         var currentDelayMs = config.initialRetryDelayMs
         var reconnectAttempts = 0
         var reconnectJob: Job? = null
@@ -167,11 +167,11 @@ class RealtimeEventStream @Inject constructor(
         }
     }
 
-    private fun buildUrl(sessionId: String, token: String): HttpUrl {
-        val base = apiConfig.baseUrl.toHttpUrl()
-        val scheme = if (base.isHttps) SECURE_WEBSOCKET_SCHEME else WEBSOCKET_SCHEME
+    private fun buildUrl(baseUrl: String, sessionId: String, token: String): HttpUrl {
+        val resolved = baseUrl.ifBlank { apiConfig.baseUrl }.ensureTrailingSlash().toHttpUrl()
+        val scheme = if (resolved.isHttps) SECURE_WEBSOCKET_SCHEME else WEBSOCKET_SCHEME
         val normalizedPath = config.path.trimStart('/')
-        return base.newBuilder()
+        return resolved.newBuilder()
             .scheme(scheme)
             .addPathSegments(normalizedPath)
             .addQueryParameter("sessionId", sessionId)

@@ -43,12 +43,6 @@ class UpdateModelUseCase @Inject constructor(
     suspend operator fun invoke(profile: TranslationModelProfile) = repository.updateModel(profile)
 }
 
-class UpdateOfflineFallbackUseCase @Inject constructor(
-    private val repository: TranslationRepository
-) {
-    suspend operator fun invoke(enabled: Boolean) = repository.updateOfflineFallback(enabled)
-}
-
 class UpdateTelemetryConsentUseCase @Inject constructor(
     private val repository: TranslationRepository
 ) {

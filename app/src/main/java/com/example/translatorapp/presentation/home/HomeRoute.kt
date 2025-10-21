@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -464,6 +465,8 @@ private fun SessionStatusCard(
     val spacing = LocalSpacing.current
     val colorScheme = MaterialTheme.colorScheme
     val isCompact = breakpoint == WindowBreakpoint.Compact
+    val micBusy = session.isMicActionInProgress
+    val stopBusy = session.isStopInProgress
 
     val (statusLabel, statusIcon, statusColor) = when (session.status) {
         SessionStatus.Streaming -> Triple(
@@ -531,6 +534,8 @@ private fun SessionStatusCard(
 
             SessionStatusIndicator(
                 latencyMetrics = session.latency,
+                initializationStatus = session.initializationStatus,
+                initializationProgress = session.initializationProgress,
                 isMicrophoneActive = session.isMicrophoneOpen,
                 errorMessage = session.lastErrorMessage
             )
@@ -548,19 +553,35 @@ private fun SessionStatusCard(
                 val micIcon = if (session.isMicrophoneOpen) Icons.Outlined.MicOff else Icons.Outlined.Mic
                 Button(
                     onClick = onToggleMicrophone,
-                    enabled = session.status != SessionStatus.PermissionRequired,
+                    enabled = session.status != SessionStatus.PermissionRequired && !micBusy,
                     modifier = if (isCompact) Modifier.weight(1f) else Modifier
                 ) {
-                    Icon(imageVector = micIcon, contentDescription = null)
-                    Spacer(modifier = Modifier.width(spacing.xs))
-                    Text(text = micLabel)
+                    if (micBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(spacing.md),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(spacing.xs))
+                        Text(text = stringResource(id = R.string.home_action_processing))
+                    } else {
+                        Icon(imageVector = micIcon, contentDescription = null)
+                        Spacer(modifier = Modifier.width(spacing.xs))
+                        Text(text = micLabel)
+                    }
                 }
                 OutlinedButton(
                     onClick = onStopSession,
-                    enabled = session.status == SessionStatus.Streaming || session.status == SessionStatus.Connecting,
+                    enabled = (session.status == SessionStatus.Streaming || session.status == SessionStatus.Connecting) && !stopBusy,
                     modifier = if (isCompact) Modifier.weight(1f) else Modifier
                 ) {
-                    Text(text = stringResource(id = R.string.home_stop_session))
+                    if (stopBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(spacing.md),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(text = stringResource(id = R.string.home_stop_session))
+                    }
                 }
             }
         }
@@ -880,6 +901,8 @@ private fun VoiceModeCard(
             HorizontalDivider()
             SessionStatusIndicator(
                 latencyMetrics = session.latency,
+                initializationStatus = session.initializationStatus,
+                initializationProgress = session.initializationProgress,
                 isMicrophoneActive = session.isMicrophoneOpen,
                 errorMessage = session.lastErrorMessage
             )

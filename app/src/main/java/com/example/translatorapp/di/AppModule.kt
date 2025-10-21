@@ -9,14 +9,10 @@ import com.example.translatorapp.data.datasource.HistoryDatabase
 import com.example.translatorapp.data.datasource.UserPreferencesDataSource
 import com.example.translatorapp.data.repository.TranslationRepositoryImpl
 import com.example.translatorapp.domain.repository.TranslationRepository
-import com.example.translatorapp.localmodel.LocalSpeechRecognizer
-import com.example.translatorapp.localmodel.WhisperLocalEngine
 import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.ApiRelayService
 import com.example.translatorapp.network.RealtimeApi
-import com.example.translatorapp.offline.DiagnosticsManager
-import com.example.translatorapp.offline.OfflineModelController
-import com.example.translatorapp.offline.OfflineModelManager
+import com.example.translatorapp.network.RealtimeEventStreamConfig
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.webrtc.WebRtcClient
 import dagger.Module
@@ -81,6 +77,10 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideRealtimeEventStreamConfig(): RealtimeEventStreamConfig = RealtimeEventStreamConfig()
+
+    @Provides
+    @Singleton
     fun provideHistoryDatabase(context: Context): HistoryDatabase = Room.databaseBuilder(
         context,
         HistoryDatabase::class.java,
@@ -120,15 +120,4 @@ object AppModule {
         impl: TranslationRepositoryImpl
     ): TranslationRepository = impl
 
-    @Provides
-    @Singleton
-    fun provideLocalSpeechRecognizer(
-        engine: WhisperLocalEngine
-    ): LocalSpeechRecognizer = engine
-
-    @Provides
-    @Singleton
-    fun provideOfflineModelController(
-        manager: OfflineModelManager
-    ): OfflineModelController = manager
 }

@@ -2,6 +2,8 @@ package com.example.translatorapp.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -9,11 +11,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.LatencyMetrics
+import com.example.translatorapp.domain.model.SessionInitializationStatus
 import com.example.translatorapp.presentation.theme.LocalSpacing
+import kotlin.math.roundToInt
 
 @Composable
 fun SessionStatusIndicator(
     latencyMetrics: LatencyMetrics,
+    initializationStatus: SessionInitializationStatus,
+    initializationProgress: Float,
     isMicrophoneActive: Boolean,
     errorMessage: String?,
     modifier: Modifier = Modifier
@@ -38,6 +44,34 @@ fun SessionStatusIndicator(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        when (initializationStatus) {
+            SessionInitializationStatus.Downloading -> {
+                LinearProgressIndicator(
+                    progress = { initializationProgress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            SessionInitializationStatus.Preparing -> {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            else -> Unit
+        }
+        val initializationText = when (initializationStatus) {
+            SessionInitializationStatus.Downloading -> stringResource(
+                id = R.string.home_initialization_downloading,
+                (initializationProgress.coerceIn(0f, 1f) * 100f).roundToInt()
+            )
+            SessionInitializationStatus.Preparing -> stringResource(id = R.string.home_initialization_preparing)
+            SessionInitializationStatus.Ready -> stringResource(id = R.string.home_initialization_ready)
+            SessionInitializationStatus.Idle -> null
+        }
+        if (!initializationText.isNullOrBlank()) {
+            Text(
+                text = initializationText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         if (!errorMessage.isNullOrBlank()) {
             Text(
                 text = errorMessage,

@@ -8,6 +8,7 @@ import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.TranslationSessionState
+import com.example.translatorapp.domain.model.SessionInitializationStatus
 import com.example.translatorapp.domain.model.TranslatorException
 import com.example.translatorapp.domain.model.UiAction
 import com.example.translatorapp.domain.model.UiMessage
@@ -85,13 +86,30 @@ class HomeViewModel @Inject constructor(
                     isStartingSession = false
                 }
                 _uiState.update { current ->
-                    val updatedSession = current.session.copy(
+                    var updatedSession = current.session.copy(
                         direction = session.direction,
                         latency = session.latencyMetrics,
+                        initializationStatus = session.initializationStatus,
+                        initializationProgress = session.initializationProgress,
                         isMicrophoneOpen = session.isMicrophoneOpen,
                         activeSegment = session.currentSegment,
                         lastErrorMessage = session.errorMessage
                     )
+                    val pendingMic = updatedSession.pendingMicState
+                    if (pendingMic != null && session.isMicrophoneOpen == pendingMic) {
+                        updatedSession = updatedSession.copy(
+                            isMicActionInProgress = false,
+                            pendingMicState = null
+                        )
+                    } else if (session.errorMessage != null) {
+                        updatedSession = updatedSession.copy(
+                            isMicActionInProgress = false,
+                            pendingMicState = null
+                        )
+                    }
+                    if (!session.isActive) {
+                        updatedSession = updatedSession.copy(isStopInProgress = false)
+                    }
                     val snapshot = current.copy(session = updatedSession)
                     snapshot.copy(
                         session = snapshot.session.copy(
@@ -250,14 +268,33 @@ class HomeViewModel @Inject constructor(
             return
         }
         viewModelScope.launch(dispatcherProvider.io) {
-            val isOpen = toggleMicrophoneUseCase()
-            updateSession { it.copy(isMicrophoneOpen = isOpen) }
+            val targetState = !uiState.value.session.isMicrophoneOpen
+            val currentState = uiState.value.session.isMicrophoneOpen
+            updateSession {
+                it.copy(
+                    isMicActionInProgress = true,
+                    pendingMicState = targetState,
+                    isMicrophoneOpen = targetState
+                )
+            }
+            runCatching { toggleMicrophoneUseCase() }
+                .onSuccess { }
+                .onFailure { throwable ->
+                    updateSession {
+                        it.copy(
+                            isMicActionInProgress = false,
+                            pendingMicState = null,
+                            isMicrophoneOpen = currentState
+                        )
+                    }
+                    pushMessageFromThrowable(throwable, fallback = "Failed to toggle microphone")
+                }
         }
     }
 
     fun onStopSession() {
         viewModelScope.launch(dispatcherProvider.io) {
-            stopRealtimeSession()
+            val result = runCatching { stopRealtimeSession() }
             hasStartedSession = false
             isStartingSession = false
             latestSessionState = TranslationSessionState()
@@ -266,8 +303,18 @@ class HomeViewModel @Inject constructor(
                     isMicrophoneOpen = false,
                     activeSegment = null,
                     lastErrorMessage = null,
-                    status = SessionStatus.Idle
+                    status = SessionStatus.Idle,
+                    initializationStatus = SessionInitializationStatus.Idle,
+                    initializationProgress = 0f,
+                    isStopInProgress = true,
+                    pendingMicState = null
                 )
+            }
+            result.onFailure { throwable ->
+                updateSession {
+                    it.copy(isStopInProgress = false)
+                }
+                pushMessageFromThrowable(throwable, fallback = "Failed to stop session")
             }
         }
     }

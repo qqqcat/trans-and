@@ -19,6 +19,7 @@ import com.example.translatorapp.domain.usecase.UpdateModelUseCase
 import com.example.translatorapp.domain.usecase.UpdateOfflineFallbackUseCase
 import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
+import com.example.translatorapp.offline.DiagnosticsController
 import com.example.translatorapp.offline.OfflineModel
 import com.example.translatorapp.offline.OfflineModelController
 import com.example.translatorapp.offline.OfflineModelProfile
@@ -54,8 +55,8 @@ class SettingsViewModelTest {
     fun onDirectionSelected_updatesRepositoryAndUiState() = runTest {
         val repository = FakeTranslationRepository()
         val offlineController = FakeOfflineModelController()
-        val diagnosticsManager = FakeDiagnosticsManager()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
+        val diagnosticsController = FakeDiagnosticsController()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
         val newDirection = LanguageDirection(
             sourceLanguage = SupportedLanguage.English,
             targetLanguage = SupportedLanguage.Japanese
@@ -77,8 +78,8 @@ class SettingsViewModelTest {
             )
         )
         val offlineController = FakeOfflineModelController()
-        val diagnosticsManager = FakeDiagnosticsManager()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
+        val diagnosticsController = FakeDiagnosticsController()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
 
         viewModel.onAutoDetectChanged(true)
 
@@ -100,8 +101,8 @@ class SettingsViewModelTest {
             )
         )
         val offlineController = FakeOfflineModelController()
-        val diagnosticsManager = FakeDiagnosticsManager()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
+        val diagnosticsController = FakeDiagnosticsController()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
 
         viewModel.onAccountEmailChange("user@example.com")
         viewModel.onAccountDisplayNameChange("Test User")
@@ -121,8 +122,8 @@ class SettingsViewModelTest {
             syncedAt = syncedAt
         )
         val offlineController = FakeOfflineModelController()
-        val diagnosticsManager = FakeDiagnosticsManager()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsManager)
+        val diagnosticsController = FakeDiagnosticsController()
+        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
 
         viewModel.onSyncNow()
 
@@ -134,7 +135,7 @@ class SettingsViewModelTest {
     private fun createViewModel(
         repository: FakeTranslationRepository,
         offlineController: OfflineModelController,
-        diagnosticsManager: FakeDiagnosticsManager
+        diagnosticsController: DiagnosticsController
     ): SettingsViewModel {
         return SettingsViewModel(
             loadSettingsUseCase = LoadSettingsUseCase(repository),
@@ -147,7 +148,7 @@ class SettingsViewModelTest {
             syncAccountUseCase = SyncAccountUseCase(repository),
             updateApiEndpointUseCase = UpdateApiEndpointUseCase(repository),
             offlineModelController = offlineController,
-            diagnosticsManager = diagnosticsManager,
+            diagnosticsController = diagnosticsController,
             dispatcherProvider = dispatcherProvider
         )
     }
@@ -262,4 +263,9 @@ private class FakeTranslationRepository(
     override suspend fun updateApiEndpoint(endpoint: String) {
         currentSettings = currentSettings.copy(apiEndpoint = endpoint)
     }
+}
+
+private class FakeDiagnosticsController : DiagnosticsController {
+    override suspend fun runMicrophoneTest(durationMillis: Long): Float = 0.1f
+    override suspend fun runTtsTest(language: SupportedLanguage): Boolean = true
 }

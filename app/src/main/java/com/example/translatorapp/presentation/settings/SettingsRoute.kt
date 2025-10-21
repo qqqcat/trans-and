@@ -79,7 +79,8 @@ import com.example.translatorapp.presentation.theme.sectionSpacing
 @Composable
 fun SettingsRoute(
     viewModel: SettingsViewModel,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    onOpenOfflineTest: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SettingsScreen(
@@ -103,7 +104,8 @@ fun SettingsRoute(
         onSyncNow = viewModel::onSyncNow,
         onApiEndpointChange = viewModel::onApiEndpointChange,
         onSaveApiEndpoint = viewModel::onSaveApiEndpoint,
-        onResetApiEndpoint = viewModel::onResetApiEndpoint
+        onResetApiEndpoint = viewModel::onResetApiEndpoint,
+        onOpenOfflineTest = onOpenOfflineTest
     )
 }
 
@@ -130,7 +132,8 @@ private fun SettingsScreen(
     onSyncNow: () -> Unit,
     onApiEndpointChange: (String) -> Unit,
     onSaveApiEndpoint: () -> Unit,
-    onResetApiEndpoint: () -> Unit
+    onResetApiEndpoint: () -> Unit,
+    onOpenOfflineTest: () -> Unit
 ) {
     val spacing = LocalSpacing.current
     if (state.isLoading) {
@@ -233,7 +236,8 @@ private fun SettingsScreen(
                     DiagnosticsCard(
                         isRunning = state.isDiagnosticsRunning,
                         onRunMicrophoneTest = onRunMicrophoneTest,
-                        onRunTtsTest = onRunTtsTest
+                        onRunTtsTest = onRunTtsTest,
+                        onOpenOfflineTest = onOpenOfflineTest
                     )
                 }
             }
@@ -667,7 +671,8 @@ private fun OfflineModelsCard(
 private fun DiagnosticsCard(
     isRunning: Boolean,
     onRunMicrophoneTest: () -> Unit,
-    onRunTtsTest: () -> Unit
+    onRunTtsTest: () -> Unit,
+    onOpenOfflineTest: () -> Unit
 ) {
     val spacing = LocalSpacing.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
@@ -694,6 +699,13 @@ private fun DiagnosticsCard(
             ) {
                 Text(text = stringResource(id = R.string.settings_diagnostics_tts))
             }
+        }
+        OutlinedButton(
+            onClick = onOpenOfflineTest,
+            enabled = !isRunning,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = stringResource(id = R.string.settings_open_offline_test))
         }
         if (isRunning) {
             Text(

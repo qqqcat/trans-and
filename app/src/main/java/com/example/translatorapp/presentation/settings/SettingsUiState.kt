@@ -3,7 +3,6 @@ package com.example.translatorapp.presentation.settings
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.UserSettings
-import com.example.translatorapp.offline.OfflineModelState
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -14,7 +13,6 @@ data class SettingsUiState(
     val availableModels: List<TranslationModelProfile> = TranslationModelProfile.entries,
     val isLoading: Boolean = true,
     val message: String? = null,
-    val offlineState: OfflineModelState = OfflineModelState(),
     val isAutoDetectEnabled: Boolean = settings.direction.isAutoDetect,
     val accountEmail: String = settings.accountEmail.orEmpty(),
     val accountDisplayName: String = settings.accountDisplayName.orEmpty(),
@@ -22,8 +20,7 @@ data class SettingsUiState(
     val isSyncing: Boolean = false,
     val lastSyncDisplay: String? = settings.lastSyncedAt?.toReadableString(),
     val apiEndpoint: String = settings.apiEndpoint,
-    val apiEndpointError: String? = null,
-    val isDiagnosticsRunning: Boolean = false
+    val apiEndpointError: String? = null
 )
 
 private fun Instant.toReadableString(): String {
