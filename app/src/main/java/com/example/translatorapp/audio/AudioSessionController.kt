@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
+import com.example.translatorapp.util.PermissionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,7 +17,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AudioSessionController @Inject constructor() {
+class AudioSessionController @Inject constructor(
+    private val permissionManager: PermissionManager
+) {
     private val _isRecording = MutableStateFlow(false)
     val isRecording: Flow<Boolean> = _isRecording.asStateFlow()
 
@@ -30,22 +33,33 @@ class AudioSessionController @Inject constructor() {
 
     fun startCapture(onBuffer: suspend (ByteArray) -> Unit) {
         if (_isRecording.value) return
+        
+        // Check for RECORD_AUDIO permission before creating AudioRecord
+        if (!permissionManager.hasRecordAudioPermission()) {
+            throw SecurityException("RECORD_AUDIO permission is required to start audio capture")
+        }
+        
         val minBufferSize = AudioRecord.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         ).coerceAtLeast(SAMPLE_RATE) * 2
-        record = AudioRecord.Builder()
-            .setAudioSource(MediaRecorder.AudioSource.MIC)
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setSampleRate(SAMPLE_RATE)
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
-                    .build()
-            )
-            .setBufferSizeInBytes(minBufferSize)
-            .build()
+        
+        try {
+            record = AudioRecord.Builder()
+                .setAudioSource(MediaRecorder.AudioSource.MIC)
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setSampleRate(SAMPLE_RATE)
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(minBufferSize)
+                .build()
+        } catch (e: SecurityException) {
+            throw SecurityException("RECORD_AUDIO permission denied or revoked", e)
+        }
         record?.startRecording()
         _isRecording.value = true
         audioJob = ioScope.launch {

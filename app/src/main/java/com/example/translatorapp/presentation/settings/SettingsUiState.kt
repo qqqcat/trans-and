@@ -1,6 +1,7 @@
 package com.example.translatorapp.presentation.settings
 
 import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.UserSettings
 import kotlinx.datetime.Instant
@@ -20,7 +21,10 @@ data class SettingsUiState(
     val isSyncing: Boolean = false,
     val lastSyncDisplay: String? = settings.lastSyncedAt?.toReadableString(),
     val apiEndpoint: String = settings.apiEndpoint,
-    val apiEndpointError: String? = null
+    val apiEndpointError: String? = null,
+    val isDiagnosticsRunning: Boolean = false,
+    val selectedThemeMode: ThemeMode = settings.themeMode,
+    val selectedAppLanguage: String? = settings.appLanguage
 )
 
 private fun Instant.toReadableString(): String {

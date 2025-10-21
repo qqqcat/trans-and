@@ -3,6 +3,7 @@ package com.example.translatorapp.domain.usecase
 import com.example.translatorapp.domain.model.AccountProfile
 import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationModelProfile
@@ -23,12 +24,12 @@ private class FakeRepository : TranslationRepository {
     val toggleCalls = MutableStateFlow<Boolean?>(null)
     val directionCalls = MutableStateFlow<LanguageDirection?>(null)
     val modelCalls = MutableStateFlow<TranslationModelProfile?>(null)
-    val offlineCalls = MutableStateFlow<Boolean?>(null)
     val telemetryCalls = MutableStateFlow<Boolean?>(null)
 
     override val sessionState: Flow<TranslationSessionState> = MutableStateFlow(TranslationSessionState())
     override val liveTranscription: Flow<TranslationContent> = MutableSharedFlow()
     override val history: Flow<List<TranslationHistoryItem>> = MutableStateFlow(emptyList())
+    override val settings: Flow<UserSettings> = MutableStateFlow(UserSettings())
 
     override suspend fun startRealtimeSession(settings: UserSettings) {
         startCalls.value = settings
@@ -47,10 +48,6 @@ private class FakeRepository : TranslationRepository {
 
     override suspend fun updateModel(profile: TranslationModelProfile) {
         modelCalls.value = profile
-    }
-
-    override suspend fun updateOfflineFallback(enabled: Boolean) {
-        offlineCalls.value = enabled
     }
 
     override suspend fun updateTelemetryConsent(consent: Boolean) {
@@ -94,6 +91,10 @@ private class FakeRepository : TranslationRepository {
     override suspend fun updateSyncEnabled(enabled: Boolean) {}
 
     override suspend fun updateApiEndpoint(endpoint: String) {}
+
+    override suspend fun updateThemeMode(themeMode: ThemeMode) {}
+
+    override suspend fun updateAppLanguage(language: String?) {}
 }
 
 
@@ -124,15 +125,5 @@ class StartRealtimeSessionUseCaseTest {
 
         assertTrue(result)
         assertEquals(true, fakeRepository.toggleCalls.value)
-    }
-
-    @Test
-    fun `update offline fallback persists flag`() = runTest {
-        val fakeRepository = FakeRepository()
-        val useCase = UpdateOfflineFallbackUseCase(fakeRepository)
-
-        useCase(true)
-
-        assertEquals(true, fakeRepository.offlineCalls.value)
     }
 }

@@ -1,6 +1,8 @@
 package com.example.translatorapp.presentation.settings
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -47,42 +49,79 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.translatorapp.BuildConfig
 import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationModelProfile
-import com.example.translatorapp.offline.OfflineModelProfile
+import com.example.translatorapp.presentation.LocaleManager
 import com.example.translatorapp.presentation.components.LanguagePickerSheet
 import com.example.translatorapp.presentation.components.LanguagePickerTarget
+import com.example.translatorapp.presentation.theme.LocalGradients
 import com.example.translatorapp.presentation.theme.LocalSpacing
 import com.example.translatorapp.presentation.theme.WindowBreakpoint
 import com.example.translatorapp.presentation.theme.cardPadding
 import com.example.translatorapp.presentation.theme.computeBreakpoint
 import com.example.translatorapp.presentation.theme.horizontalPadding
 import com.example.translatorapp.presentation.theme.sectionSpacing
+import java.util.Locale
+
+private data class AppLanguageOption(
+    val tag: String,
+    val labelRes: Int
+)
+
+private val AppLanguageOptions = listOf(
+    AppLanguageOption("en-US", R.string.settings_app_language_english),
+    AppLanguageOption("zh-CN", R.string.settings_app_language_chinese),
+    AppLanguageOption("zh-TW", R.string.settings_app_language_traditional_chinese),
+    AppLanguageOption("es-ES", R.string.settings_app_language_spanish),
+    AppLanguageOption("fr-FR", R.string.settings_app_language_french),
+    AppLanguageOption("ja-JP", R.string.settings_app_language_japanese),
+    AppLanguageOption("ko-KR", R.string.settings_app_language_korean),
+    AppLanguageOption("ar-SA", R.string.settings_app_language_arabic),
+    AppLanguageOption("ru-RU", R.string.settings_app_language_russian)
+)
+
+private fun getCurrentAppLanguage(): String {
+    return Locale.getDefault().toLanguageTag()
+}
 
 @Composable
 fun SettingsRoute(
     viewModel: SettingsViewModel,
-    paddingValues: PaddingValues,
-    onOpenOfflineTest: () -> Unit
+    paddingValues: PaddingValues
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var currentAppLanguage by rememberSaveable { mutableStateOf(state.selectedAppLanguage ?: getCurrentAppLanguage()) }
+    LaunchedEffect(state.selectedAppLanguage) {
+        val target = state.selectedAppLanguage ?: getCurrentAppLanguage()
+        if (currentAppLanguage != target) {
+            currentAppLanguage = target
+        }
+    }
     SettingsScreen(
         state = state,
         paddingValues = paddingValues,
@@ -91,11 +130,8 @@ fun SettingsRoute(
         onSourceLanguageSelected = viewModel::onSourceLanguageSelected,
         onTargetLanguageSelected = viewModel::onTargetLanguageSelected,
         onModelSelected = viewModel::onModelSelected,
-        onDownloadOfflineModel = viewModel::onDownloadOfflineModel,
-        onRemoveOfflineModel = viewModel::onRemoveOfflineModel,
         onRunMicrophoneTest = viewModel::onRunMicrophoneTest,
         onRunTtsTest = viewModel::onRunTtsTest,
-        onOfflineFallbackChanged = viewModel::onOfflineFallbackChanged,
         onTelemetryChanged = viewModel::onTelemetryChanged,
         onAccountEmailChange = viewModel::onAccountEmailChange,
         onAccountDisplayNameChange = viewModel::onAccountDisplayNameChange,
@@ -105,7 +141,17 @@ fun SettingsRoute(
         onApiEndpointChange = viewModel::onApiEndpointChange,
         onSaveApiEndpoint = viewModel::onSaveApiEndpoint,
         onResetApiEndpoint = viewModel::onResetApiEndpoint,
-        onOpenOfflineTest = onOpenOfflineTest
+        currentAppLanguage = currentAppLanguage,
+        onAppLanguageSelected = { lang ->
+            if (currentAppLanguage != lang) {
+                currentAppLanguage = lang
+                LocaleManager.applyLocale(lang)
+                viewModel.onAppLanguageSelected(lang)
+                // Restart activity to apply language change immediately
+                (context as? Activity)?.recreate()
+            }
+        },
+        onThemeModeSelected = viewModel::onThemeModeSelected
     )
 }
 
@@ -119,11 +165,8 @@ private fun SettingsScreen(
     onSourceLanguageSelected: (SupportedLanguage) -> Unit,
     onTargetLanguageSelected: (SupportedLanguage) -> Unit,
     onModelSelected: (TranslationModelProfile) -> Unit,
-    onDownloadOfflineModel: (OfflineModelProfile) -> Unit,
-    onRemoveOfflineModel: (OfflineModelProfile) -> Unit,
     onRunMicrophoneTest: () -> Unit,
     onRunTtsTest: () -> Unit,
-    onOfflineFallbackChanged: (Boolean) -> Unit,
     onTelemetryChanged: (Boolean) -> Unit,
     onAccountEmailChange: (String) -> Unit,
     onAccountDisplayNameChange: (String) -> Unit,
@@ -133,7 +176,9 @@ private fun SettingsScreen(
     onApiEndpointChange: (String) -> Unit,
     onSaveApiEndpoint: () -> Unit,
     onResetApiEndpoint: () -> Unit,
-    onOpenOfflineTest: () -> Unit
+    currentAppLanguage: String,
+    onAppLanguageSelected: (String) -> Unit,
+    onThemeModeSelected: (ThemeMode) -> Unit
 ) {
     val spacing = LocalSpacing.current
     if (state.isLoading) {
@@ -165,6 +210,7 @@ private fun SettingsScreen(
         var accountExpanded by rememberSaveable { mutableStateOf(false) }
         var activeLanguageTab by rememberSaveable { mutableStateOf(LanguagePickerTarget.Source) }
         var modelPickerVisible by rememberSaveable { mutableStateOf(false) }
+        var appLanguagePickerVisible by rememberSaveable { mutableStateOf(false) }
 
         val favoriteDirections = remember(favoriteDirectionKeys) {
             favoriteDirectionKeys.distinct().map { LanguageDirection.decode(it) }
@@ -217,27 +263,13 @@ private fun SettingsScreen(
 
             item {
                 SettingSection(
-                    title = stringResource(id = R.string.settings_section_offline_models),
-                    contentPadding = cardPadding
-                ) {
-                    OfflineModelsCard(
-                        state = state,
-                        onDownload = onDownloadOfflineModel,
-                        onRemove = onRemoveOfflineModel
-                    )
-                }
-            }
-
-            item {
-                SettingSection(
                     title = stringResource(id = R.string.settings_section_diagnostics),
                     contentPadding = cardPadding
                 ) {
                     DiagnosticsCard(
                         isRunning = state.isDiagnosticsRunning,
                         onRunMicrophoneTest = onRunMicrophoneTest,
-                        onRunTtsTest = onRunTtsTest,
-                        onOpenOfflineTest = onOpenOfflineTest
+                        onRunTtsTest = onRunTtsTest
                     )
                 }
             }
@@ -282,10 +314,29 @@ private fun SettingsScreen(
                             Text(text = stringResource(id = R.string.settings_api_endpoint_save))
                         }
                     }
-                    SettingToggleRow(
-                        title = stringResource(id = R.string.settings_offline_fallback_label),
-                        checked = state.settings.offlineFallbackEnabled,
-                        onCheckedChange = onOfflineFallbackChanged
+                }
+            }
+
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_theme),
+                    contentPadding = cardPadding
+                ) {
+                    ThemeModeCard(
+                        selectedMode = state.selectedThemeMode,
+                        onModeSelected = onThemeModeSelected
+                    )
+                }
+            }
+
+            item {
+                SettingSection(
+                    title = stringResource(id = R.string.settings_section_app_language),
+                    contentPadding = cardPadding
+                ) {
+                    AppLanguageCard(
+                        currentLanguage = currentAppLanguage,
+                        onOpenPicker = { appLanguagePickerVisible = true }
                     )
                 }
             }
@@ -403,6 +454,16 @@ private fun SettingsScreen(
                 pickerTarget = null
             },
             onTargetChange = { pickerTarget = it }
+        )
+
+        AppLanguagePickerSheet(
+            visible = appLanguagePickerVisible,
+            currentLanguage = currentAppLanguage,
+            onDismiss = { appLanguagePickerVisible = false },
+            onLanguageSelected = { tag ->
+                onAppLanguageSelected(tag)
+                appLanguagePickerVisible = false
+            }
         )
 
         ModelPickerSheet(
@@ -621,58 +682,10 @@ private fun ModelSelectionCard(
 }
 
 @Composable
-private fun OfflineModelsCard(
-    state: SettingsUiState,
-    onDownload: (OfflineModelProfile) -> Unit,
-    onRemove: (OfflineModelProfile) -> Unit
-) {
-    val spacing = LocalSpacing.current
-    val offlineState = state.offlineState
-    val installing = offlineState.installingProfile
-    val progress = offlineState.downloadProgress[installing]?.coerceIn(0f, 1f)
-    val activeProfile = offlineState.activeProfile
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-        OfflineModelRow(
-            title = stringResource(id = R.string.settings_offline_tiny_title),
-            subtitle = stringResource(id = R.string.settings_offline_tiny_subtitle),
-            installed = offlineState.installedProfiles.contains(OfflineModelProfile.Tiny),
-            isBusy = installing == OfflineModelProfile.Tiny,
-            progress = if (installing == OfflineModelProfile.Tiny) progress else null,
-            primaryActionLabel = stringResource(id = R.string.settings_offline_tiny_action),
-            onPrimaryAction = { onDownload(OfflineModelProfile.Tiny) },
-            canRemove = false,
-            onRemove = null,
-            isActive = activeProfile == OfflineModelProfile.Tiny
-        )
-        OfflineModelRow(
-            title = stringResource(id = R.string.settings_offline_turbo_title),
-            subtitle = if (offlineState.installedProfiles.contains(OfflineModelProfile.Turbo)) {
-                stringResource(id = R.string.settings_offline_turbo_installed)
-            } else {
-                stringResource(id = R.string.settings_offline_turbo_description)
-            },
-            installed = offlineState.installedProfiles.contains(OfflineModelProfile.Turbo),
-            isBusy = installing == OfflineModelProfile.Turbo,
-            progress = if (installing == OfflineModelProfile.Turbo) progress else null,
-            primaryActionLabel = if (offlineState.installedProfiles.contains(OfflineModelProfile.Turbo)) {
-                stringResource(id = R.string.settings_offline_turbo_refresh)
-            } else {
-                stringResource(id = R.string.settings_offline_turbo_download)
-            },
-            onPrimaryAction = { onDownload(OfflineModelProfile.Turbo) },
-            canRemove = offlineState.installedProfiles.contains(OfflineModelProfile.Turbo),
-            onRemove = { onRemove(OfflineModelProfile.Turbo) },
-            isActive = activeProfile == OfflineModelProfile.Turbo
-        )
-    }
-}
-
-@Composable
 private fun DiagnosticsCard(
     isRunning: Boolean,
     onRunMicrophoneTest: () -> Unit,
-    onRunTtsTest: () -> Unit,
-    onOpenOfflineTest: () -> Unit
+    onRunTtsTest: () -> Unit
 ) {
     val spacing = LocalSpacing.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
@@ -700,13 +713,6 @@ private fun DiagnosticsCard(
                 Text(text = stringResource(id = R.string.settings_diagnostics_tts))
             }
         }
-        OutlinedButton(
-            onClick = onOpenOfflineTest,
-            enabled = !isRunning,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(text = stringResource(id = R.string.settings_open_offline_test))
-        }
         if (isRunning) {
             Text(
                 text = stringResource(id = R.string.settings_diagnostics_running),
@@ -717,68 +723,7 @@ private fun DiagnosticsCard(
     }
 }
 
-@Composable
-private fun OfflineModelRow(
-    title: String,
-    subtitle: String,
-    installed: Boolean,
-    isBusy: Boolean,
-    progress: Float?,
-    primaryActionLabel: String,
-    onPrimaryAction: () -> Unit,
-    canRemove: Boolean,
-    onRemove: (() -> Unit)?,
-    isActive: Boolean
-) {
-    val spacing = LocalSpacing.current
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            val statusText = when {
-                isBusy -> stringResource(id = R.string.settings_offline_status_installing)
-                isActive -> stringResource(id = R.string.settings_offline_status_active)
-                installed -> stringResource(id = R.string.settings_offline_status_ready)
-                else -> stringResource(id = R.string.settings_offline_status_missing)
-            }
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        progress?.let { value -> LinearProgressIndicator(progress = { value }) }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-        ) {
-            OutlinedButton(
-                onClick = onPrimaryAction,
-                enabled = !isBusy
-            ) {
-                Text(text = primaryActionLabel)
-            }
-            if (canRemove && onRemove != null) {
-                TextButton(
-                    onClick = onRemove,
-                    enabled = !isBusy
-                ) {
-                    Text(text = stringResource(id = R.string.settings_offline_remove))
-                }
-            }
-        }
-        HorizontalDivider()
-    }
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -832,11 +777,16 @@ private fun ExpandableSettingSection(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val spacing = LocalSpacing.current
+    val gradients = LocalGradients.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        Column {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(brush = gradients.card)
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -904,13 +854,15 @@ private fun SettingSection(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val spacing = LocalSpacing.current
+    val gradients = LocalGradients.current
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(brush = gradients.card)
                 .padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(spacing.md)
         ) {
@@ -963,14 +915,153 @@ private fun toggleFavorite(current: List<String>, key: String): List<String> {
 
 private fun networkSummary(state: SettingsUiState): String {
     val api = state.settings.apiEndpoint.ifBlank { BuildConfig.REALTIME_BASE_URL }
-    val offline = if (state.settings.offlineFallbackEnabled) "离线回退已开启" else "离线回退已关闭"
-    return "API: $api · $offline"
+    return "API: $api"
 }
 
 private fun accountSummary(state: SettingsUiState): String {
     val email = state.settings.accountEmail?.takeIf { it.isNotBlank() } ?: "未设置邮箱"
     val sync = if (state.syncEnabled) "同步开启" else "同步关闭"
     return "$email · $sync"
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ThemeModeCard(
+    selectedMode: ThemeMode,
+    onModeSelected: (ThemeMode) -> Unit
+) {
+    val spacing = LocalSpacing.current
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm)
+    ) {
+        Text(
+            text = stringResource(id = R.string.settings_theme_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm)
+        ) {
+            ThemeMode.entries.forEach { mode ->
+                val selected = mode == selectedMode
+                OutlinedButton(
+                    onClick = { onModeSelected(mode) },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (selected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            Color.Transparent
+                        }
+                    )
+                ) {
+                    Text(
+                        text = themeModeLabel(mode),
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
+    ThemeMode.System -> stringResource(id = R.string.settings_theme_system)
+    ThemeMode.Light -> stringResource(id = R.string.settings_theme_light)
+    ThemeMode.Dark -> stringResource(id = R.string.settings_theme_dark)
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AppLanguageCard(
+    currentLanguage: String,
+    onOpenPicker: () -> Unit
+) {
+    val spacing = LocalSpacing.current
+    val normalizedCurrentTag = canonicalLanguageTag(currentLanguage)
+    val currentOption = AppLanguageOptions.firstOrNull { option ->
+        val optionTag = canonicalLanguageTag(option.tag)
+        optionTag != null && optionTag.equals(normalizedCurrentTag, ignoreCase = true)
+    } ?: AppLanguageOptions.first()
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm)
+    ) {
+        Text(
+            text = stringResource(id = R.string.settings_app_language_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = stringResource(
+                id = R.string.settings_app_language_current,
+                stringResource(id = currentOption.labelRes)
+            ),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        FilledTonalButton(onClick = onOpenPicker) {
+            Text(text = stringResource(id = R.string.settings_app_language_change))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppLanguagePickerSheet(
+    visible: Boolean,
+    currentLanguage: String,
+    onDismiss: () -> Unit,
+    onLanguageSelected: (String) -> Unit
+) {
+    if (!visible) return
+    val spacing = LocalSpacing.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val normalizedCurrentTag = canonicalLanguageTag(currentLanguage)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.md, vertical = spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md)
+        ) {
+            Text(
+                text = stringResource(id = R.string.settings_app_language_dialog_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            AppLanguageOptions.forEach { option ->
+                val optionTag = canonicalLanguageTag(option.tag)
+                val selected = optionTag != null && optionTag.equals(normalizedCurrentTag, ignoreCase = true)
+                ListItem(
+                    headlineContent = { Text(text = stringResource(id = option.labelRes)) },
+                    trailingContent = { RadioButton(selected = selected, onClick = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable {
+                            onLanguageSelected(option.tag)
+                            onDismiss()
+                        },
+                    colors = ListItemDefaults.colors(
+                        containerColor = Color.Transparent
+                    )
+                )
+            }
+        }
+    }
 }
 
 private fun autoDetectLabelIfNeeded(direction: LanguageDirection, autoLabel: String): String {
@@ -980,5 +1071,29 @@ private fun autoDetectLabelIfNeeded(direction: LanguageDirection, autoLabel: Str
 private fun formatDirection(direction: LanguageDirection, autoLabel: String): String {
     return "${autoDetectLabelIfNeeded(direction, autoLabel)} -> ${direction.targetLanguage.displayName}"
 }
+
+private fun canonicalLanguageTag(tag: String?): String? {
+    if (tag.isNullOrBlank()) return null
+    return runCatching {
+        val locale = Locale.forLanguageTag(tag)
+        val language = locale.language.takeIf { it.isNotBlank() } ?: return null
+        val country = locale.country.takeIf { it.isNotBlank() }
+        if (country != null) {
+            "${language.lowercase(Locale.ROOT)}-${country.uppercase(Locale.ROOT)}"
+        } else {
+            language.lowercase(Locale.ROOT)
+        }
+    }.getOrNull()
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+
+
+
 
 

@@ -1,6 +1,8 @@
 package com.example.translatorapp.presentation.theme
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -36,9 +38,16 @@ data class TranslatorElevation(
     val level4: Dp = 10.dp
 )
 
+data class TranslatorGradientPalette(
+    val background: Brush = Brush.linearGradient(listOf(Color(0xFF101010), Color(0xFF101010))),
+    val card: Brush = Brush.linearGradient(listOf(Color(0xFF101010), Color(0xFF101010))),
+    val accent: Brush = Brush.linearGradient(listOf(Color(0xFF101010), Color(0xFF202020)))
+)
+
 val LocalSpacing = staticCompositionLocalOf { TranslatorSpacing() }
 val LocalRadius = staticCompositionLocalOf { TranslatorRadius() }
 val LocalElevation = staticCompositionLocalOf { TranslatorElevation() }
+val LocalGradients = staticCompositionLocalOf { TranslatorGradientPalette() }
 
 enum class WindowBreakpoint {
     Compact,

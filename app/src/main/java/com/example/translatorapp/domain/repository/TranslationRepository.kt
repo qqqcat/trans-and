@@ -5,6 +5,7 @@ import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.TranslationSessionState
@@ -15,6 +16,7 @@ interface TranslationRepository {
     val sessionState: Flow<TranslationSessionState>
     val liveTranscription: Flow<TranslationContent>
     val history: Flow<List<TranslationHistoryItem>>
+    val settings: Flow<UserSettings>
 
     suspend fun startRealtimeSession(settings: UserSettings)
     suspend fun stopRealtimeSession()
@@ -44,4 +46,6 @@ interface TranslationRepository {
     suspend fun updateAccountProfile(profile: AccountProfile)
     suspend fun updateSyncEnabled(enabled: Boolean)
     suspend fun updateApiEndpoint(endpoint: String)
+    suspend fun updateThemeMode(themeMode: ThemeMode)
+    suspend fun updateAppLanguage(language: String?)
 }

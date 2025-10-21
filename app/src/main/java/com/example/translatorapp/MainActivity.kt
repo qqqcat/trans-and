@@ -3,6 +3,8 @@ package com.example.translatorapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -18,12 +20,16 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.example.translatorapp.R
+import com.example.translatorapp.data.datasource.UserPreferencesDataSource
+import com.example.translatorapp.presentation.AppPreferencesViewModel
+import com.example.translatorapp.presentation.LocaleManager
 import com.example.translatorapp.presentation.history.HistoryRoute
 import com.example.translatorapp.presentation.history.HistoryViewModel
 import com.example.translatorapp.presentation.home.HomeRoute
@@ -35,15 +41,32 @@ import com.example.translatorapp.presentation.navigation.rememberTranslatorAppSt
 import com.example.translatorapp.presentation.navigation.toDestination
 import com.example.translatorapp.presentation.settings.SettingsRoute
 import com.example.translatorapp.presentation.settings.SettingsViewModel
+import com.example.translatorapp.presentation.theme.LocalGradients
 import com.example.translatorapp.presentation.theme.TranslatorTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var userPreferencesDataSource: UserPreferencesDataSource
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val initialLanguage = runBlocking {
+            userPreferencesDataSource.settings.first().appLanguage
+        }
+        LocaleManager.applyLocale(initialLanguage)
+
         setContent {
-            TranslatorTheme {
+            val preferencesViewModel: AppPreferencesViewModel = hiltViewModel()
+            val themeMode by preferencesViewModel.themeMode.collectAsStateWithLifecycle()
+
+            TranslatorTheme(themeMode = themeMode) {
                 TranslatorApp()
             }
         }
@@ -57,58 +80,64 @@ private fun TranslatorApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination?.toDestination()
     val showBottomBar = currentDestination in BottomBarDestinations
+    val gradients = LocalGradients.current
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TranslatorAppTopBar(
-                destination = currentDestination,
-                canNavigateBack = currentDestination != null && currentDestination !in BottomBarDestinations && navController.previousBackStackEntry != null,
-                onBackClick = { navController.popBackStack(); Unit }
-            )
-        },
-        bottomBar = {
-            if (showBottomBar) {
-                TranslatorBottomBar(
-                    destinations = BottomBarDestinations,
-                    currentDestination = currentDestination,
-                    onNavigateToDestination = appState::navigateTo
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(gradients.background)
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            topBar = {
+                TranslatorAppTopBar(
+                    destination = currentDestination,
+                    canNavigateBack = currentDestination != null && currentDestination !in BottomBarDestinations && navController.previousBackStackEntry != null,
+                    onBackClick = { navController.popBackStack(); Unit }
                 )
-            }
-        },
-        snackbarHost = { SnackbarHost(hostState = appState.snackbarHostState) }
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = TranslatorDestination.Home.route,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            composable(TranslatorDestination.Home.route) {
-                val viewModel: HomeViewModel = hiltViewModel()
-                HomeRoute(
-                    viewModel = viewModel,
-                    paddingValues = padding,
-                    onOpenHistory = { appState.navigateTo(TranslatorDestination.History) }
-                )
-            }
-            composable(TranslatorDestination.History.route) {
-                val viewModel: HistoryViewModel = hiltViewModel()
-                HistoryRoute(
-                    viewModel = viewModel,
-                    paddingValues = padding
-                )
-            }
-            composable(TranslatorDestination.Settings.route) {
-                val viewModel: SettingsViewModel = hiltViewModel()
-                SettingsRoute(
-                    viewModel = viewModel,
-                    paddingValues = padding
-                )
+            },
+            bottomBar = {
+                if (showBottomBar) {
+                    TranslatorBottomBar(
+                        destinations = BottomBarDestinations,
+                        currentDestination = currentDestination,
+                        onNavigateToDestination = appState::navigateTo
+                    )
+                }
+            },
+            snackbarHost = { SnackbarHost(hostState = appState.snackbarHostState) }
+        ) { padding ->
+            NavHost(
+                navController = navController,
+                startDestination = TranslatorDestination.Home.route,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                composable(TranslatorDestination.Home.route) {
+                    val viewModel: HomeViewModel = hiltViewModel()
+                    HomeRoute(
+                        viewModel = viewModel,
+                        paddingValues = padding,
+                        onOpenHistory = { appState.navigateTo(TranslatorDestination.History) }
+                    )
+                }
+                composable(TranslatorDestination.History.route) {
+                    val viewModel: HistoryViewModel = hiltViewModel()
+                    HistoryRoute(
+                        viewModel = viewModel,
+                        paddingValues = padding
+                    )
+                }
+                composable(TranslatorDestination.Settings.route) {
+                    val viewModel: SettingsViewModel = hiltViewModel()
+                    SettingsRoute(
+                        viewModel = viewModel,
+                        paddingValues = padding
+                    )
+                }
             }
         }
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

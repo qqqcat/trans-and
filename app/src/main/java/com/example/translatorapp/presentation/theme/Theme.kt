@@ -9,34 +9,36 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.translatorapp.domain.model.ThemeMode
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF2F5BFF),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFE0E7FF),
-    onPrimaryContainer = Color(0xFF001A43),
-    secondary = Color(0xFF4B5DFF),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFDEE2FF),
-    onSecondaryContainer = Color(0xFF081357),
-    tertiary = Color(0xFF22A699),
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFB9F4EA),
-    onTertiaryContainer = Color(0xFF00201B),
-    background = Color(0xFFF6F8FF),
-    onBackground = Color(0xFF0F1326),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1A1F33),
-    surfaceVariant = Color(0xFFE0E4F6),
-    onSurfaceVariant = Color(0xFF434A63),
-    outline = Color(0xFF717899),
-    outlineVariant = Color(0xFFC5CAE0),
+    primary = Color(0xFF355A52),
+    onPrimary = Color(0xFFE2EEEB),
+    primaryContainer = Color(0xFF56786F),
+    onPrimaryContainer = Color(0xFFE9F5F2),
+    secondary = Color(0xFF3F6067),
+    onSecondary = Color(0xFFDCE7E9),
+    secondaryContainer = Color(0xFF5A7C83),
+    onSecondaryContainer = Color(0xFFE7F2F4),
+    tertiary = Color(0xFF45657B),
+    onTertiary = Color(0xFFE1EDF5),
+    tertiaryContainer = Color(0xFF5F7D93),
+    onTertiaryContainer = Color(0xFFE9F4FB),
+    background = Color(0xFFC2D1CC),
+    onBackground = Color(0xFF192A27),
+    surface = Color(0xFFCDDAD6),
+    onSurface = Color(0xFF1E2F2B),
+    surfaceVariant = Color(0xFFA4B5B0),
+    onSurfaceVariant = Color(0xFF2F3E3B),
+    outline = Color(0xFF516360),
+    outlineVariant = Color(0xFF859693),
     error = Color(0xFFBA1A1A),
     onError = Color.White,
     errorContainer = Color(0xFFFFDAD6),
@@ -44,30 +46,72 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFB5C3FF),
-    onPrimary = Color(0xFF001B5C),
-    primaryContainer = Color(0xFF09318E),
-    onPrimaryContainer = Color(0xFFE0E7FF),
-    secondary = Color(0xFFBCC2FF),
-    onSecondary = Color(0xFF111B68),
-    secondaryContainer = Color(0xFF2E3EAF),
-    onSecondaryContainer = Color(0xFFE0E6FF),
-    tertiary = Color(0xFF7ADACE),
-    onTertiary = Color(0xFF003730),
-    tertiaryContainer = Color(0xFF005047),
-    onTertiaryContainer = Color(0xFFB9F4EA),
-    background = Color(0xFF0B1020),
-    onBackground = Color(0xFFE1E4F6),
-    surface = Color(0xFF14192C),
-    onSurface = Color(0xFFE1E4F6),
-    surfaceVariant = Color(0xFF3B415A),
-    onSurfaceVariant = Color(0xFFC5CAE0),
-    outline = Color(0xFF8D93AB),
-    outlineVariant = Color(0xFF41475F),
+    primary = Color(0xFF4DB6AC),
+    onPrimary = Color(0xFF003731),
+    primaryContainer = Color(0xFF005047),
+    onPrimaryContainer = Color(0xFFA9FDEF),
+    secondary = Color(0xFF4DD0E1),
+    onSecondary = Color(0xFF00363E),
+    secondaryContainer = Color(0xFF005F6B),
+    onSecondaryContainer = Color(0xFFB8EAFF),
+    tertiary = Color(0xFF4FC3F7),
+    onTertiary = Color(0xFF002E3B),
+    tertiaryContainer = Color(0xFF00506A),
+    onTertiaryContainer = Color(0xFFB6EAFF),
+    background = Color(0xFF071E26),
+    onBackground = Color(0xFFE1F6FF),
+    surface = Color(0xFF0D252D),
+    onSurface = Color(0xFFE1F6FF),
+    surfaceVariant = Color(0xFF244049),
+    onSurfaceVariant = Color(0xFFC0D8DF),
+    outline = Color(0xFF78959D),
+    outlineVariant = Color(0xFF2F4D55),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6)
+)
+
+private val LightGradients = TranslatorGradientPalette(
+    background = Brush.linearGradient(
+        listOf(
+            Color(0xFFD0DED9),
+            Color(0xFFBECFCA)
+        )
+    ),
+    card = Brush.linearGradient(
+        listOf(
+            Color(0xFFD8E4DF),
+            Color(0xFFC6D6D1)
+        )
+    ),
+    accent = Brush.linearGradient(
+        listOf(
+            Color(0xFF5A8177),
+            Color(0xFF4F758A)
+        )
+    )
+)
+
+private val DarkGradients = TranslatorGradientPalette(
+    background = Brush.linearGradient(
+        listOf(
+            Color(0xFF04161C),
+            Color(0xFF102A43)
+        )
+    ),
+    card = Brush.linearGradient(
+        listOf(
+            Color(0xFF102B33),
+            Color(0xFF143746)
+        )
+    ),
+    accent = Brush.linearGradient(
+        listOf(
+            Color(0xFF1F6F78),
+            Color(0xFF1565C0)
+        )
+    )
 )
 
 private val TranslatorTypography = Typography(
@@ -119,18 +163,27 @@ private val TranslatorShapes = Shapes(
 
 @Composable
 fun TranslatorTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.System,
     content: @Composable () -> Unit
 ) {
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme = when (themeMode) {
+        ThemeMode.System -> systemDark
+        ThemeMode.Dark -> true
+        ThemeMode.Light -> false
+    }
+
     val colorScheme = if (darkTheme) DarkColors else LightColors
     val spacing = TranslatorSpacing()
     val radius = TranslatorRadius()
     val elevation = TranslatorElevation()
+    val gradients = if (darkTheme) DarkGradients else LightGradients
 
     CompositionLocalProvider(
         LocalSpacing provides spacing,
         LocalRadius provides radius,
-        LocalElevation provides elevation
+        LocalElevation provides elevation,
+        LocalGradients provides gradients
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

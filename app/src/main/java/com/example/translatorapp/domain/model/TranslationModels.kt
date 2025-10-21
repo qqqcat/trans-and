@@ -89,12 +89,20 @@ enum class TranslationInputMode {
     Image,
 }
 
+enum class ThemeMode {
+    System,
+    Light,
+    Dark
+}
+
 data class UserSettings(
     val direction: LanguageDirection = LanguageDirection(
         SupportedLanguage.ChineseSimplified,
         SupportedLanguage.English
     ),
     val translationProfile: TranslationModelProfile = TranslationModelProfile.Balanced,
+    val themeMode: ThemeMode = ThemeMode.System,
+    val appLanguage: String? = null,
     val allowTelemetry: Boolean = false,
     val syncEnabled: Boolean = true,
     val accountId: String? = null,

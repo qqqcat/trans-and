@@ -10,6 +10,7 @@ import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.TranslationContent
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationInputMode
 import com.example.translatorapp.domain.model.TranslationModelProfile
@@ -67,6 +68,7 @@ class TranslationRepositoryImpl @Inject constructor(
         historyDao.observeHistory().map { entities ->
             entities.map(TranslationHistoryEntity::toDomain)
         }
+    override val settings: Flow<UserSettings> = preferencesDataSource.settings
 
     override suspend fun startRealtimeSession(settings: UserSettings) {
         preferencesDataSource.update(settings)
@@ -104,6 +106,18 @@ class TranslationRepositoryImpl @Inject constructor(
     override suspend fun updateTelemetryConsent(consent: Boolean) {
         val current = preferencesDataSource.settings.first()
         preferencesDataSource.update(current.copy(allowTelemetry = consent))
+    }
+
+    override suspend fun updateThemeMode(themeMode: ThemeMode) {
+        val current = preferencesDataSource.settings.first()
+        if (current.themeMode == themeMode) return
+        preferencesDataSource.update(current.copy(themeMode = themeMode))
+    }
+
+    override suspend fun updateAppLanguage(language: String?) {
+        val current = preferencesDataSource.settings.first()
+        if (current.appLanguage == language) return
+        preferencesDataSource.update(current.copy(appLanguage = language))
     }
 
     override suspend fun persistHistoryItem(content: TranslationContent) {
@@ -205,7 +219,7 @@ class TranslationRepositoryImpl @Inject constructor(
             message = "灏氭湭缁戝畾璐﹀彿"
         )
         if (!settings.syncEnabled) {
-            return AccountSyncStatus(success = false, message = "鍚屾宸插叧闂?)
+            return AccountSyncStatus(success = false, message = "鍚屾宸插叧闂?")
         }
         val entities = withContext(dispatcherProvider.io) {
             historyDao.observeHistory().first()
@@ -344,10 +358,10 @@ class TranslationRepositoryImpl @Inject constructor(
             ?.takeIf { it.isNotBlank() }
         val baseMessage = when (code()) {
             401 -> "璁よ瘉澶辫触锛岃妫€鏌ヨ处鎴锋垨 API Key 璁剧疆"
-            403 -> "娌℃湁璁块棶鏉冮檺锛岃纭璐﹀彿鏉冮檺鎴栭搴?
+            403 -> "娌℃湁璁块棶鏉冮檺锛岃纭璐﹀彿鏉冮檺鎴栭搴?"
             404 -> "鏈嶅姟涓嶅彲杈撅紝璇锋鏌?API Host 閰嶇疆"
             429 -> "璇锋眰杩囦簬棰戠箒锛岃绋嶅悗閲嶈瘯"
-            else -> "鏈嶅姟鍝嶅簲寮傚父锛圚TTP ${code()}锛?
+            else -> "鏈嶅姟鍝嶅簲寮傚父锛圚TTP ${code()}锛?"
         }
         val message = errorBody ?: baseMessage
         return TranslatorException(

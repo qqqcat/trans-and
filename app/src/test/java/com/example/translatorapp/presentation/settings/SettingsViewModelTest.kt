@@ -4,6 +4,7 @@ import com.example.translatorapp.domain.model.AccountProfile
 import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationModelProfile
@@ -16,14 +17,10 @@ import com.example.translatorapp.domain.usecase.UpdateAccountProfileUseCase
 import com.example.translatorapp.domain.usecase.UpdateApiEndpointUseCase
 import com.example.translatorapp.domain.usecase.UpdateDirectionUseCase
 import com.example.translatorapp.domain.usecase.UpdateModelUseCase
-import com.example.translatorapp.domain.usecase.UpdateOfflineFallbackUseCase
 import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
+import com.example.translatorapp.domain.usecase.UpdateAppLanguageUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
-import com.example.translatorapp.offline.DiagnosticsController
-import com.example.translatorapp.offline.OfflineModel
-import com.example.translatorapp.offline.OfflineModelController
-import com.example.translatorapp.offline.OfflineModelProfile
-import com.example.translatorapp.offline.OfflineModelState
+import com.example.translatorapp.domain.usecase.UpdateThemeModeUseCase
 import com.example.translatorapp.util.DispatcherProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -54,9 +51,7 @@ class SettingsViewModelTest {
     @Test
     fun onDirectionSelected_updatesRepositoryAndUiState() = runTest {
         val repository = FakeTranslationRepository()
-        val offlineController = FakeOfflineModelController()
-        val diagnosticsController = FakeDiagnosticsController()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
+        val viewModel = createViewModel(repository)
         val newDirection = LanguageDirection(
             sourceLanguage = SupportedLanguage.English,
             targetLanguage = SupportedLanguage.Japanese
@@ -77,9 +72,7 @@ class SettingsViewModelTest {
                 )
             )
         )
-        val offlineController = FakeOfflineModelController()
-        val diagnosticsController = FakeDiagnosticsController()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
+        val viewModel = createViewModel(repository)
 
         viewModel.onAutoDetectChanged(true)
 
@@ -100,9 +93,7 @@ class SettingsViewModelTest {
                 accountDisplayName = ""
             )
         )
-        val offlineController = FakeOfflineModelController()
-        val diagnosticsController = FakeDiagnosticsController()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
+        val viewModel = createViewModel(repository)
 
         viewModel.onAccountEmailChange("user@example.com")
         viewModel.onAccountDisplayNameChange("Test User")
@@ -121,9 +112,7 @@ class SettingsViewModelTest {
             message = "synced",
             syncedAt = syncedAt
         )
-        val offlineController = FakeOfflineModelController()
-        val diagnosticsController = FakeDiagnosticsController()
-        val viewModel = createViewModel(repository, offlineController, diagnosticsController)
+        val viewModel = createViewModel(repository)
 
         viewModel.onSyncNow()
 
@@ -133,47 +122,21 @@ class SettingsViewModelTest {
     }
 
     private fun createViewModel(
-        repository: FakeTranslationRepository,
-        offlineController: OfflineModelController,
-        diagnosticsController: DiagnosticsController
+        repository: FakeTranslationRepository
     ): SettingsViewModel {
         return SettingsViewModel(
             loadSettingsUseCase = LoadSettingsUseCase(repository),
             updateDirectionUseCase = UpdateDirectionUseCase(repository),
             updateModelUseCase = UpdateModelUseCase(repository),
-            updateOfflineFallbackUseCase = UpdateOfflineFallbackUseCase(repository),
             updateTelemetryConsentUseCase = UpdateTelemetryConsentUseCase(repository),
             updateAccountProfileUseCase = UpdateAccountProfileUseCase(repository),
             updateSyncEnabledUseCase = UpdateSyncEnabledUseCase(repository),
             syncAccountUseCase = SyncAccountUseCase(repository),
+            updateThemeModeUseCase = UpdateThemeModeUseCase(repository),
+            updateAppLanguageUseCase = UpdateAppLanguageUseCase(repository),
             updateApiEndpointUseCase = UpdateApiEndpointUseCase(repository),
-            offlineModelController = offlineController,
-            diagnosticsController = diagnosticsController,
             dispatcherProvider = dispatcherProvider
         )
-    }
-}
-
-private class FakeOfflineModelController : OfflineModelController {
-    private val _state = MutableStateFlow(OfflineModelState())
-    override val state: StateFlow<OfflineModelState> = _state
-
-    var ensureCalls: MutableList<OfflineModelProfile> = mutableListOf()
-    var removeCalls: MutableList<OfflineModelProfile> = mutableListOf()
-
-    override suspend fun ensureModel(profile: OfflineModelProfile): OfflineModel {
-        ensureCalls.add(profile)
-        _state.update { current ->
-            current.copy(installedProfiles = current.installedProfiles + profile)
-        }
-        return OfflineModel(profile, File(profile.defaultFileName))
-    }
-
-    override suspend fun removeModel(profile: OfflineModelProfile) {
-        removeCalls.add(profile)
-        _state.update { current ->
-            current.copy(installedProfiles = current.installedProfiles - profile)
-        }
     }
 }
 
@@ -184,6 +147,8 @@ private class FakeTranslationRepository(
     override val sessionState: Flow<TranslationSessionState> = MutableStateFlow(TranslationSessionState())
     override val liveTranscription: Flow<TranslationContent> = MutableSharedFlow()
     override val history: Flow<List<TranslationHistoryItem>> = MutableStateFlow(emptyList())
+    private val settingsState = MutableStateFlow(initialSettings)
+    override val settings: Flow<UserSettings> = settingsState
 
     var currentSettings: UserSettings = initialSettings
         private set
@@ -198,18 +163,17 @@ private class FakeTranslationRepository(
 
     override suspend fun updateDirection(direction: LanguageDirection) {
         currentSettings = currentSettings.copy(direction = direction)
+        settingsState.value = currentSettings
     }
 
     override suspend fun updateModel(profile: TranslationModelProfile) {
         currentSettings = currentSettings.copy(translationProfile = profile)
-    }
-
-    override suspend fun updateOfflineFallback(enabled: Boolean) {
-        currentSettings = currentSettings.copy(offlineFallbackEnabled = enabled)
+        settingsState.value = currentSettings
     }
 
     override suspend fun updateTelemetryConsent(consent: Boolean) {
         currentSettings = currentSettings.copy(allowTelemetry = consent)
+        settingsState.value = currentSettings
     }
 
     override suspend fun persistHistoryItem(content: TranslationContent) = Unit
@@ -244,6 +208,7 @@ private class FakeTranslationRepository(
         syncCallCount += 1
         nextSyncStatus.syncedAt?.let { instant ->
             currentSettings = currentSettings.copy(lastSyncedAt = instant)
+            settingsState.value = currentSettings
         }
         return nextSyncStatus
     }
@@ -258,14 +223,21 @@ private class FakeTranslationRepository(
 
     override suspend fun updateSyncEnabled(enabled: Boolean) {
         currentSettings = currentSettings.copy(syncEnabled = enabled)
+        settingsState.value = currentSettings
     }
 
     override suspend fun updateApiEndpoint(endpoint: String) {
         currentSettings = currentSettings.copy(apiEndpoint = endpoint)
+        settingsState.value = currentSettings
     }
-}
 
-private class FakeDiagnosticsController : DiagnosticsController {
-    override suspend fun runMicrophoneTest(durationMillis: Long): Float = 0.1f
-    override suspend fun runTtsTest(language: SupportedLanguage): Boolean = true
+    override suspend fun updateThemeMode(themeMode: ThemeMode) {
+        currentSettings = currentSettings.copy(themeMode = themeMode)
+        settingsState.value = currentSettings
+    }
+
+    override suspend fun updateAppLanguage(language: String?) {
+        currentSettings = currentSettings.copy(appLanguage = language)
+        settingsState.value = currentSettings
+    }
 }

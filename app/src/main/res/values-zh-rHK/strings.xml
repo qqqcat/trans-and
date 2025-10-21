@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TransAnd</string>
+
+    <!-- Common -->
+    <string name="action_back">返回</string>
+    <string name="privacy_policy">私隱政策</string>
+
+    <!-- Home -->
+    <string name="home_title">即時翻譯</string>
+    <string name="home_status_active">會話活躍</string>
+    <string name="home_status_inactive">麥克風已停用</string>
+    <string name="home_status_connecting">正在連線即時服務…</string>
+    <string name="home_status_permission">等待麥克風權限</string>
+    <string name="home_status_indicator_on">麥克風正在錄音</string>
+    <string name="home_status_indicator_off">麥克風閒置</string>
+    <string name="home_latency_label">ASR %1$d 毫秒 · 翻譯 %2$d 毫秒 · TTS %3$d 毫秒</string>
+    <string name="home_current_configuration">目前设定</string>
+    <string name="home_language_auto_detect">自动侦测</string>
+    <string name="home_model_label">模型：%1$s</string>
+    <string name="home_adjust_settings">调整设定</string>
+    <string name="home_input_mode_label">輸入模式</string>
+    <string name="home_input_mode_voice">即時語音</string>
+    <string name="home_input_mode_text">文字輸入</string>
+    <string name="home_input_mode_image">圖像翻譯</string>
+    <string name="home_input_mode_voice_subtitle">啟用麥克風進行即時聆聽</string>
+    <string name="home_input_mode_text_subtitle">手動輸入或貼上文字</string>
+    <string name="home_input_mode_image_subtitle">辨識圖像中的文字</string>
+    <string name="home_input_mode_more">更多</string>
+    <string name="home_input_mode_more_title">選擇其他模式</string>
+    <string name="home_voice_active_description">即時翻譯錄音時保持裝置安靜。</string>
+    <string name="home_voice_inactive_description">點擊下方啟用麥克風並恢復翻譯。</string>
+    <string name="home_action_mute">關閉麥克風</string>
+    <string name="home_action_unmute">開啟麥克風</string>
+    <string name="home_action_processing">處理中…</string>
+    <string name="home_initialization_downloading">下載離線模型 %1$d%%</string>
+    <string name="home_initialization_preparing">準備離線模型…</string>
+    <string name="home_initialization_ready">離線模型就緒</string>
+
+    <!-- Permission guidance -->
+    <string name="permission_guidance_title">需要麥克風權限</string>
+    <string name="permission_guidance_description">请授予麦克风存取权限，以便即时翻译语音。</string>
+    <string name="permission_guidance_step_request">• 在权限对话框中点击「允许」。</string>
+    <string name="permission_guidance_step_settings">• 如果之前拒绝过，请开启设定 > 应用程序权限手动启用。</string>
+    <string name="permission_guidance_request">请求权限</string>
+    <string name="permission_guidance_open_settings">开启系统设定</string>
+
+    <!-- Text translation -->
+    <string name="home_text_translation_title">文字翻譯</string>
+    <string name="home_text_input_label">輸入要翻譯的文字</string>
+    <string name="home_translate_text_action">翻譯文字</string>
+    <string name="home_detected_language_label">偵測到的語言：%1$s</string>
+
+    <!-- Image translation -->
+    <string name="home_image_translation_title">圖像翻譯</string>
+    <string name="home_image_translation_hint">支援 JPG 和 PNG。選擇包含清晰文字的照片。</string>
+    <string name="home_pick_image_action">選擇圖像</string>
+
+    <!-- History preview -->
+    <string name="home_history_preview_title">歷史記錄</string>
+    <string name="home_history_preview_description">檢視之前的對話或收藏。</string>
+    <string name="home_timeline_description">最新 100 個片段顯示在此清單中。</string>
+    <string name="home_stop_session">結束會話</string>
+    <string name="home_open_history">開啟歷史記錄</string>
+    <string name="home_open_settings">开启设定</string>
+
+    <!-- Offline diagnostics -->
+    <string name="offline_test_title">離線引擎診斷</string>
+    <string name="offline_test_start">開始會話</string>
+    <string name="offline_test_toggle_mic">切換麥克風</string>
+    <string name="offline_test_stop">停止會話</string>
+    <string name="offline_test_clear">清除日誌</string>
+    <string name="offline_test_status_template">會話：%1$s · 麥克風：%2$s</string>
+    <string name="offline_test_status_active">執行中</string>
+    <string name="offline_test_status_inactive">已停止</string>
+    <string name="offline_test_mic_on">錄音中</string>
+    <string name="offline_test_mic_off">已靜音</string>
+    <string name="offline_test_logs">即時日誌</string>
+    <string name="offline_test_empty">尚未有辨識結果。點擊「開始會話」開始測試。</string>
+    <string name="offline_test_error">錯誤：%1$s</string>
+    <string name="offline_test_progress_downloading">下載模型 %1$d%%</string>
+    <string name="offline_test_progress_preparing">載入離線模型…</string>
+    <string name="offline_test_progress_ready">離線模型就緒</string>
+    <string name="offline_test_busy_starting">啟動離線會話…</string>
+    <string name="offline_test_busy_stopping">停止離線會話…</string>
+    <string name="offline_test_busy_toggling">切換麥克風…</string>
+    <string name="settings_open_offline_test">开启离线诊断</string>
+
+    <!-- History -->
+    <string name="history_title">歷史記錄</string>
+    <string name="history_search_placeholder">搜尋原文或譯文</string>
+    <string name="history_filter_favorites">僅收藏</string>
+    <string name="history_filter_tags_label">按標籤篩選</string>
+    <string name="history_tag_input_label">標籤（逗號分隔）</string>
+    <string name="history_tag_input_hint">範例：會議、旅行、工作</string>
+    <string name="history_save_tags_action">儲存標籤</string>
+    <string name="history_favorite_action">收藏此條目</string>
+    <string name="history_empty_placeholder">暫無歷史記錄</string>
+    <string name="history_clear_all">清除歷史記錄</string>
+    <string name="history_load_more">載入更多</string>
+    <string name="history_share_title">分享翻譯</string>
+    <string name="history_share_action">分享</string>
+    <string name="history_share_content">原文：%1$s\n譯文：%2$s</string>
+
+    <!-- Subtitle timeline -->
+    <string name="subtitle_timeline_title">即時轉錄</string>
+    <string name="subtitle_timeline_empty">開始對話以在此處檢視即時片段。</string>
+    <string name="subtitle_timeline_source_label">原文</string>
+    <string name="subtitle_timeline_translation_label">譯文</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设定</string>
+    <string name="settings_section_language">语言方向</string>
+    <string name="settings_section_model">翻译模型</string>
+    <string name="settings_section_offline_models">离线模型</string>
+    <string name="settings_section_network">网络与服务</string>
+    <string name="settings_section_preferences">通用偏好</string>
+    <string name="settings_section_diagnostics">设备诊断</string>
+    <string name="settings_diagnostics_hint">使用这些工具验证麦克风和系统 TTS 是否正常工作。执行检查时保持环境安静。</string>
+    <string name="settings_diagnostics_microphone">测试麦克风</string>
+    <string name="settings_diagnostics_tts">测试 TTS</string>
+    <string name="settings_diagnostics_running">诊断进行中…</string>
+    <string name="settings_section_account">账户与同步</string>
+    <string name="settings_section_version">版本信息</string>
+    <string name="settings_auto_detect_label">自动侦测来源语言</string>
+    <string name="settings_source_language_label">来源语言</string>
+    <string name="settings_target_language_label">目标语言</string>
+    <string name="settings_language_search_hint">搜寻语言</string>
+    <string name="settings_language_favorites_section">收藏的方向</string>
+    <string name="settings_language_tab_source">来源</string>
+    <string name="settings_language_tab_target">目标</string>
+    <string name="settings_language_select_source">选择来源语言（目前：%1$s）</string>
+    <string name="settings_language_select_target">选择目标语言（目前：%1$s）</string>
+    <string name="settings_language_auto_detect_hint">自动侦测已启用。我们将自动侦测来源语言。</string>
+    <string name="settings_language_add_favorite">将此方向新增到收藏</string>
+    <string name="settings_language_remove_favorite">从收藏中移除</string>
+    <string name="settings_offline_fallback_label">网络失败时使用离线模型</string>
+    <string name="settings_telemetry_label">分享匿名使用资料</string>
+    <string name="settings_api_endpoint_label">自订即时服务主机</string>
+    <string name="settings_api_endpoint_hint">范例：https://your-proxy.example/</string>
+    <string name="settings_api_endpoint_default">预设主机：%1$s</string>
+    <string name="settings_api_endpoint_save">储存主机</string>
+    <string name="settings_api_endpoint_reset">恢复预设</string>
+    <string name="settings_api_endpoint_error">输入有效的 http(s):// 地址或留空使用预设。</string>
+    <string name="settings_account_email">登入邮箱</string>
+    <string name="settings_account_display_name">显示名称</string>
+    <string name="settings_save_account">储存账户详情</string>
+    <string name="settings_sync_toggle">同步历史记录</string>
+    <string name="settings_sync_now">立即同步</string>
+    <string name="settings_last_sync">上次同步：%1$s</string>
+    <string name="settings_sync_never">从未同步</string>
+    <string name="settings_message_saved">设定已储存</string>
+    <string name="settings_message_sync_in_progress">同步进行中…</string>
+    <string name="settings_message_sync_success">同步成功</string>
+    <string name="settings_message_sync_failed">同步失败：%1$s</string>
+    <string name="settings_model_picker_title">选择翻译模型</string>
+    <string name="settings_model_open_picker">选择模型</string>
+
+    <!-- Theme -->
+    <string name="settings_section_theme">主题与外观</string>
+    <string name="settings_theme_description">选择应用的显示主题</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色模式</string>
+    <string name="settings_theme_dark">深色模式</string>
+    <!-- App Language -->
+    <string name="settings_section_app_language">应用语言</string>
+    <string name="settings_app_language_label">选择应用语言</string>
+    <string name="settings_app_language_description">选择应用界面的语言</string>
+    <string name="settings_app_language_english">English</string>
+    <string name="settings_app_language_chinese">中文</string>
+    <string name="settings_app_language_spanish">西班牙语</string>
+    <string name="settings_app_language_french">法语</string>
+    <string name="settings_app_language_traditional_chinese">繁体中文</string>
+    <string name="settings_app_language_japanese">日语</string>
+    <string name="settings_app_language_korean">韩语</string>
+    <string name="settings_app_language_arabic">阿拉伯语</string>
+    <string name="settings_app_language_russian">俄语</string>
+    <string name="settings_app_language_change">更改语言</string>
+    <string name="settings_app_language_dialog_title">选择应用语言</string>
+    <string name="settings_app_language_current">目前语言：%1$s</string>
+
+    <!-- Misc -->
+    <string name="history_tag_separator">•</string>
+    <string name="settings_offline_tiny_title">Whisper Tiny</string>
+    <string name="settings_offline_tiny_subtitle">与应用程序捆绑的最小 Whisper 模型，用于基本离线辨识。</string>
+    <string name="settings_offline_tiny_action">下载 Tiny</string>
+    <string name="settings_offline_turbo_title">Whisper Turbo</string>
+    <string name="settings_offline_turbo_description">支援多语言的高品质离线模型。</string>
+    <string name="settings_offline_turbo_installed">已安装 · 提供多语言离线辨识</string>
+    <string name="settings_offline_turbo_download">下载 Turbo</string>
+    <string name="settings_offline_turbo_refresh">重新下载</string>
+    <string name="settings_offline_remove">移除模型</string>
+    <string name="settings_offline_status_installing">下载中…</string>
+    <string name="settings_offline_status_ready">就绪</string>
+    <string name="settings_offline_status_active">目前使用中</string>
+    <string name="settings_offline_status_missing">未安装</string>
+</resources>

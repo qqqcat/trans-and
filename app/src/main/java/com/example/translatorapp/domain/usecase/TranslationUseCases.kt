@@ -4,6 +4,7 @@ import com.example.translatorapp.domain.model.AccountProfile
 import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationModelProfile
@@ -83,6 +84,24 @@ class LoadSettingsUseCase @Inject constructor(
     private val repository: TranslationRepository
 ) {
     suspend operator fun invoke(): UserSettings = repository.refreshSettings()
+}
+
+class ObserveSettingsUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    operator fun invoke(): Flow<UserSettings> = repository.settings
+}
+
+class UpdateThemeModeUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(themeMode: ThemeMode) = repository.updateThemeMode(themeMode)
+}
+
+class UpdateAppLanguageUseCase @Inject constructor(
+    private val repository: TranslationRepository
+) {
+    suspend operator fun invoke(language: String?) = repository.updateAppLanguage(language)
 }
 
 class TranslateTextUseCase @Inject constructor(

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.UserSettings
 import kotlinx.datetime.Instant
@@ -34,6 +35,8 @@ class UserPreferencesDataSource @Inject constructor(
         val accountDisplayName = stringPreferencesKey("account_display_name")
         val lastSyncedAt = stringPreferencesKey("last_synced_at")
         val apiHost = stringPreferencesKey("api_host")
+        val themeMode = stringPreferencesKey("theme_mode")
+        val appLanguage = stringPreferencesKey("app_language")
     }
 
     val settings: Flow<UserSettings> = context.userPrefsDataStore.data.map { prefs ->
@@ -54,6 +57,18 @@ class UserPreferencesDataSource @Inject constructor(
             translationProfile = prefs[Keys.modelProfile]?.let {
                 runCatching { TranslationModelProfile.valueOf(it) }.getOrNull()
             } ?: UserSettings().translationProfile,
+            themeMode = prefs[Keys.themeMode]?.let {
+                runCatching { ThemeMode.valueOf(it) }.getOrNull()
+            } ?: UserSettings().themeMode,
+            appLanguage = prefs[Keys.appLanguage]?.let { stored ->
+                when (stored) {
+                    "en", "en_US", "en-US" -> "en-US"
+                    "zh", "zh_CN", "zh-CN" -> "zh-CN"
+                    "es", "es_ES", "es-ES" -> "es-ES"
+                    "fr", "fr_FR", "fr-FR" -> "fr-FR"
+                    else -> stored
+                }
+            },
             allowTelemetry = prefs[Keys.telemetry] ?: UserSettings().allowTelemetry,
             syncEnabled = prefs[Keys.syncEnabled] ?: UserSettings().syncEnabled,
             accountId = prefs[Keys.accountId],
@@ -76,6 +91,7 @@ class UserPreferencesDataSource @Inject constructor(
             }
             prefs[Keys.targetLanguage] = settings.direction.targetLanguage.code
             prefs[Keys.modelProfile] = settings.translationProfile.name
+            prefs[Keys.themeMode] = settings.themeMode.name
             prefs[Keys.telemetry] = settings.allowTelemetry
             prefs[Keys.syncEnabled] = settings.syncEnabled
             if (settings.accountId.isNullOrBlank()) {
@@ -101,6 +117,18 @@ class UserPreferencesDataSource @Inject constructor(
             } else {
                 prefs[Keys.apiHost] = settings.apiEndpoint
             }
+            settings.appLanguage
+                ?.takeIf { it.isNotBlank() }
+                ?.let { tag ->
+                    val normalized = when (tag) {
+                        "en" -> "en-US"
+                        "zh" -> "zh-CN"
+                        "es" -> "es-ES"
+                        "fr" -> "fr-FR"
+                        else -> tag
+                    }
+                    prefs[Keys.appLanguage] = normalized
+                } ?: prefs.remove(Keys.appLanguage)
         }
     }
 }

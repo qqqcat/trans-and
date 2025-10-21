@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TransAnd</string>
+
+    <!-- Common -->
+    <string name="action_back">العودة</string>
+    <string name="privacy_policy">سياسة الخصوصية</string>
+
+    <!-- Home -->
+    <string name="home_title">الترجمة في الوقت الفعلي</string>
+    <string name="home_status_active">الجلسة نشطة</string>
+    <string name="home_status_inactive">الميكروفون معطل</string>
+    <string name="home_status_connecting">جاري الاتصال بخدمة الوقت الفعلي…</string>
+    <string name="home_status_permission">في انتظار إذن الميكروفون</string>
+    <string name="home_status_indicator_on">الميكروفون يسجل</string>
+    <string name="home_status_indicator_off">الميكروفون خامل</string>
+    <string name="home_latency_label">ASR %1$d مللي ثانية · الترجمة %2$d مللي ثانية · TTS %3$d مللي ثانية</string>
+    <string name="home_current_configuration">التكوين الحالي</string>
+    <string name="home_language_auto_detect">الكشف التلقائي</string>
+    <string name="home_model_label">النموذج: %1$s</string>
+    <string name="home_adjust_settings">تعديل الإعدادات</string>
+    <string name="home_input_mode_label">وضع الإدخال</string>
+    <string name="home_input_mode_voice">الصوت في الوقت الفعلي</string>
+    <string name="home_input_mode_text">إدخال النص</string>
+    <string name="home_input_mode_image">ترجمة الصورة</string>
+    <string name="home_input_mode_voice_subtitle">تفعيل الميكروفون للاستماع في الوقت الفعلي</string>
+    <string name="home_input_mode_text_subtitle">إدخال أو لصق النص يدوياً</string>
+    <string name="home_input_mode_image_subtitle">التعرف على النص في الصور</string>
+    <string name="home_input_mode_more">المزيد</string>
+    <string name="home_input_mode_more_title">اختيار أوضاع أخرى</string>
+    <string name="home_voice_active_description">حافظ على هدوء الجهاز أثناء تسجيل الترجمة في الوقت الفعلي.</string>
+    <string name="home_voice_inactive_description">انقر أدناه لتفعيل الميكروفون واستئناف الترجمة.</string>
+    <string name="home_action_mute">كتم الميكروفون</string>
+    <string name="home_action_unmute">تفعيل الميكروفون</string>
+    <string name="home_action_processing">جاري المعالجة…</string>
+    <string name="home_initialization_downloading">تحميل النموذج المحلي %1$d%%</string>
+    <string name="home_initialization_preparing">تحضير النموذج المحلي…</string>
+    <string name="home_initialization_ready">النموذج المحلي جاهز</string>
+
+    <!-- Permission guidance -->
+    <string name="permission_guidance_title">إذن الميكروفون مطلوب</string>
+    <string name="permission_guidance_description">يرجى منح إذن الوصول للميكروفون لترجمة الصوت في الوقت الفعلي.</string>
+    <string name="permission_guidance_step_request">• انقر على "السماح" في مربع حوار الأذونات.</string>
+    <string name="permission_guidance_step_settings">• إذا رفضت سابقاً، افتح الإعدادات > أذونات التطبيق للتفعيل يدوياً.</string>
+    <string name="permission_guidance_request">طلب الإذن</string>
+    <string name="permission_guidance_open_settings">فتح إعدادات النظام</string>
+
+    <!-- Text translation -->
+    <string name="home_text_translation_title">ترجمة النص</string>
+    <string name="home_text_input_label">أدخل النص المراد ترجمته</string>
+    <string name="home_translate_text_action">ترجمة النص</string>
+    <string name="home_detected_language_label">اللغة المكتشفة: %1$s</string>
+
+    <!-- Image translation -->
+    <string name="home_image_translation_title">ترجمة الصورة</string>
+    <string name="home_image_translation_hint">يدعم JPG و PNG. اختر صورة تحتوي على نص واضح.</string>
+    <string name="home_pick_image_action">اختيار صورة</string>
+
+    <!-- History preview -->
+    <string name="home_history_preview_title">التاريخ</string>
+    <string name="home_history_preview_description">عرض المحادثات السابقة أو المفضلة.</string>
+    <string name="home_timeline_description">يتم عرض آخر 100 مقطع في هذه القائمة.</string>
+    <string name="home_stop_session">إنهاء الجلسة</string>
+    <string name="home_open_history">فتح التاريخ</string>
+    <string name="home_open_settings">فتح الإعدادات</string>
+
+    <!-- Offline diagnostics -->
+    <string name="offline_test_title">تشخيص محرك العمل المحلي</string>
+    <string name="offline_test_start">بدء الجلسة</string>
+    <string name="offline_test_toggle_mic">تبديل الميكروفون</string>
+    <string name="offline_test_stop">إيقاف الجلسة</string>
+    <string name="offline_test_clear">مسح السجلات</string>
+    <string name="offline_test_status_template">الجلسة: %1$s · الميكروفون: %2$s</string>
+    <string name="offline_test_status_active">قيد التشغيل</string>
+    <string name="offline_test_status_inactive">متوقف</string>
+    <string name="offline_test_mic_on">يسجل</string>
+    <string name="offline_test_mic_off">مكتوم</string>
+    <string name="offline_test_logs">السجلات في الوقت الفعلي</string>
+    <string name="offline_test_empty">لا توجد نتائج تعرف حتى الآن. انقر على "بدء الجلسة" لبدء الاختبار.</string>
+    <string name="offline_test_error">خطأ: %1$s</string>
+    <string name="offline_test_progress_downloading">تحميل النموذج %1$d%%</string>
+    <string name="offline_test_progress_preparing">تحميل النموذج المحلي…</string>
+    <string name="offline_test_progress_ready">النموذج المحلي جاهز</string>
+    <string name="offline_test_busy_starting">بدء جلسة العمل المحلي…</string>
+    <string name="offline_test_busy_stopping">إيقاف جلسة العمل المحلي…</string>
+    <string name="offline_test_busy_toggling">تبديل الميكروفون…</string>
+    <string name="settings_open_offline_test">فتح التشخيص المحلي</string>
+
+    <!-- History -->
+    <string name="history_title">التاريخ</string>
+    <string name="history_search_placeholder">البحث في النص الأصلي أو المترجم</string>
+    <string name="history_filter_favorites">المفضلة فقط</string>
+    <string name="history_filter_tags_label">التصفية حسب العلامات</string>
+    <string name="history_tag_input_label">العلامات (مفصولة بفواصل)</string>
+    <string name="history_tag_input_hint">مثال: اجتماع، سفر، عمل</string>
+    <string name="history_save_tags_action">حفظ العلامات</string>
+    <string name="history_favorite_action">إضافة إلى المفضلة</string>
+    <string name="history_empty_placeholder">لا يوجد تاريخ حتى الآن</string>
+    <string name="history_clear_all">مسح كل التاريخ</string>
+    <string name="history_load_more">تحميل المزيد</string>
+    <string name="history_share_title">مشاركة الترجمة</string>
+    <string name="history_share_action">مشاركة</string>
+    <string name="history_share_content">الأصلي: %1$s\nالمترجم: %2$s</string>
+
+    <!-- Subtitle timeline -->
+    <string name="subtitle_timeline_title">التسجيل في الوقت الفعلي</string>
+    <string name="subtitle_timeline_empty">ابدأ محادثة لرؤية المقاطع في الوقت الفعلي هنا.</string>
+    <string name="subtitle_timeline_source_label">الأصلي</string>
+    <string name="subtitle_timeline_translation_label">المترجم</string>
+
+    <!-- Settings -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_section_language">اتجاه اللغة</string>
+    <string name="settings_section_model">نموذج الترجمة</string>
+    <string name="settings_section_offline_models">النماذج المحلية</string>
+    <string name="settings_section_network">الشبكة والخدمات</string>
+    <string name="settings_section_preferences">التفضيلات العامة</string>
+    <string name="settings_section_diagnostics">تشخيص الجهاز</string>
+    <string name="settings_diagnostics_hint">استخدم هذه الأدوات للتحقق من عمل الميكروفون ونظام TTS بشكل صحيح. حافظ على هدوء البيئة أثناء التحققات.</string>
+    <string name="settings_diagnostics_microphone">اختبار الميكروفون</string>
+    <string name="settings_diagnostics_tts">اختبار TTS</string>
+    <string name="settings_diagnostics_running">التشخيص قيد التشغيل…</string>
+    <string name="settings_section_account">الحساب والمزامنة</string>
+    <string name="settings_section_version">معلومات الإصدار</string>
+    <string name="settings_auto_detect_label">الكشف التلقائي عن اللغة المصدر</string>
+    <string name="settings_source_language_label">اللغة المصدر</string>
+    <string name="settings_target_language_label">اللغة الهدف</string>
+    <string name="settings_language_search_hint">البحث عن لغة</string>
+    <string name="settings_language_favorites_section">الاتجاهات المفضلة</string>
+    <string name="settings_language_tab_source">المصدر</string>
+    <string name="settings_language_tab_target">الهدف</string>
+    <string name="settings_language_select_source">اختيار اللغة المصدر (الحالية: %1$s)</string>
+    <string name="settings_language_select_target">اختيار اللغة الهدف (الحالية: %1$s)</string>
+    <string name="settings_language_auto_detect_hint">تم تفعيل الكشف التلقائي. سنكتشف اللغة المصدر تلقائياً.</string>
+    <string name="settings_language_add_favorite">إضافة هذا الاتجاه إلى المفضلة</string>
+    <string name="settings_language_remove_favorite">إزالة من المفضلة</string>
+    <string name="settings_offline_fallback_label">استخدام النماذج المحلية عند فشل الشبكة</string>
+    <string name="settings_telemetry_label">مشاركة بيانات الاستخدام المجهولة</string>
+    <string name="settings_api_endpoint_label">مضيف خدمة الوقت الفعلي المخصص</string>
+    <string name="settings_api_endpoint_hint">مثال: https://your-proxy.example/</string>
+    <string name="settings_api_endpoint_default">المضيف الافتراضي: %1$s</string>
+    <string name="settings_api_endpoint_save">حفظ المضيف</string>
+    <string name="settings_api_endpoint_reset">استعادة الافتراضي</string>
+    <string name="settings_api_endpoint_error">أدخل عنوان http(s):// صالح أو اتركه فارغاً لاستخدام الافتراضي.</string>
+    <string name="settings_account_email">البريد الإلكتروني للدخول</string>
+    <string name="settings_account_display_name">اسم العرض</string>
+    <string name="settings_save_account">حفظ تفاصيل الحساب</string>
+    <string name="settings_sync_toggle">مزامنة التاريخ</string>
+    <string name="settings_sync_now">المزامنة الآن</string>
+    <string name="settings_last_sync">آخر مزامنة: %1$s</string>
+    <string name="settings_sync_never">لم تتم مزامنة من قبل</string>
+    <string name="settings_message_saved">تم حفظ الإعدادات</string>
+    <string name="settings_message_sync_in_progress">المزامنة قيد التقدم…</string>
+    <string name="settings_message_sync_success">تمت المزامنة بنجاح</string>
+    <string name="settings_message_sync_failed">فشلت المزامنة: %1$s</string>
+    <string name="settings_model_picker_title">اختيار نموذج الترجمة</string>
+    <string name="settings_model_open_picker">اختيار النموذج</string>
+
+    <!-- Theme -->
+    <string name="settings_section_theme">الموضوع والمظهر</string>
+    <string name="settings_theme_description">اختر مظهر التطبيق</string>
+    <string name="settings_theme_system">اتبع النظام</string>
+    <string name="settings_theme_light">الوضع الفاتح</string>
+    <string name="settings_theme_dark">الوضع المظلم</string>
+
+    <!-- App Language -->
+    <string name="settings_section_app_language">لغة التطبيق</string>
+    <string name="settings_app_language_description">اختر لغة الواجهة</string>
+    <string name="settings_app_language_label">اختر اللغة</string>
+    <string name="settings_app_language_english">الإنجليزية</string>
+    <string name="settings_app_language_chinese">الصينية المبسطة</string>
+    <string name="settings_app_language_traditional_chinese">الصينية التقليدية</string>
+    <string name="settings_app_language_spanish">الإسبانية</string>
+    <string name="settings_app_language_french">الفرنسية</string>
+    <string name="settings_app_language_japanese">اليابانية</string>
+    <string name="settings_app_language_korean">الكورية</string>
+    <string name="settings_app_language_arabic">العربية</string>
+    <string name="settings_app_language_russian">الروسية</string>
+    <string name="settings_app_language_change">تغيير اللغة</string>
+    <string name="settings_app_language_dialog_title">اختر لغة التطبيق</string>
+    <string name="settings_app_language_current">اللغة الحالية: %1$s</string>
+
+    <!-- Misc -->
+    <string name="history_tag_separator">•</string>
+    <string name="settings_offline_tiny_title">Whisper Tiny</string>
+    <string name="settings_offline_tiny_subtitle">أصغر نموذج Whisper مضمن مع التطبيق، للتعرف المحلي الأساسي.</string>
+    <string name="settings_offline_tiny_action">تحميل Tiny</string>
+    <string name="settings_offline_turbo_title">Whisper Turbo</string>
+    <string name="settings_offline_turbo_description">نموذج محلي عالي الجودة يدعم لغات متعددة.</string>
+    <string name="settings_offline_turbo_installed">مثبت · يوفر التعرف المحلي متعدد اللغات</string>
+    <string name="settings_offline_turbo_download">تحميل Turbo</string>
+    <string name="settings_offline_turbo_refresh">إعادة التحميل</string>
+    <string name="settings_offline_remove">إزالة النموذج</string>
+    <string name="settings_offline_status_installing">جاري التحميل…</string>
+    <string name="settings_offline_status_ready">جاهز</string>
+    <string name="settings_offline_status_active">قيد الاستخدام حالياً</string>
+    <string name="settings_offline_status_missing">غير مثبت</string>
+</resources>
