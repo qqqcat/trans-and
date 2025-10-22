@@ -145,10 +145,9 @@ fun SettingsRoute(
         onAppLanguageSelected = { lang ->
             if (currentAppLanguage != lang) {
                 currentAppLanguage = lang
-                LocaleManager.applyLocale(lang)
+                LocaleManager.applyLocale(lang, true)
                 viewModel.onAppLanguageSelected(lang)
-                // Restart activity to apply language change immediately
-                (context as? Activity)?.recreate()
+                // Note: LocaleManager now handles app restart automatically for Compose compatibility
             }
         },
         onThemeModeSelected = viewModel::onThemeModeSelected

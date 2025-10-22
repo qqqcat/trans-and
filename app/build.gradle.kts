@@ -78,6 +78,13 @@ android {
 
 kapt {
     correctErrorTypes = true
+    arguments {
+        arg("dagger.fastInit", "enabled")
+        arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
+        arg("dagger.hilt.android.internal.projectType", "APPLICATION")
+        arg("dagger.hilt.internal.useAggregatingRootProcessor", "false")
+        arg("kapt.kotlin.generated", "build/generated/source/kapt/debug")
+    }
 }
 
 configurations.all {
