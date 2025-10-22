@@ -184,4 +184,21 @@
     <!-- Language Settings -->
     <string name="settings_section_language_note">Paramètres de langue</string>
     <string name="settings_language_system_note">La langue de l\'application suit les paramètres de langue de votre système. Pour changer la langue, veuillez modifier la langue système de votre appareil.</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">Email non défini</string>
+    <string name="settings_sync_enabled">Synchronisation activée</string>
+    <string name="settings_sync_disabled">Synchronisation désactivée</string>
+    <string name="settings_offline_fallback_enabled">Repli hors ligne activé</string>
+    <string name="settings_offline_fallback_disabled">Repli hors ligne désactivé</string>
+    <string name="settings_message_language_direction_updated">Direction de langue mise à jour</string>
+    <string name="settings_message_source_language_updated">Langue source mise à jour</string>
+    <string name="settings_message_target_language_updated">Langue cible mise à jour</string>
+    <string name="settings_message_auto_detect_enabled">Détection automatique activée</string>
+    <string name="settings_message_auto_detect_disabled">Passé en sélection manuelle</string>
+    <string name="settings_message_model_switched">Modèle changé pour %1$s</string>
+    <string name="settings_message_data_sharing_enabled">Partage de données activé</string>
+    <string name="settings_message_data_sharing_disabled">Partage de données désactivé</string>
+    <string name="settings_message_service_address_restored">Adresse de service par défaut restaurée</string>
+    <string name="settings_message_service_address_updated">Adresse de service mise à jour</string>
+    <string name="settings_message_invalid_email">Veuillez saisir un email valide</string>
 </resources>

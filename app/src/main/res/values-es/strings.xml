@@ -184,4 +184,21 @@
     <!-- Language Settings -->
     <string name="settings_section_language_note">Configuración de idioma</string>
     <string name="settings_language_system_note">El idioma de la aplicación sigue la configuración de idioma de tu sistema. Para cambiar el idioma, modifica el idioma del sistema de tu dispositivo.</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">Correo electrónico no establecido</string>
+    <string name="settings_sync_enabled">Sincronización habilitada</string>
+    <string name="settings_sync_disabled">Sincronización deshabilitada</string>
+    <string name="settings_offline_fallback_enabled">Respaldo sin conexión habilitado</string>
+    <string name="settings_offline_fallback_disabled">Respaldo sin conexión deshabilitado</string>
+    <string name="settings_message_language_direction_updated">Dirección de idioma actualizada</string>
+    <string name="settings_message_source_language_updated">Idioma fuente actualizado</string>
+    <string name="settings_message_target_language_updated">Idioma destino actualizado</string>
+    <string name="settings_message_auto_detect_enabled">Detección automática habilitada</string>
+    <string name="settings_message_auto_detect_disabled">Cambiado a selección manual</string>
+    <string name="settings_message_model_switched">Modelo cambiado a %1$s</string>
+    <string name="settings_message_data_sharing_enabled">Compartición de datos habilitada</string>
+    <string name="settings_message_data_sharing_disabled">Compartición de datos deshabilitada</string>
+    <string name="settings_message_service_address_restored">Dirección de servicio predeterminada restaurada</string>
+    <string name="settings_message_service_address_updated">Dirección de servicio actualizada</string>
+    <string name="settings_message_invalid_email">Por favor ingresa un correo electrónico válido</string>
 </resources>

@@ -184,4 +184,21 @@
     <!-- Language Settings -->
     <string name="settings_section_language_note">言語設定</string>
     <string name="settings_language_system_note">アプリの言語はシステムの言語設定に従います。言語を変更するには、デバイスのシステム言語を変更してください。</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">メールアドレスが設定されていません</string>
+    <string name="settings_sync_enabled">同期が有効</string>
+    <string name="settings_sync_disabled">同期が無効</string>
+    <string name="settings_offline_fallback_enabled">オフラインフォールバックが有効</string>
+    <string name="settings_offline_fallback_disabled">オフラインフォールバックが無効</string>
+    <string name="settings_message_language_direction_updated">言語方向が更新されました</string>
+    <string name="settings_message_source_language_updated">ソース言語が更新されました</string>
+    <string name="settings_message_target_language_updated">ターゲット言語が更新されました</string>
+    <string name="settings_message_auto_detect_enabled">自動検出が有効になりました</string>
+    <string name="settings_message_auto_detect_disabled">手動選択に切り替えました</string>
+    <string name="settings_message_model_switched">モデルが %1$s に切り替わりました</string>
+    <string name="settings_message_data_sharing_enabled">データ共有が有効になりました</string>
+    <string name="settings_message_data_sharing_disabled">データ共有が無効になりました</string>
+    <string name="settings_message_service_address_restored">デフォルトのサービスアドレスが復元されました</string>
+    <string name="settings_message_service_address_updated">サービスアドレスが更新されました</string>
+    <string name="settings_message_invalid_email">有効なメールアドレスを入力してください</string>
 </resources>

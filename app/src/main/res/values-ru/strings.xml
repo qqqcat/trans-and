@@ -184,4 +184,21 @@
     <!-- Language Settings -->
     <string name="settings_section_language_note">Настройки языка</string>
     <string name="settings_language_system_note">Язык приложения следует настройкам языка вашей системы. Чтобы изменить язык, измените системный язык вашего устройства.</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">Email не установлен</string>
+    <string name="settings_sync_enabled">Синхронизация включена</string>
+    <string name="settings_sync_disabled">Синхронизация отключена</string>
+    <string name="settings_offline_fallback_enabled">Оффлайн резерв включен</string>
+    <string name="settings_offline_fallback_disabled">Оффлайн резерв отключен</string>
+    <string name="settings_message_language_direction_updated">Направление языка обновлено</string>
+    <string name="settings_message_source_language_updated">Исходный язык обновлен</string>
+    <string name="settings_message_target_language_updated">Целевой язык обновлен</string>
+    <string name="settings_message_auto_detect_enabled">Автоопределение включено</string>
+    <string name="settings_message_auto_detect_disabled">Переключено на ручной выбор</string>
+    <string name="settings_message_model_switched">Модель переключена на %1$s</string>
+    <string name="settings_message_data_sharing_enabled">Обмен данными включен</string>
+    <string name="settings_message_data_sharing_disabled">Обмен данными отключен</string>
+    <string name="settings_message_service_address_restored">Восстановлен адрес службы по умолчанию</string>
+    <string name="settings_message_service_address_updated">Адрес службы обновлен</string>
+    <string name="settings_message_invalid_email">Пожалуйста, введите действительный email</string>
 </resources>

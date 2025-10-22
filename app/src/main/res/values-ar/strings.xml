@@ -184,4 +184,21 @@
     <!-- Language Settings -->
     <string name="settings_section_language_note">إعدادات اللغة</string>
     <string name="settings_language_system_note">تتبع لغة التطبيق إعدادات لغة النظام الخاص بك. لتغيير اللغة، يرجى تعديل لغة النظام لجهازك.</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">البريد الإلكتروني غير محدد</string>
+    <string name="settings_sync_enabled">التزامن مفعل</string>
+    <string name="settings_sync_disabled">التزامن معطل</string>
+    <string name="settings_offline_fallback_enabled">الرجوع دون اتصال مفعل</string>
+    <string name="settings_offline_fallback_disabled">الرجوع دون اتصال معطل</string>
+    <string name="settings_message_language_direction_updated">تم تحديث اتجاه اللغة</string>
+    <string name="settings_message_source_language_updated">تم تحديث اللغة المصدر</string>
+    <string name="settings_message_target_language_updated">تم تحديث اللغة الهدف</string>
+    <string name="settings_message_auto_detect_enabled">تم تفعيل الكشف التلقائي</string>
+    <string name="settings_message_auto_detect_disabled">تم التبديل إلى الاختيار اليدوي</string>
+    <string name="settings_message_model_switched">تم تبديل النموذج إلى %1$s</string>
+    <string name="settings_message_data_sharing_enabled">تم تفعيل مشاركة البيانات</string>
+    <string name="settings_message_data_sharing_disabled">تم تعطيل مشاركة البيانات</string>
+    <string name="settings_message_service_address_restored">تم استعادة عنوان الخدمة الافتراضي</string>
+    <string name="settings_message_service_address_updated">تم تحديث عنوان الخدمة</string>
+    <string name="settings_message_invalid_email">يرجى إدخال بريد إلكتروني صالح</string>
 </resources>

@@ -184,6 +184,23 @@
     <!-- Language Settings -->
     <string name="settings_section_language_note">Language Settings</string>
     <string name="settings_language_system_note">The app language follows your system language settings. To change the language, please modify your device\'s system language.</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">Email not set</string>
+    <string name="settings_sync_enabled">Sync enabled</string>
+    <string name="settings_sync_disabled">Sync disabled</string>
+    <string name="settings_offline_fallback_enabled">Offline fallback enabled</string>
+    <string name="settings_offline_fallback_disabled">Offline fallback disabled</string>
+    <string name="settings_message_language_direction_updated">Language direction updated</string>
+    <string name="settings_message_source_language_updated">Source language updated</string>
+    <string name="settings_message_target_language_updated">Target language updated</string>
+    <string name="settings_message_auto_detect_enabled">Auto detection enabled</string>
+    <string name="settings_message_auto_detect_disabled">Switched to manual selection</string>
+    <string name="settings_message_model_switched">Model switched to %1$s</string>
+    <string name="settings_message_data_sharing_enabled">Data sharing enabled</string>
+    <string name="settings_message_data_sharing_disabled">Data sharing disabled</string>
+    <string name="settings_message_service_address_restored">Default service address restored</string>
+    <string name="settings_message_service_address_updated">Service address updated</string>
+    <string name="settings_message_invalid_email">Please enter a valid email</string>
 </resources>
 
 

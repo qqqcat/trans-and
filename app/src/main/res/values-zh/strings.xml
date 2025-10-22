@@ -183,5 +183,22 @@
     <!-- Language Settings -->
     <string name="settings_section_language_note">语言设置</string>
     <string name="settings_language_system_note">应用程序语言遵循您的系统语言设置。要更改语言，请修改您设备的系统语言。</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">未设置邮箱</string>
+    <string name="settings_sync_enabled">同步开启</string>
+    <string name="settings_sync_disabled">同步关闭</string>
+    <string name="settings_offline_fallback_enabled">离线回退已开启</string>
+    <string name="settings_offline_fallback_disabled">离线回退已关闭</string>
+    <string name="settings_message_language_direction_updated">语言方向已更新</string>
+    <string name="settings_message_source_language_updated">源语言已更新</string>
+    <string name="settings_message_target_language_updated">目标语言已更新</string>
+    <string name="settings_message_auto_detect_enabled">已开启自动检测</string>
+    <string name="settings_message_auto_detect_disabled">已切换为手动选择</string>
+    <string name="settings_message_model_switched">模型已切换为 %1$s</string>
+    <string name="settings_message_data_sharing_enabled">已开启数据共享</string>
+    <string name="settings_message_data_sharing_disabled">已关闭数据共享</string>
+    <string name="settings_message_service_address_restored">已恢复默认服务地址</string>
+    <string name="settings_message_service_address_updated">服务地址已更新</string>
+    <string name="settings_message_invalid_email">请输入有效邮箱</string>
 </resources>
 
