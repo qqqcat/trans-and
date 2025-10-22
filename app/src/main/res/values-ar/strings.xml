@@ -163,22 +163,7 @@
     <string name="settings_theme_light">الوضع الفاتح</string>
     <string name="settings_theme_dark">الوضع المظلم</string>
 
-    <!-- App Language -->
-    <string name="settings_section_app_language">لغة التطبيق</string>
-    <string name="settings_app_language_description">اختر لغة الواجهة</string>
-    <string name="settings_app_language_label">اختر اللغة</string>
-    <string name="settings_app_language_english">الإنجليزية</string>
-    <string name="settings_app_language_chinese">الصينية المبسطة</string>
-    <string name="settings_app_language_traditional_chinese">الصينية التقليدية</string>
-    <string name="settings_app_language_spanish">الإسبانية</string>
-    <string name="settings_app_language_french">الفرنسية</string>
-    <string name="settings_app_language_japanese">اليابانية</string>
-    <string name="settings_app_language_korean">الكورية</string>
-    <string name="settings_app_language_arabic">العربية</string>
-    <string name="settings_app_language_russian">الروسية</string>
-    <string name="settings_app_language_change">تغيير اللغة</string>
-    <string name="settings_app_language_dialog_title">اختر لغة التطبيق</string>
-    <string name="settings_app_language_current">اللغة الحالية: %1$s</string>
+
 
     <!-- Misc -->
     <string name="history_tag_separator">•</string>
@@ -195,4 +180,8 @@
     <string name="settings_offline_status_ready">جاهز</string>
     <string name="settings_offline_status_active">قيد الاستخدام حالياً</string>
     <string name="settings_offline_status_missing">غير مثبت</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">إعدادات اللغة</string>
+    <string name="settings_language_system_note">تتبع لغة التطبيق إعدادات لغة النظام الخاص بك. لتغيير اللغة، يرجى تعديل لغة النظام لجهازك.</string>
 </resources>

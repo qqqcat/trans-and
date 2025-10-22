@@ -163,22 +163,7 @@
     <string name="settings_theme_light">ライト</string>
     <string name="settings_theme_dark">ダーク</string>
 
-    <!-- App Language -->
-    <string name="settings_section_app_language">アプリの言語</string>
-    <string name="settings_app_language_description">インターフェースの言語を選んでください</string>
-    <string name="settings_app_language_label">言語を選択</string>
-    <string name="settings_app_language_english">英語</string>
-    <string name="settings_app_language_chinese">簡体字中国語</string>
-    <string name="settings_app_language_traditional_chinese">繁体字中国語</string>
-    <string name="settings_app_language_spanish">スペイン語</string>
-    <string name="settings_app_language_french">フランス語</string>
-    <string name="settings_app_language_japanese">日本語</string>
-    <string name="settings_app_language_korean">韓国語</string>
-    <string name="settings_app_language_arabic">アラビア語</string>
-    <string name="settings_app_language_russian">ロシア語</string>
-    <string name="settings_app_language_change">言語を変更</string>
-    <string name="settings_app_language_dialog_title">アプリの言語を選択</string>
-    <string name="settings_app_language_current">現在の言語：%1$s</string>
+
 
     <!-- Misc -->
     <string name="history_tag_separator">•</string>
@@ -195,4 +180,8 @@
     <string name="settings_offline_status_ready">準備完了</string>
     <string name="settings_offline_status_active">現在使用中</string>
     <string name="settings_offline_status_missing">インストールされていません</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">言語設定</string>
+    <string name="settings_language_system_note">アプリの言語はシステムの言語設定に従います。言語を変更するには、デバイスのシステム言語を変更してください。</string>
 </resources>

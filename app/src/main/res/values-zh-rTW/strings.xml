@@ -162,22 +162,7 @@
     <string name="settings_theme_system">&#x8DDF;&#x96A8;&#x7CFB;&#x7D71;</string>
     <string name="settings_theme_light">&#x6DFA;&#x8272;&#x6A21;&#x5F0F;</string>
     <string name="settings_theme_dark">&#x6DF1;&#x8272;&#x6A21;&#x5F0F;</string>
-    <!-- App Language -->
-    <string name="settings_section_app_language">&#x61C9;&#x7528;&#x8A9E;&#x8A00;</string>
-    <string name="settings_app_language_label">&#x9078;&#x64C7;&#x61C9;&#x7528;&#x8A9E;&#x8A00;</string>
-    <string name="settings_app_language_description">&#x9078;&#x64C7;&#x61C9;&#x7528;&#x754C;&#x9762;&#x7684;&#x8A9E;&#x8A00;</string>
-    <string name="settings_app_language_english">English</string>
-    <string name="settings_app_language_chinese">&#x4E2D;&#x6587;</string>
-    <string name="settings_app_language_spanish">&#x897F;&#x73ED;&#x7259;&#x8A9E;</string>
-    <string name="settings_app_language_french">&#x6CD5;&#x8A9E;</string>
-    <string name="settings_app_language_traditional_chinese">&#x7E41;&#x9AD4;&#x4E2D;&#x6587;</string>
-    <string name="settings_app_language_japanese">&#x65E5;&#x8A9E;</string>
-    <string name="settings_app_language_korean">&#x97E9;&#x8A9E;</string>
-    <string name="settings_app_language_arabic">&#x963F;&#x62C9;&#x4F2F;&#x8A9E;</string>
-    <string name="settings_app_language_russian">&#x4FC4;&#x8A9E;</string>
-    <string name="settings_app_language_change">&#x66F4;&#x6539;&#x8A9E;&#x8A00;</string>
-    <string name="settings_app_language_dialog_title">&#x9078;&#x64C7;&#x61C9;&#x7528;&#x8A9E;&#x8A00;</string>
-    <string name="settings_app_language_current">&#x76EE;&#x524D;&#x8A9E;&#x8A00;&#xFF1A;%1$s</string>
+
 
     <!-- Misc -->
     <string name="history_tag_separator">•</string>
@@ -194,4 +179,8 @@
     <string name="settings_offline_status_ready">就緒</string>
     <string name="settings_offline_status_active">目前使用中</string>
     <string name="settings_offline_status_missing">未安裝</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">語言設定</string>
+    <string name="settings_language_system_note">應用程式語言遵循您的系統語言設定。要更改語言，請修改您裝置的系統語言。</string>
 </resources>

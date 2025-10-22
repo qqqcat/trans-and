@@ -163,22 +163,7 @@
     <string name="settings_theme_light">Claro</string>
     <string name="settings_theme_dark">Oscuro</string>
 
-    <!-- App Language -->
-    <string name="settings_section_app_language">Idioma de la aplicación</string>
-    <string name="settings_app_language_description">Elige el idioma de la interfaz</string>
-    <string name="settings_app_language_label">Selecciona el idioma</string>
-    <string name="settings_app_language_english">Inglés</string>
-    <string name="settings_app_language_chinese">Chino simplificado</string>
-    <string name="settings_app_language_traditional_chinese">Chino tradicional</string>
-    <string name="settings_app_language_spanish">Español</string>
-    <string name="settings_app_language_french">Francés</string>
-    <string name="settings_app_language_japanese">Japonés</string>
-    <string name="settings_app_language_korean">Coreano</string>
-    <string name="settings_app_language_arabic">Árabe</string>
-    <string name="settings_app_language_russian">Ruso</string>
-    <string name="settings_app_language_change">Cambiar idioma</string>
-    <string name="settings_app_language_dialog_title">Selecciona el idioma de la aplicación</string>
-    <string name="settings_app_language_current">Idioma actual: %1$s</string>
+
 
     <!-- Misc -->
     <string name="history_tag_separator">•</string>
@@ -195,4 +180,8 @@
     <string name="settings_offline_status_ready">Listo</string>
     <string name="settings_offline_status_active">Actualmente en uso</string>
     <string name="settings_offline_status_missing">No instalado</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">Configuración de idioma</string>
+    <string name="settings_language_system_note">El idioma de la aplicación sigue la configuración de idioma de tu sistema. Para cambiar el idioma, modifica el idioma del sistema de tu dispositivo.</string>
 </resources>

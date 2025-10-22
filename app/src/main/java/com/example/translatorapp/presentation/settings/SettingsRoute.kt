@@ -87,26 +87,7 @@ import com.example.translatorapp.presentation.theme.horizontalPadding
 import com.example.translatorapp.presentation.theme.sectionSpacing
 import java.util.Locale
 
-private data class AppLanguageOption(
-    val tag: String,
-    val labelRes: Int
-)
 
-private val AppLanguageOptions = listOf(
-    AppLanguageOption("en-US", R.string.settings_app_language_english),
-    AppLanguageOption("zh-CN", R.string.settings_app_language_chinese),
-    AppLanguageOption("zh-TW", R.string.settings_app_language_traditional_chinese),
-    AppLanguageOption("es-ES", R.string.settings_app_language_spanish),
-    AppLanguageOption("fr-FR", R.string.settings_app_language_french),
-    AppLanguageOption("ja-JP", R.string.settings_app_language_japanese),
-    AppLanguageOption("ko-KR", R.string.settings_app_language_korean),
-    AppLanguageOption("ar-SA", R.string.settings_app_language_arabic),
-    AppLanguageOption("ru-RU", R.string.settings_app_language_russian)
-)
-
-private fun getCurrentAppLanguage(): String {
-    return Locale.getDefault().toLanguageTag()
-}
 
 @Composable
 fun SettingsRoute(
@@ -114,14 +95,6 @@ fun SettingsRoute(
     paddingValues: PaddingValues
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    var currentAppLanguage by rememberSaveable { mutableStateOf(state.selectedAppLanguage ?: getCurrentAppLanguage()) }
-    LaunchedEffect(state.selectedAppLanguage) {
-        val target = state.selectedAppLanguage ?: getCurrentAppLanguage()
-        if (currentAppLanguage != target) {
-            currentAppLanguage = target
-        }
-    }
     SettingsScreen(
         state = state,
         paddingValues = paddingValues,
@@ -141,15 +114,6 @@ fun SettingsRoute(
         onApiEndpointChange = viewModel::onApiEndpointChange,
         onSaveApiEndpoint = viewModel::onSaveApiEndpoint,
         onResetApiEndpoint = viewModel::onResetApiEndpoint,
-        currentAppLanguage = currentAppLanguage,
-        onAppLanguageSelected = { lang ->
-            if (currentAppLanguage != lang) {
-                currentAppLanguage = lang
-                LocaleManager.applyLocale(lang, true)
-                viewModel.onAppLanguageSelected(lang)
-                // Note: LocaleManager now handles app restart automatically for Compose compatibility
-            }
-        },
         onThemeModeSelected = viewModel::onThemeModeSelected
     )
 }
@@ -175,8 +139,6 @@ private fun SettingsScreen(
     onApiEndpointChange: (String) -> Unit,
     onSaveApiEndpoint: () -> Unit,
     onResetApiEndpoint: () -> Unit,
-    currentAppLanguage: String,
-    onAppLanguageSelected: (String) -> Unit,
     onThemeModeSelected: (ThemeMode) -> Unit
 ) {
     val spacing = LocalSpacing.current
@@ -209,7 +171,6 @@ private fun SettingsScreen(
         var accountExpanded by rememberSaveable { mutableStateOf(false) }
         var activeLanguageTab by rememberSaveable { mutableStateOf(LanguagePickerTarget.Source) }
         var modelPickerVisible by rememberSaveable { mutableStateOf(false) }
-        var appLanguagePickerVisible by rememberSaveable { mutableStateOf(false) }
 
         val favoriteDirections = remember(favoriteDirectionKeys) {
             favoriteDirectionKeys.distinct().map { LanguageDirection.decode(it) }
@@ -330,12 +291,13 @@ private fun SettingsScreen(
 
             item {
                 SettingSection(
-                    title = stringResource(id = R.string.settings_section_app_language),
+                    title = stringResource(id = R.string.settings_section_language_note),
                     contentPadding = cardPadding
                 ) {
-                    AppLanguageCard(
-                        currentLanguage = currentAppLanguage,
-                        onOpenPicker = { appLanguagePickerVisible = true }
+                    Text(
+                        text = stringResource(id = R.string.settings_language_system_note),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -453,16 +415,6 @@ private fun SettingsScreen(
                 pickerTarget = null
             },
             onTargetChange = { pickerTarget = it }
-        )
-
-        AppLanguagePickerSheet(
-            visible = appLanguagePickerVisible,
-            currentLanguage = currentAppLanguage,
-            onDismiss = { appLanguagePickerVisible = false },
-            onLanguageSelected = { tag ->
-                onAppLanguageSelected(tag)
-                appLanguagePickerVisible = false
-            }
         )
 
         ModelPickerSheet(
@@ -977,91 +929,9 @@ private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
     ThemeMode.Dark -> stringResource(id = R.string.settings_theme_dark)
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AppLanguageCard(
-    currentLanguage: String,
-    onOpenPicker: () -> Unit
-) {
-    val spacing = LocalSpacing.current
-    val normalizedCurrentTag = canonicalLanguageTag(currentLanguage)
-    val currentOption = AppLanguageOptions.firstOrNull { option ->
-        val optionTag = canonicalLanguageTag(option.tag)
-        optionTag != null && optionTag.equals(normalizedCurrentTag, ignoreCase = true)
-    } ?: AppLanguageOptions.first()
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing.sm)
-    ) {
-        Text(
-            text = stringResource(id = R.string.settings_app_language_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = stringResource(
-                id = R.string.settings_app_language_current,
-                stringResource(id = currentOption.labelRes)
-            ),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        FilledTonalButton(onClick = onOpenPicker) {
-            Text(text = stringResource(id = R.string.settings_app_language_change))
-        }
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AppLanguagePickerSheet(
-    visible: Boolean,
-    currentLanguage: String,
-    onDismiss: () -> Unit,
-    onLanguageSelected: (String) -> Unit
-) {
-    if (!visible) return
-    val spacing = LocalSpacing.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val normalizedCurrentTag = canonicalLanguageTag(currentLanguage)
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.md, vertical = spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(spacing.md)
-        ) {
-            Text(
-                text = stringResource(id = R.string.settings_app_language_dialog_title),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            AppLanguageOptions.forEach { option ->
-                val optionTag = canonicalLanguageTag(option.tag)
-                val selected = optionTag != null && optionTag.equals(normalizedCurrentTag, ignoreCase = true)
-                ListItem(
-                    headlineContent = { Text(text = stringResource(id = option.labelRes)) },
-                    trailingContent = { RadioButton(selected = selected, onClick = null) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.medium)
-                        .clickable {
-                            onLanguageSelected(option.tag)
-                            onDismiss()
-                        },
-                    colors = ListItemDefaults.colors(
-                        containerColor = Color.Transparent
-                    )
-                )
-            }
-        }
-    }
-}
 
 private fun autoDetectLabelIfNeeded(direction: LanguageDirection, autoLabel: String): String {
     return direction.sourceLanguage?.displayName ?: autoLabel
@@ -1071,19 +941,7 @@ private fun formatDirection(direction: LanguageDirection, autoLabel: String): St
     return "${autoDetectLabelIfNeeded(direction, autoLabel)} -> ${direction.targetLanguage.displayName}"
 }
 
-private fun canonicalLanguageTag(tag: String?): String? {
-    if (tag.isNullOrBlank()) return null
-    return runCatching {
-        val locale = Locale.forLanguageTag(tag)
-        val language = locale.language.takeIf { it.isNotBlank() } ?: return null
-        val country = locale.country.takeIf { it.isNotBlank() }
-        if (country != null) {
-            "${language.lowercase(Locale.ROOT)}-${country.uppercase(Locale.ROOT)}"
-        } else {
-            language.lowercase(Locale.ROOT)
-        }
-    }.getOrNull()
-}
+
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this

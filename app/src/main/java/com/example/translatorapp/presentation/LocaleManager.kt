@@ -66,7 +66,8 @@ object LocaleManager {
         try {
             val context = getApplicationContext()
             val config = android.content.res.Configuration(context.resources.configuration)
-            config.setLocales(locales.toLocaleList())
+            val localeList = android.os.LocaleList.forLanguageTags(locales.toLanguageTags())
+            config.setLocales(localeList)
             context.resources.updateConfiguration(config, context.resources.displayMetrics)
             Log.d(TAG, "Forced configuration update")
         } catch (e: Exception) {
@@ -115,33 +116,19 @@ object LocaleManager {
             // Show a toast to inform user about restart
             android.widget.Toast.makeText(context, "Restarting app to apply language change...", android.widget.Toast.LENGTH_SHORT).show()
 
-            // Use Handler to delay the restart process
-            val handler = android.os.Handler(android.os.Looper.getMainLooper())
-            handler.postDelayed({
-                try {
-                    // Create launch intent
-                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                    intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Use AlarmManager to schedule restart
+            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                    // Start the app immediately
-                    context.startActivity(intent)
+            val pendingIntent = android.app.PendingIntent.getActivity(context, 0, intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
 
-                    // Exit the current process after a brief delay to allow the new activity to start
-                    handler.postDelayed({
-                        android.os.Process.killProcess(android.os.Process.myPid())
-                    }, 100)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to restart app with Handler", e)
-                    // Fallback: just recreate current activity
-                    try {
-                        (context as? android.app.Activity)?.recreate()
-                    } catch (e2: Exception) {
-                        Log.e(TAG, "Failed to recreate activity", e2)
-                    }
-                }
-            }, 500) // Wait 500ms before starting restart process
+            val alarmManager = context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+            alarmManager.setExact(android.app.AlarmManager.RTC, System.currentTimeMillis() + 1000, pendingIntent)
+
+            // Kill current process after scheduling
+            android.os.Process.killProcess(android.os.Process.myPid())
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to restart app", e)
+            Log.e(TAG, "Failed to restart app with AlarmManager", e)
             // Fallback: just recreate current activity
             try {
                 (context as? android.app.Activity)?.recreate()

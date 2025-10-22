@@ -163,22 +163,7 @@
     <string name="settings_theme_light">Светлый режим</string>
     <string name="settings_theme_dark">Темный режим</string>
 
-    <!-- App Language -->
-    <string name="settings_section_app_language">Язык приложения</string>
-    <string name="settings_app_language_description">Выберите язык интерфейса</string>
-    <string name="settings_app_language_label">Выберите язык</string>
-    <string name="settings_app_language_english">Английский</string>
-    <string name="settings_app_language_chinese">Упрощенный китайский</string>
-    <string name="settings_app_language_traditional_chinese">Традиционный китайский</string>
-    <string name="settings_app_language_spanish">Испанский</string>
-    <string name="settings_app_language_french">Французский</string>
-    <string name="settings_app_language_japanese">Японский</string>
-    <string name="settings_app_language_korean">Корейский</string>
-    <string name="settings_app_language_arabic">Арабский</string>
-    <string name="settings_app_language_russian">Русский</string>
-    <string name="settings_app_language_change">Изменить язык</string>
-    <string name="settings_app_language_dialog_title">Выбрать язык приложения</string>
-    <string name="settings_app_language_current">Текущий язык: %1$s</string>
+
 
     <!-- Misc -->
     <string name="history_tag_separator">•</string>
@@ -195,4 +180,8 @@
     <string name="settings_offline_status_ready">Готово</string>
     <string name="settings_offline_status_active">В настоящее время используется</string>
     <string name="settings_offline_status_missing">Не установлено</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">Настройки языка</string>
+    <string name="settings_language_system_note">Язык приложения следует настройкам языка вашей системы. Чтобы изменить язык, измените системный язык вашего устройства.</string>
 </resources>

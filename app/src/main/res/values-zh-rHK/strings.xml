@@ -162,22 +162,7 @@
     <string name="settings_theme_system">跟随系统</string>
     <string name="settings_theme_light">浅色模式</string>
     <string name="settings_theme_dark">深色模式</string>
-    <!-- App Language -->
-    <string name="settings_section_app_language">应用语言</string>
-    <string name="settings_app_language_label">选择应用语言</string>
-    <string name="settings_app_language_description">选择应用界面的语言</string>
-    <string name="settings_app_language_english">English</string>
-    <string name="settings_app_language_chinese">中文</string>
-    <string name="settings_app_language_spanish">西班牙语</string>
-    <string name="settings_app_language_french">法语</string>
-    <string name="settings_app_language_traditional_chinese">繁体中文</string>
-    <string name="settings_app_language_japanese">日语</string>
-    <string name="settings_app_language_korean">韩语</string>
-    <string name="settings_app_language_arabic">阿拉伯语</string>
-    <string name="settings_app_language_russian">俄语</string>
-    <string name="settings_app_language_change">更改语言</string>
-    <string name="settings_app_language_dialog_title">选择应用语言</string>
-    <string name="settings_app_language_current">目前语言：%1$s</string>
+
 
     <!-- Misc -->
     <string name="history_tag_separator">•</string>
@@ -194,4 +179,8 @@
     <string name="settings_offline_status_ready">就绪</string>
     <string name="settings_offline_status_active">目前使用中</string>
     <string name="settings_offline_status_missing">未安装</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">语言设置</string>
+    <string name="settings_language_system_note">应用程序语言遵循您的系统语言设置。要更改语言，请修改您设备的系统语言。</string>
 </resources>
