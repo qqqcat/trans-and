@@ -25,7 +25,6 @@ import com.example.translatorapp.network.AccountSyncRequest
 import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.ImageTranslationRequest
 import com.example.translatorapp.network.RealtimeApi
-import com.example.translatorapp.network.RealtimeApiFactory
 import com.example.translatorapp.network.TextTranslationRequest
 import com.example.translatorapp.network.ensureTrailingSlash
 import com.example.translatorapp.util.DispatcherProvider
@@ -49,15 +48,12 @@ class TranslationRepositoryImpl @Inject constructor(
     private val realtimeSessionManager: RealtimeSessionManager,
     private val historyDao: HistoryDao,
     private val preferencesDataSource: UserPreferencesDataSource,
-    private val apiFactory: RealtimeApiFactory,
+    private val realtimeApi: RealtimeApi,
     private val apiConfig: ApiConfig,
     private val dispatcherProvider: DispatcherProvider
 ) : TranslationRepository {
 
     private val sessionMutex = Mutex()
-
-    @Volatile
-    private var cachedApi: Pair<String, RealtimeApi>? = null
 
     override val sessionState: Flow<TranslationSessionState> =
         realtimeSessionManager.state.onStart { emit(TranslationSessionState()) }
@@ -290,30 +286,13 @@ class TranslationRepositoryImpl @Inject constructor(
             return
         }
         preferencesDataSource.update(current.copy(apiEndpoint = normalized))
-        cachedApi = null
         realtimeSessionManager.stop()
     }
 
-    private suspend fun <T> runWithApi(block: suspend (RealtimeApi) -> T): T = block(retrieveApi())
+    private suspend fun <T> runWithApi(block: suspend (RealtimeApi) -> T): T = block(getRealtimeApi())
 
-    private suspend fun retrieveApi(): RealtimeApi {
-        val settings = preferencesDataSource.settings.first()
-        val baseUrl = (settings.apiEndpoint.takeIf { it.isNotBlank() } ?: apiConfig.baseUrl).ensureTrailingSlash()
-        val cached = cachedApi
-        if (cached != null && cached.first == baseUrl) {
-            return cached.second
-        }
-        val fresh = try {
-            apiFactory.create(baseUrl)
-        } catch (throwable: Throwable) {
-            throw TranslatorException(
-                userMessage = "API Host 无效或不可用，请在设置页确认输入是否正确",
-                action = UiAction.OpenSettings,
-                cause = throwable
-            )
-        }
-        cachedApi = baseUrl to fresh
-        return fresh
+    private suspend fun getRealtimeApi(): RealtimeApi {
+        return realtimeApi
     }
 
     private fun TranslationContent.toHistoryEntity(fallbackDirection: LanguageDirection): TranslationHistoryEntity {

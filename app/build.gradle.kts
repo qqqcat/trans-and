@@ -31,6 +31,8 @@ android {
         versionName = "1.0.0"
 
         buildConfigField("String", "REALTIME_BASE_URL", "\"$realtimeBaseUrl\"")
+        buildConfigField("String", "AZURE_OPENAI_ENDPOINT", "\"${localProperties.getProperty("azure.openai.endpoint", "")}\"")
+        buildConfigField("String", "AZURE_OPENAI_API_KEY", "\"${localProperties.getProperty("azure.openai.apiKey", "")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -21,7 +21,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -35,16 +40,16 @@ import okio.ByteString
 class RealtimeEventStream @Inject constructor(
     okHttpClient: OkHttpClient,
     private val json: Json,
-    private val apiConfig: ApiConfig,
+    private val azureConfig: AzureOpenAIConfig,
     private val config: RealtimeEventStreamConfig
 ) {
     private val socketClient: OkHttpClient = okHttpClient.newBuilder()
         .pingInterval(config.heartbeatIntervalSeconds, TimeUnit.SECONDS)
         .build()
 
-    fun listen(baseUrl: String, sessionId: String, token: String): Flow<TranslationContent> = callbackFlow {
+    fun listen(sessionId: String, token: String, deployment: String): Flow<TranslationContent> = callbackFlow {
         val shouldReconnect = AtomicBoolean(true)
-        val url = buildUrl(baseUrl, sessionId, token)
+        val url = buildUrl(sessionId, deployment)
         var currentDelayMs = config.initialRetryDelayMs
         var reconnectAttempts = 0
         var reconnectJob: Job? = null
@@ -67,35 +72,37 @@ class RealtimeEventStream @Inject constructor(
             close(cause)
         }
 
-        lateinit var connect: () -> Unit
+        fun connect() {
+            fun scheduleReconnect(lastError: Throwable?) {
+                if (!shouldReconnect.get()) return
+                val maxAttempts = config.maxReconnectAttempts
+                if (maxAttempts > 0 && reconnectAttempts >= maxAttempts) {
+                    terminate(lastError ?: IllegalStateException("Exceeded max reconnect attempts"))
+                    return
+                }
+                val baseDelay = currentDelayMs
+                val jitter = if (config.retryJitterMs > 0L) {
+                    Random.nextLong(config.retryJitterMs)
+                } else {
+                    0L
+                }
+                val delayMs = min(baseDelay + jitter, config.maxRetryDelayMs)
+                reconnectJob?.cancel()
+                reconnectJob = launch {
+                    delay(delayMs)
+                    if (!shouldReconnect.get() || !isActive) return@launch
+                    reconnectAttempts += 1
+                    connect()
+                }
+                currentDelayMs = (currentDelayMs * config.retryMultiplier).toLong()
+                    .coerceAtMost(config.maxRetryDelayMs)
+            }
 
-        fun scheduleReconnect(lastError: Throwable?) {
-            if (!shouldReconnect.get()) return
-            val maxAttempts = config.maxReconnectAttempts
-            if (maxAttempts > 0 && reconnectAttempts >= maxAttempts) {
-                terminate(lastError ?: IllegalStateException("Exceeded max reconnect attempts"))
-                return
-            }
-            val baseDelay = currentDelayMs
-            val jitter = if (config.retryJitterMs > 0L) {
-                Random.nextLong(config.retryJitterMs)
-            } else {
-                0L
-            }
-            val delayMs = min(baseDelay + jitter, config.maxRetryDelayMs)
-            reconnectJob?.cancel()
-            reconnectJob = launch {
-                delay(delayMs)
-                if (!shouldReconnect.get() || !isActive) return@launch
-                reconnectAttempts += 1
-                connect()
-            }
-            currentDelayMs = (currentDelayMs * config.retryMultiplier).toLong()
-                .coerceAtMost(config.maxRetryDelayMs)
-        }
-
-        connect = {
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("api-key", azureConfig.apiKey)
+                .build()
             val listener = object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     currentDelayMs = config.initialRetryDelayMs
@@ -167,69 +174,84 @@ class RealtimeEventStream @Inject constructor(
         }
     }
 
-    private fun buildUrl(baseUrl: String, sessionId: String, token: String): HttpUrl {
-        val resolved = baseUrl.ifBlank { apiConfig.baseUrl }.ensureTrailingSlash().toHttpUrl()
-        val scheme = if (resolved.isHttps) SECURE_WEBSOCKET_SCHEME else WEBSOCKET_SCHEME
-        val normalizedPath = config.path.trimStart('/')
-        return resolved.newBuilder()
-            .scheme(scheme)
-            .addPathSegments(normalizedPath)
-            .addQueryParameter("sessionId", sessionId)
-            .addQueryParameter("token", token)
-            .build()
+    private fun buildUrl(sessionId: String, deployment: String): HttpUrl {
+        val base = azureConfig.normalizedEndpoint.toHttpUrl()
+        val scheme = if (base.isHttps) SECURE_WEBSOCKET_SCHEME else WEBSOCKET_SCHEME
+        val normalizedPath = config.path.trim('/')
+        val builder = base.newBuilder().scheme(scheme)
+        if (normalizedPath.isNotEmpty()) {
+            builder.addPathSegments(normalizedPath)
+        }
+        config.queryParameters.forEach { (key, value) ->
+            builder.addQueryParameter(key, value)
+        }
+        builder.addQueryParameter("deployment", deployment)
+        builder.addQueryParameter("session", sessionId)
+        return builder.build()
     }
 
     private fun parseEvent(payload: String): RelayEventAction? {
-        return runCatching {
-            val envelope = json.decodeFromString(RelayEventDto.serializer(), payload)
-            when {
-                envelope.type in KEEPALIVE_EVENT_TYPES -> RelayEventAction.KeepAlive
-                envelope.type in TERMINAL_EVENT_TYPES -> RelayEventAction.Terminate(
-                    SessionTerminatedException(envelope.type)
-                )
-                envelope.type in TRANSLATION_EVENT_TYPES -> {
-                    val data = envelope.data ?: return null
-                    val translation = json.decodeFromJsonElement(TranslationPayloadDto.serializer(), data)
-                    if (translation.transcript.isNullOrBlank() && translation.translation.isNullOrBlank()) {
-                        return null
-                    }
-                    val detectedLanguage = translation.detectedLanguage
-                        ?: translation.sourceLanguage
-                    val inputMode = translation.inputMode?.let {
-                        runCatching { TranslationInputMode.valueOf(it) }.getOrNull()
-                    } ?: TranslationInputMode.Voice
-                    RelayEventAction.Translation(
-                        TranslationContent(
-                            transcript = translation.transcript.orEmpty(),
-                            translation = translation.translation.orEmpty(),
-                            synthesizedAudioPath = translation.audioUrl,
-                            detectedSourceLanguage = SupportedLanguage.fromCode(detectedLanguage),
-                            targetLanguage = SupportedLanguage.fromCode(translation.targetLanguage),
-                            inputMode = inputMode
-                        )
-                    )
-                }
-                else -> null
+        val element = runCatching { json.decodeFromString<JsonElement>(payload) }.getOrElse { error ->
+            return if (config.failOnDeserializationError) RelayEventAction.Terminate(error) else null
+        }
+        if (element !is JsonObject) {
+            return null
+        }
+        val type = element["type"]?.jsonPrimitive?.content ?: return null
+        if (type in KEEPALIVE_EVENT_TYPES) {
+            return RelayEventAction.KeepAlive
+        }
+        if (type in TERMINAL_EVENT_TYPES) {
+            return RelayEventAction.Terminate(SessionTerminatedException(type))
+        }
+        if (type.startsWith("response.")) {
+            val delta = element["delta"]?.jsonPrimitive?.contentOrNull
+            if (delta.isNullOrBlank()) {
+                return null
             }
-        }.getOrElse { error ->
-            if (config.failOnDeserializationError) {
-                RelayEventAction.Terminate(error)
-            } else {
-                null
+            val isOutput = type.contains("output_text")
+            val transcript = if (isOutput) "" else delta
+            val translation = if (isOutput) delta else ""
+            return RelayEventAction.Translation(
+                TranslationContent(
+                    transcript = transcript,
+                    translation = translation,
+                    inputMode = TranslationInputMode.Voice
+                )
+            )
+        }
+        val data = element["data"]
+        if (data != null && data is JsonObject) {
+            val translation = runCatching {
+                json.decodeFromJsonElement(TranslationPayloadDto.serializer(), data)
+            }.getOrNull()
+            if (translation != null) {
+                if (translation.transcript.isNullOrBlank() && translation.translation.isNullOrBlank()) {
+                    return null
+                }
+                val detectedLanguage = translation.detectedLanguage ?: translation.sourceLanguage
+                val inputMode = translation.inputMode?.let {
+                    runCatching { TranslationInputMode.valueOf(it) }.getOrNull()
+                } ?: TranslationInputMode.Voice
+                return RelayEventAction.Translation(
+                    TranslationContent(
+                        transcript = translation.transcript.orEmpty(),
+                        translation = translation.translation.orEmpty(),
+                        synthesizedAudioPath = translation.audioUrl,
+                        detectedSourceLanguage = SupportedLanguage.fromCode(detectedLanguage),
+                        targetLanguage = SupportedLanguage.fromCode(translation.targetLanguage),
+                        inputMode = inputMode
+                    )
+                )
             }
         }
+        return null
     }
 
     companion object {
         private const val WEBSOCKET_SCHEME = "ws"
         private const val SECURE_WEBSOCKET_SCHEME = "wss"
         private const val NORMAL_CLOSURE_STATUS = 1000
-        private val TRANSLATION_EVENT_TYPES = setOf(
-            "translation",
-            "translation.partial",
-            "translation.final",
-            "transcript.final"
-        )
         private val KEEPALIVE_EVENT_TYPES = setOf(
             "session.keepalive",
             "session.ping"
@@ -241,12 +263,6 @@ class RealtimeEventStream @Inject constructor(
         )
     }
 }
-
-@Serializable
-private data class RelayEventDto(
-    @SerialName("type") val type: String,
-    @SerialName("data") val data: JsonElement? = null
-)
 
 @Serializable
 private data class TranslationPayloadDto(
@@ -267,6 +283,7 @@ private sealed interface RelayEventAction {
 
 data class RealtimeEventStreamConfig(
     val path: String = "session/events",
+    val queryParameters: Map<String, String> = emptyMap(),
     val heartbeatIntervalSeconds: Long = 15L,
     val initialRetryDelayMs: Long = 1_000L,
     val maxRetryDelayMs: Long = 30_000L,

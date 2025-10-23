@@ -11,6 +11,7 @@ import com.example.translatorapp.data.repository.TranslationRepositoryImpl
 import com.example.translatorapp.domain.repository.TranslationRepository
 import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.network.ApiRelayService
+import com.example.translatorapp.network.AzureOpenAIConfig
 import com.example.translatorapp.network.RealtimeApi
 import com.example.translatorapp.network.RealtimeEventStreamConfig
 import com.example.translatorapp.util.DispatcherProvider
@@ -73,11 +74,25 @@ object AppModule {
 
         @Provides
         @Singleton
-        fun provideRealtimeApi(service: ApiRelayService): RealtimeApi = RealtimeApi(service)
+        fun provideRealtimeApi(
+            okHttpClient: OkHttpClient,
+            json: Json,
+            config: AzureOpenAIConfig
+        ): RealtimeApi = RealtimeApi(okHttpClient, json, config)
 
         @Provides
         @Singleton
         fun provideRealtimeEventStreamConfig(): RealtimeEventStreamConfig = RealtimeEventStreamConfig()
+
+        @Provides
+        @Singleton
+        fun provideAzureOpenAIConfig(): AzureOpenAIConfig = AzureOpenAIConfig(
+            endpoint = BuildConfig.AZURE_OPENAI_ENDPOINT,
+            apiKey = BuildConfig.AZURE_OPENAI_API_KEY,
+            realtimeApiVersion = "2024-10-01-preview",
+            textApiVersion = "2024-06-01",
+            transcriptionApiVersion = "2024-06-01"
+        )
 
         @Provides
         @Singleton
