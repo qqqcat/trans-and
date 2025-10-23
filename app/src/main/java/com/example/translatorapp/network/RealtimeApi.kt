@@ -159,8 +159,10 @@ class RealtimeApi @Inject constructor(
         val clientSecret = parsed["client_secret"]?.jsonObject?.get("value")?.jsonPrimitive?.content
             ?: error("Missing client secret in session response")
         val webrtc = parsed["webrtc"]?.jsonObject
-            ?: error("Missing WebRTC negotiation payload")
-        val iceServers = webrtc["ice_servers"]?.jsonArray?.map { parseIceServer(it) }.orEmpty()
+        if (webrtc == null) {
+            Log.w("RealtimeApi", "[startSession] Warning: 'webrtc' 字段为 null，继续协商流程。")
+        }
+        val iceServers = webrtc?.get("ice_servers")?.jsonArray?.map { parseIceServer(it) }.orEmpty()
         sessionDeployments[sessionId] = deployment
         return SessionStartResponse(
             sessionId = sessionId,
