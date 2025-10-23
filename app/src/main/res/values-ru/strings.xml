@@ -201,4 +201,10 @@
     <string name="settings_message_service_address_restored">Восстановлен адрес службы по умолчанию</string>
     <string name="settings_message_service_address_updated">Адрес службы обновлен</string>
     <string name="settings_message_invalid_email">Пожалуйста, введите действительный email</string>
+    <string name="settings_message_account_updated">Информация об учетной записи обновлена</string>
+    <string name="settings_message_sync_enabled">Синхронизация включена</string>
+    <string name="settings_message_sync_disabled">Синхронизация отключена</string>
+    <string name="settings_message_microphone_test_completed">Тест микрофона завершен</string>
+    <string name="settings_message_tts_test_completed">Тест TTS завершен</string>
+    <string name="settings_api_endpoint_validation_error">Пожалуйста, введите действительный адрес, начинающийся с http(s)://, или оставьте пустым для использования службы по умолчанию.</string>
 </resources>

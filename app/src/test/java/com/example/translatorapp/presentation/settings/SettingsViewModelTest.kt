@@ -1,5 +1,9 @@
 package com.example.translatorapp.presentation.settings
 
+import android.app.Application
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
+
 import com.example.translatorapp.domain.model.AccountProfile
 import com.example.translatorapp.domain.model.AccountSyncStatus
 import com.example.translatorapp.domain.model.LanguageDirection
@@ -124,7 +128,19 @@ class SettingsViewModelTest {
     private fun createViewModel(
         repository: FakeTranslationRepository
     ): SettingsViewModel {
+        val application = mock<Application>()
+        // Mock only the string resources that are actually used in the tests
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_language_direction_updated)).thenReturn("Language direction updated")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_source_language_updated)).thenReturn("Source language updated")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_target_language_updated)).thenReturn("Target language updated")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_invalid_email)).thenReturn("Invalid email")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_sync_success)).thenReturn("Sync successful")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_sync_failed)).thenReturn("Sync failed")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_sync_in_progress)).thenReturn("Sync in progress")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_account_updated)).thenReturn("Account updated")
+        
         return SettingsViewModel(
+            application = application,
             loadSettingsUseCase = LoadSettingsUseCase(repository),
             updateDirectionUseCase = UpdateDirectionUseCase(repository),
             updateModelUseCase = UpdateModelUseCase(repository),

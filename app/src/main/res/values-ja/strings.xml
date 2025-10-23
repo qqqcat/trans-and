@@ -201,4 +201,10 @@
     <string name="settings_message_service_address_restored">デフォルトのサービスアドレスが復元されました</string>
     <string name="settings_message_service_address_updated">サービスアドレスが更新されました</string>
     <string name="settings_message_invalid_email">有効なメールアドレスを入力してください</string>
+    <string name="settings_message_account_updated">アカウント情報が更新されました</string>
+    <string name="settings_message_sync_enabled">同期が有効になりました</string>
+    <string name="settings_message_sync_disabled">同期が無効になりました</string>
+    <string name="settings_message_microphone_test_completed">マイクテストが完了しました</string>
+    <string name="settings_message_tts_test_completed">TTSテストが完了しました</string>
+    <string name="settings_api_endpoint_validation_error">http(s):// で始まる有効なアドレスを入力するか、デフォルトサービスを使用するために空のままにしてください。</string>
 </resources>

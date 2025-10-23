@@ -200,4 +200,10 @@
     <string name="settings_message_service_address_restored">已恢復預設服務地址</string>
     <string name="settings_message_service_address_updated">服務地址已更新</string>
     <string name="settings_message_invalid_email">請輸入有效電郵</string>
+    <string name="settings_message_account_updated">帳戶資訊已更新</string>
+    <string name="settings_message_sync_enabled">已開啟同步</string>
+    <string name="settings_message_sync_disabled">已關閉同步</string>
+    <string name="settings_message_microphone_test_completed">咪高峰測試完成</string>
+    <string name="settings_message_tts_test_completed">TTS測試完成</string>
+    <string name="settings_api_endpoint_validation_error">請輸入以 http(s):// 開頭的有效地址，或留空使用預設服務。</string>
 </resources>

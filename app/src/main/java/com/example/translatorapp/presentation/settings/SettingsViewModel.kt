@@ -1,7 +1,9 @@
 package com.example.translatorapp.presentation.settings
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.translatorapp.R
 import com.example.translatorapp.domain.model.AccountProfile
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
@@ -32,6 +34,7 @@ import kotlinx.datetime.toLocalDateTime
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val application: Application,
     private val loadSettingsUseCase: LoadSettingsUseCase,
     private val updateDirectionUseCase: UpdateDirectionUseCase,
     private val updateModelUseCase: UpdateModelUseCase,
@@ -59,7 +62,7 @@ class SettingsViewModel @Inject constructor(
     fun onDirectionSelected(direction: LanguageDirection) {
         viewModelScope.launch(dispatcherProvider.io) {
             updateDirectionUseCase(direction)
-            refreshSettings(message = "语言方向已更新")
+            refreshSettings(message = application.getString(R.string.settings_message_language_direction_updated))
         }
     }
 
@@ -69,7 +72,7 @@ class SettingsViewModel @Inject constructor(
             val current = loadSettingsUseCase()
             if (!current.direction.isAutoDetect) {
                 updateDirectionUseCase(current.direction.withSource(language))
-                refreshSettings(message = "源语言已更新")
+                refreshSettings(message = application.getString(R.string.settings_message_source_language_updated))
             } else {
                 refreshSettings()
             }
@@ -81,7 +84,7 @@ class SettingsViewModel @Inject constructor(
             val current = loadSettingsUseCase()
             val updatedDirection = current.direction.withTarget(language)
             updateDirectionUseCase(updatedDirection)
-            refreshSettings(message = "目标语言已更新")
+            refreshSettings(message = application.getString(R.string.settings_message_target_language_updated))
         }
     }
 
@@ -103,7 +106,7 @@ class SettingsViewModel @Inject constructor(
 
             updateDirectionUseCase(direction)
 
-            refreshSettings(message = if (enabled) "已开启自动检测" else "已切换为手动选择")
+            refreshSettings(message = if (enabled) application.getString(R.string.settings_message_auto_detect_enabled) else application.getString(R.string.settings_message_auto_detect_disabled))
 
         }
 
@@ -114,7 +117,7 @@ class SettingsViewModel @Inject constructor(
     fun onModelSelected(profile: TranslationModelProfile) {
         viewModelScope.launch(dispatcherProvider.io) {
             updateModelUseCase(profile)
-            refreshSettings(message = "模型已切换为 ${profile.displayName}")
+            refreshSettings(message = application.getString(R.string.settings_message_model_switched, profile.displayName))
         }
     }
 
@@ -124,7 +127,7 @@ class SettingsViewModel @Inject constructor(
 
             updateTelemetryConsentUseCase(consent)
 
-            refreshSettings(message = if (consent) "已开启数据共享" else "已关闭数据共享")
+            refreshSettings(message = if (consent) application.getString(R.string.settings_message_data_sharing_enabled) else application.getString(R.string.settings_message_data_sharing_disabled))
 
         }
 
@@ -173,21 +176,21 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch(dispatcherProvider.io) {
             updateApiEndpointUseCase(normalizeEndpoint(raw))
-            refreshSettings(message = if (raw.isBlank()) "已恢复默认服务地址" else "服务地址已更新")
+            refreshSettings(message = if (raw.isBlank()) application.getString(R.string.settings_message_service_address_restored) else application.getString(R.string.settings_message_service_address_updated))
         }
     }
 
     fun onResetApiEndpoint() {
         viewModelScope.launch(dispatcherProvider.io) {
             updateApiEndpointUseCase("")
-            refreshSettings(message = "已恢复默认服务地址")
+            refreshSettings(message = application.getString(R.string.settings_message_service_address_restored))
         }
     }
 
     fun onSaveAccount() {
         val email = uiState.value.accountEmail.trim()
         if (email.isEmpty()) {
-            _uiState.update { it.copy(message = "请输入有效邮箱") }
+            _uiState.update { it.copy(message = application.getString(R.string.settings_message_invalid_email)) }
             return
         }
         viewModelScope.launch(dispatcherProvider.io) {
@@ -200,7 +203,7 @@ class SettingsViewModel @Inject constructor(
                     displayName = uiState.value.accountDisplayName.ifBlank { null }
                 )
             )
-            refreshSettings(message = "账户信息已更新", preserveInputs = false)
+            refreshSettings(message = application.getString(R.string.settings_message_account_updated), preserveInputs = false)
         }
     }
 
@@ -210,7 +213,7 @@ class SettingsViewModel @Inject constructor(
 
             updateSyncEnabledUseCase(enabled)
 
-            refreshSettings(message = if (enabled) "已开启同步" else "已关闭同步")
+            refreshSettings(message = if (enabled) application.getString(R.string.settings_message_sync_enabled) else application.getString(R.string.settings_message_sync_disabled))
 
         }
 
@@ -222,7 +225,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(dispatcherProvider.io) {
             _uiState.update { it.copy(isSyncing = true, message = null) }
             val result = syncAccountUseCase()
-            val message = result.message ?: if (result.success) "同步完成" else "同步失败"
+            val message = result.message ?: if (result.success) application.getString(R.string.settings_message_sync_success) else application.getString(R.string.settings_message_sync_failed)
             refreshSettings(message = message)
         }
     }
@@ -232,7 +235,7 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(isDiagnosticsRunning = true, message = null) }
             // TODO: Implement microphone test
             kotlinx.coroutines.delay(2000) // Simulate test duration
-            _uiState.update { it.copy(isDiagnosticsRunning = false, message = "麦克风测试完成") }
+            _uiState.update { it.copy(isDiagnosticsRunning = false, message = application.getString(R.string.settings_message_microphone_test_completed)) }
         }
     }
 
@@ -241,7 +244,7 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(isDiagnosticsRunning = true, message = null) }
             // TODO: Implement TTS test
             kotlinx.coroutines.delay(2000) // Simulate test duration
-            _uiState.update { it.copy(isDiagnosticsRunning = false, message = "TTS测试完成") }
+            _uiState.update { it.copy(isDiagnosticsRunning = false, message = application.getString(R.string.settings_message_tts_test_completed)) }
         }
     }
 
@@ -283,7 +286,7 @@ class SettingsViewModel @Inject constructor(
     private fun validateEndpoint(endpoint: String): String? {
         if (endpoint.isBlank()) return null
         return if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) null
-        else "请输入以 http(s):// 开头的有效地址，或留空使用默认服务。"
+        else application.getString(R.string.settings_api_endpoint_validation_error)
     }
 
     private fun formatInstant(instant: Instant?): String? {

@@ -491,7 +491,7 @@ private fun LanguageSettingsCard(
                         style = MaterialTheme.typography.titleSmall
                     )
                 }
-                Text(text = "→", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.settings_language_arrow), style = MaterialTheme.typography.titleMedium)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -870,8 +870,8 @@ private fun networkSummary(state: SettingsUiState): String {
 }
 
 private fun accountSummary(state: SettingsUiState): String {
-    val email = state.settings.accountEmail?.takeIf { it.isNotBlank() } ?: "未设置邮箱"
-    val sync = if (state.syncEnabled) "同步开启" else "同步关闭"
+    val email = state.settings.accountEmail?.takeIf { it.isNotBlank() } ?: "邮箱未设置"
+    val sync = if (state.syncEnabled) "同步已启用" else "同步已禁用"
     return "$email · $sync"
 }
 

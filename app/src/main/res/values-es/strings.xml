@@ -201,4 +201,10 @@
     <string name="settings_message_service_address_restored">Dirección de servicio predeterminada restaurada</string>
     <string name="settings_message_service_address_updated">Dirección de servicio actualizada</string>
     <string name="settings_message_invalid_email">Por favor ingresa un correo electrónico válido</string>
+    <string name="settings_message_account_updated">Información de cuenta actualizada</string>
+    <string name="settings_message_sync_enabled">Sincronización habilitada</string>
+    <string name="settings_message_sync_disabled">Sincronización deshabilitada</string>
+    <string name="settings_message_microphone_test_completed">Prueba de micrófono completada</string>
+    <string name="settings_message_tts_test_completed">Prueba TTS completada</string>
+    <string name="settings_api_endpoint_validation_error">Por favor ingresa una dirección válida que comience con http(s):// o déjala en blanco para usar el servicio predeterminado.</string>
 </resources>

@@ -200,5 +200,11 @@
     <string name="settings_message_service_address_restored">已恢复默认服务地址</string>
     <string name="settings_message_service_address_updated">服务地址已更新</string>
     <string name="settings_message_invalid_email">请输入有效邮箱</string>
+    <string name="settings_message_account_updated">账户信息已更新</string>
+    <string name="settings_message_sync_enabled">已开启同步</string>
+    <string name="settings_message_sync_disabled">已关闭同步</string>
+    <string name="settings_message_microphone_test_completed">麦克风测试完成</string>
+    <string name="settings_message_tts_test_completed">TTS测试完成</string>
+    <string name="settings_api_endpoint_validation_error">请输入以 http(s):// 开头的有效地址，或留空使用默认服务。</string>
 </resources>
 

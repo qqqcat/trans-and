@@ -201,4 +201,10 @@
     <string name="settings_message_service_address_restored">تم استعادة عنوان الخدمة الافتراضي</string>
     <string name="settings_message_service_address_updated">تم تحديث عنوان الخدمة</string>
     <string name="settings_message_invalid_email">يرجى إدخال بريد إلكتروني صالح</string>
+    <string name="settings_message_account_updated">تم تحديث معلومات الحساب</string>
+    <string name="settings_message_sync_enabled">تم تفعيل التزامن</string>
+    <string name="settings_message_sync_disabled">تم تعطيل التزامن</string>
+    <string name="settings_message_microphone_test_completed">تم إكمال اختبار الميكروفون</string>
+    <string name="settings_message_tts_test_completed">تم إكمال اختبار TTS</string>
+    <string name="settings_api_endpoint_validation_error">يرجى إدخال عنوان صالح يبدأ بـ http(s):// أو تركه فارغاً لاستخدام الخدمة الافتراضية.</string>
 </resources>
