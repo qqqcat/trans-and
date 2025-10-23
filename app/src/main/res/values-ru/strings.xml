@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TransAnd</string>
+
+    <!-- Common -->
+    <string name="action_back">Назад</string>
+    <string name="privacy_policy">Политика конфиденциальности</string>
+
+    <!-- Home -->
+    <string name="home_title">Перевод в реальном времени</string>
+    <string name="home_status_active">Сеанс активен</string>
+    <string name="home_status_inactive">Микрофон отключен</string>
+    <string name="home_status_connecting">Подключение к службе реального времени…</string>
+    <string name="home_status_permission">Ожидание разрешения микрофона</string>
+    <string name="home_status_indicator_on">Микрофон записывает</string>
+    <string name="home_status_indicator_off">Микрофон неактивен</string>
+    <string name="home_latency_label">ASR %1$d мс · Перевод %2$d мс · TTS %3$d мс</string>
+    <string name="home_current_configuration">Текущая конфигурация</string>
+    <string name="home_language_auto_detect">Автоопределение</string>
+    <string name="home_model_label">Модель: %1$s</string>
+    <string name="home_adjust_settings">Настроить параметры</string>
+    <string name="home_input_mode_label">Режим ввода</string>
+    <string name="home_input_mode_voice">Голос в реальном времени</string>
+    <string name="home_input_mode_text">Ввод текста</string>
+    <string name="home_input_mode_image">Перевод изображений</string>
+    <string name="home_input_mode_voice_subtitle">Включить микрофон для прослушивания в реальном времени</string>
+    <string name="home_input_mode_text_subtitle">Ввести или вставить текст вручную</string>
+    <string name="home_input_mode_image_subtitle">Распознавать текст на изображениях</string>
+    <string name="home_input_mode_more">Больше</string>
+    <string name="home_input_mode_more_title">Выбрать другие режимы</string>
+    <string name="home_voice_active_description">Держите устройство в тишине во время записи перевода в реальном времени.</string>
+    <string name="home_voice_inactive_description">Нажмите ниже, чтобы включить микрофон и возобновить перевод.</string>
+    <string name="home_action_mute">Отключить микрофон</string>
+    <string name="home_action_unmute">Включить микрофон</string>
+    <string name="home_action_processing">Обработка…</string>
+    <string name="home_initialization_downloading">Загрузка офлайн-модели %1$d%%</string>
+    <string name="home_initialization_preparing">Подготовка офлайн-модели…</string>
+    <string name="home_initialization_ready">Офлайн-модель готова</string>
+
+    <!-- Permission guidance -->
+    <string name="permission_guidance_title">Требуется разрешение микрофона</string>
+    <string name="permission_guidance_description">Пожалуйста, предоставьте доступ к микрофону для перевода речи в реальном времени.</string>
+    <string name="permission_guidance_step_request">• Нажмите "Разрешить" в диалоговом окне разрешений.</string>
+    <string name="permission_guidance_step_settings">• Если вы отказали ранее, откройте Настройки > Разрешения приложений для ручного включения.</string>
+    <string name="permission_guidance_request">Запросить разрешение</string>
+    <string name="permission_guidance_open_settings">Открыть системные настройки</string>
+
+    <!-- Text translation -->
+    <string name="home_text_translation_title">Перевод текста</string>
+    <string name="home_text_input_label">Введите текст для перевода</string>
+    <string name="home_translate_text_action">Перевести текст</string>
+    <string name="home_detected_language_label">Определенный язык: %1$s</string>
+
+    <!-- Image translation -->
+    <string name="home_image_translation_title">Перевод изображений</string>
+    <string name="home_image_translation_hint">Поддерживает JPG и PNG. Выберите фото с четким текстом.</string>
+    <string name="home_pick_image_action">Выбрать изображение</string>
+
+    <!-- History preview -->
+    <string name="home_history_preview_title">История</string>
+    <string name="home_history_preview_description">Просмотр предыдущих разговоров или избранного.</string>
+    <string name="home_timeline_description">Последние 100 сегментов отображаются в этом списке.</string>
+    <string name="home_stop_session">Завершить сеанс</string>
+    <string name="home_open_history">Открыть историю</string>
+    <string name="home_open_settings">Открыть настройки</string>
+
+    <!-- Offline diagnostics -->
+    <string name="offline_test_title">Диагностика офлайн-движка</string>
+    <string name="offline_test_start">Начать сеанс</string>
+    <string name="offline_test_toggle_mic">Переключить микрофон</string>
+    <string name="offline_test_stop">Остановить сеанс</string>
+    <string name="offline_test_clear">Очистить логи</string>
+    <string name="offline_test_status_template">Сеанс: %1$s · Микрофон: %2$s</string>
+    <string name="offline_test_status_active">Работает</string>
+    <string name="offline_test_status_inactive">Остановлен</string>
+    <string name="offline_test_mic_on">Записывает</string>
+    <string name="offline_test_mic_off">Приглушен</string>
+    <string name="offline_test_logs">Логи в реальном времени</string>
+    <string name="offline_test_empty">Пока нет результатов распознавания. Нажмите "Начать сеанс" для начала тестирования.</string>
+    <string name="offline_test_error">Ошибка: %1$s</string>
+    <string name="offline_test_progress_downloading">Загрузка модели %1$d%%</string>
+    <string name="offline_test_progress_preparing">Загрузка офлайн-модели…</string>
+    <string name="offline_test_progress_ready">Офлайн-модель готова</string>
+    <string name="offline_test_busy_starting">Запуск офлайн-сеанса…</string>
+    <string name="offline_test_busy_stopping">Остановка офлайн-сеанса…</string>
+    <string name="offline_test_busy_toggling">Переключение микрофона…</string>
+    <string name="settings_open_offline_test">Открыть офлайн-диагностику</string>
+
+    <!-- History -->
+    <string name="history_title">История</string>
+    <string name="history_search_placeholder">Поиск по оригинальному или переведенному тексту</string>
+    <string name="history_filter_favorites">Только избранное</string>
+    <string name="history_filter_tags_label">Фильтр по тегам</string>
+    <string name="history_tag_input_label">Теги (разделенные запятыми)</string>
+    <string name="history_tag_input_hint">Пример: встреча, путешествие, работа</string>
+    <string name="history_save_tags_action">Сохранить теги</string>
+    <string name="history_favorite_action">Добавить в избранное</string>
+    <string name="history_empty_placeholder">История пока пуста</string>
+    <string name="history_clear_all">Очистить всю историю</string>
+    <string name="history_load_more">Загрузить больше</string>
+    <string name="history_share_title">Поделиться переводом</string>
+    <string name="history_share_action">Поделиться</string>
+    <string name="history_share_content">Оригинал: %1$s\nПеревод: %2$s</string>
+
+    <!-- Subtitle timeline -->
+    <string name="subtitle_timeline_title">Транскрибация в реальном времени</string>
+    <string name="subtitle_timeline_empty">Начните разговор, чтобы увидеть сегменты в реальном времени здесь.</string>
+    <string name="subtitle_timeline_source_label">Оригинал</string>
+    <string name="subtitle_timeline_translation_label">Перевод</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_section_language">Направление языка</string>
+    <string name="settings_section_model">Модель перевода</string>
+    <string name="settings_section_offline_models">Офлайн-модели</string>
+    <string name="settings_section_network">Сеть и сервисы</string>
+    <string name="settings_section_preferences">Общие предпочтения</string>
+    <string name="settings_section_diagnostics">Диагностика устройства</string>
+    <string name="settings_diagnostics_hint">Используйте эти инструменты для проверки правильной работы микрофона и системного TTS. Держите окружение в тишине во время проверок.</string>
+    <string name="settings_diagnostics_microphone">Тест микрофона</string>
+    <string name="settings_diagnostics_tts">Тест TTS</string>
+    <string name="settings_diagnostics_running">Диагностика выполняется…</string>
+    <string name="settings_section_account">Аккаунт и синхронизация</string>
+    <string name="settings_section_version">Информация о версии</string>
+    <string name="settings_auto_detect_label">Автоопределение исходного языка</string>
+    <string name="settings_source_language_label">Исходный язык</string>
+    <string name="settings_target_language_label">Целевой язык</string>
+    <string name="settings_language_search_hint">Поиск языка</string>
+    <string name="settings_language_favorites_section">Избранные направления</string>
+    <string name="settings_language_tab_source">Источник</string>
+    <string name="settings_language_tab_target">Цель</string>
+    <string name="settings_language_select_source">Выбрать исходный язык (текущий: %1$s)</string>
+    <string name="settings_language_select_target">Выбрать целевой язык (текущий: %1$s)</string>
+    <string name="settings_language_auto_detect_hint">Автоопределение включено. Мы будем автоматически определять исходный язык.</string>
+    <string name="settings_language_add_favorite">Добавить это направление в избранное</string>
+    <string name="settings_language_remove_favorite">Удалить из избранного</string>
+    <string name="settings_offline_fallback_label">Использовать офлайн-модели при сбое сети</string>
+    <string name="settings_telemetry_label">Поделиться анонимными данными использования</string>
+    <string name="settings_api_endpoint_label">Пользовательский хост сервиса реального времени</string>
+    <string name="settings_api_endpoint_hint">Пример: https://your-proxy.example/</string>
+    <string name="settings_api_endpoint_default">Хост по умолчанию: %1$s</string>
+    <string name="settings_api_endpoint_save">Сохранить хост</string>
+    <string name="settings_api_endpoint_reset">Восстановить по умолчанию</string>
+    <string name="settings_api_endpoint_error">Введите корректный http(s):// адрес или оставьте пустым для использования по умолчанию.</string>
+    <string name="settings_account_email">Email для входа</string>
+    <string name="settings_account_display_name">Отображаемое имя</string>
+    <string name="settings_save_account">Сохранить детали аккаунта</string>
+    <string name="settings_sync_toggle">Синхронизировать историю</string>
+    <string name="settings_sync_now">Синхронизировать сейчас</string>
+    <string name="settings_last_sync">Последняя синхронизация: %1$s</string>
+    <string name="settings_sync_never">Никогда не синхронизировалось</string>
+    <string name="settings_message_saved">Настройки сохранены</string>
+    <string name="settings_message_sync_in_progress">Синхронизация выполняется…</string>
+    <string name="settings_message_sync_success">Синхронизация успешна</string>
+    <string name="settings_message_sync_failed">Синхронизация не удалась: %1$s</string>
+    <string name="settings_model_picker_title">Выбрать модель перевода</string>
+    <string name="settings_model_open_picker">Выбрать модель</string>
+
+    <!-- Theme -->
+    <string name="settings_section_theme">Тема и внешний вид</string>
+    <string name="settings_theme_description">Выберите внешний вид приложения</string>
+    <string name="settings_theme_system">Следовать системе</string>
+    <string name="settings_theme_light">Светлый режим</string>
+    <string name="settings_theme_dark">Темный режим</string>
+
+
+
+    <!-- Misc -->
+    <string name="history_tag_separator">•</string>
+    <string name="settings_offline_tiny_title">Whisper Tiny</string>
+    <string name="settings_offline_tiny_subtitle">Самая маленькая модель Whisper, поставляемая с приложением, для базового офлайн-распознавания.</string>
+    <string name="settings_offline_tiny_action">Скачать Tiny</string>
+    <string name="settings_offline_turbo_title">Whisper Turbo</string>
+    <string name="settings_offline_turbo_description">Высококачественная офлайн-модель, поддерживающая несколько языков.</string>
+    <string name="settings_offline_turbo_installed">Установлено · Предоставляет многоязычное офлайн-распознавание</string>
+    <string name="settings_offline_turbo_download">Скачать Turbo</string>
+    <string name="settings_offline_turbo_refresh">Перезагрузить</string>
+    <string name="settings_offline_remove">Удалить модель</string>
+    <string name="settings_offline_status_installing">Загрузка…</string>
+    <string name="settings_offline_status_ready">Готово</string>
+    <string name="settings_offline_status_active">В настоящее время используется</string>
+    <string name="settings_offline_status_missing">Не установлено</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">Настройки языка</string>
+    <string name="settings_language_system_note">Язык приложения следует настройкам языка вашей системы. Чтобы изменить язык, измените системный язык вашего устройства.</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_account_email_not_set">Email не установлен</string>
+    <string name="settings_sync_enabled">Синхронизация включена</string>
+    <string name="settings_sync_disabled">Синхронизация отключена</string>
+    <string name="settings_offline_fallback_enabled">Оффлайн резерв включен</string>
+    <string name="settings_offline_fallback_disabled">Оффлайн резерв отключен</string>
+    <string name="settings_message_language_direction_updated">Направление языка обновлено</string>
+    <string name="settings_message_source_language_updated">Исходный язык обновлен</string>
+    <string name="settings_message_target_language_updated">Целевой язык обновлен</string>
+    <string name="settings_message_auto_detect_enabled">Автоопределение включено</string>
+    <string name="settings_message_auto_detect_disabled">Переключено на ручной выбор</string>
+    <string name="settings_message_model_switched">Модель переключена на %1$s</string>
+    <string name="settings_message_data_sharing_enabled">Обмен данными включен</string>
+    <string name="settings_message_data_sharing_disabled">Обмен данными отключен</string>
+    <string name="settings_message_service_address_restored">Восстановлен адрес службы по умолчанию</string>
+    <string name="settings_message_service_address_updated">Адрес службы обновлен</string>
+    <string name="settings_message_invalid_email">Пожалуйста, введите действительный email</string>
+    <string name="settings_message_account_updated">Информация об учетной записи обновлена</string>
+    <string name="settings_message_sync_enabled">Синхронизация включена</string>
+    <string name="settings_message_sync_disabled">Синхронизация отключена</string>
+    <string name="settings_message_microphone_test_completed">Тест микрофона завершен</string>
+    <string name="settings_message_tts_test_completed">Тест TTS завершен</string>
+    <string name="settings_api_endpoint_validation_error">Пожалуйста, введите действительный адрес, начинающийся с http(s)://, или оставьте пустым для использования службы по умолчанию.</string>
+</resources>

@@ -1,0 +1,21 @@
+package com.example.translatorapp.di
+
+import com.example.translatorapp.data.repository.TranslationRepositoryImpl
+import com.example.translatorapp.domain.repository.TranslationRepository
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object RepositoryModule {
+
+    @Provides
+    @Singleton
+    fun provideTranslationRepository(
+        impl: TranslationRepositoryImpl
+    ): TranslationRepository = impl
+
+}

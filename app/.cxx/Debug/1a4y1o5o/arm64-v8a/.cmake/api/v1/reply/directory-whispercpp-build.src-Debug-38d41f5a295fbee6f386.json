@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "whispercpp-build/src",
+		"source" : "E:/trans-and/third_party/whisper.cpp/src"
+	}
+}

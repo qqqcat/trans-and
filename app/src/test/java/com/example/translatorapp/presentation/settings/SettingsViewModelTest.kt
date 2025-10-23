@@ -1,0 +1,259 @@
+package com.example.translatorapp.presentation.settings
+
+import android.app.Application
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
+
+import com.example.translatorapp.domain.model.AccountProfile
+import com.example.translatorapp.domain.model.AccountSyncStatus
+import com.example.translatorapp.domain.model.LanguageDirection
+import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.ThemeMode
+import com.example.translatorapp.domain.model.TranslationContent
+import com.example.translatorapp.domain.model.TranslationHistoryItem
+import com.example.translatorapp.domain.model.TranslationModelProfile
+import com.example.translatorapp.domain.model.TranslationSessionState
+import com.example.translatorapp.domain.model.UserSettings
+import com.example.translatorapp.domain.repository.TranslationRepository
+import com.example.translatorapp.domain.usecase.LoadSettingsUseCase
+import com.example.translatorapp.domain.usecase.SyncAccountUseCase
+import com.example.translatorapp.domain.usecase.UpdateAccountProfileUseCase
+import com.example.translatorapp.domain.usecase.UpdateApiEndpointUseCase
+import com.example.translatorapp.domain.usecase.UpdateDirectionUseCase
+import com.example.translatorapp.domain.usecase.UpdateModelUseCase
+import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
+import com.example.translatorapp.domain.usecase.UpdateAppLanguageUseCase
+import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
+import com.example.translatorapp.domain.usecase.UpdateThemeModeUseCase
+import com.example.translatorapp.util.DispatcherProvider
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.File
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class SettingsViewModelTest {
+
+    private val dispatcher = UnconfinedTestDispatcher()
+    private val dispatcherProvider = object : DispatcherProvider {
+        override val io = dispatcher
+        override val default = dispatcher
+        override val main = dispatcher
+    }
+
+    @Test
+    fun onDirectionSelected_updatesRepositoryAndUiState() = runTest {
+        val repository = FakeTranslationRepository()
+        val viewModel = createViewModel(repository)
+        val newDirection = LanguageDirection(
+            sourceLanguage = SupportedLanguage.English,
+            targetLanguage = SupportedLanguage.Japanese
+        )
+
+        viewModel.onDirectionSelected(newDirection)
+
+        assertEquals(newDirection, repository.currentSettings.direction)
+    }
+
+    @Test
+    fun onAutoDetectChanged_updatesDirectionAndFlags() = runTest {
+        val repository = FakeTranslationRepository(
+            UserSettings(
+                direction = LanguageDirection(
+                    sourceLanguage = SupportedLanguage.ChineseSimplified,
+                    targetLanguage = SupportedLanguage.English
+                )
+            )
+        )
+        val viewModel = createViewModel(repository)
+
+        viewModel.onAutoDetectChanged(true)
+
+        assertNull(repository.currentSettings.direction.sourceLanguage)
+
+        viewModel.onSourceLanguageSelected(SupportedLanguage.French)
+        viewModel.onAutoDetectChanged(false)
+
+        assertEquals(SupportedLanguage.French, repository.currentSettings.direction.sourceLanguage)
+    }
+
+    @Test
+    fun onSaveAccount_persistsAccountDetails() = runTest {
+        val repository = FakeTranslationRepository(
+            UserSettings(
+                accountId = null,
+                accountEmail = "",
+                accountDisplayName = ""
+            )
+        )
+        val viewModel = createViewModel(repository)
+
+        viewModel.onAccountEmailChange("user@example.com")
+        viewModel.onAccountDisplayNameChange("Test User")
+        viewModel.onSaveAccount()
+
+        assertEquals("user@example.com", repository.currentSettings.accountEmail)
+        assertEquals("Test User", repository.currentSettings.accountDisplayName)
+    }
+
+    @Test
+    fun onSyncNow_invokesRepositoryAndUpdatesUi() = runTest {
+        val syncedAt = Instant.parse("2024-06-01T12:30:00Z")
+        val repository = FakeTranslationRepository()
+        repository.nextSyncStatus = AccountSyncStatus(
+            success = true,
+            message = "synced",
+            syncedAt = syncedAt
+        )
+        val viewModel = createViewModel(repository)
+
+        viewModel.onSyncNow()
+
+        assertEquals(1, repository.syncCallCount)
+        assertEquals("synced", viewModel.uiState.value.message)
+        assertTrue(viewModel.uiState.value.lastSyncDisplay?.contains("2024-06-01") == true)
+    }
+
+    private fun createViewModel(
+        repository: FakeTranslationRepository
+    ): SettingsViewModel {
+        val application = mock<Application>()
+        // Mock only the string resources that are actually used in the tests
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_language_direction_updated)).thenReturn("Language direction updated")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_source_language_updated)).thenReturn("Source language updated")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_target_language_updated)).thenReturn("Target language updated")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_invalid_email)).thenReturn("Invalid email")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_sync_success)).thenReturn("Sync successful")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_sync_failed)).thenReturn("Sync failed")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_sync_in_progress)).thenReturn("Sync in progress")
+        `when`(application.getString(com.example.translatorapp.R.string.settings_message_account_updated)).thenReturn("Account updated")
+        
+        return SettingsViewModel(
+            application = application,
+            loadSettingsUseCase = LoadSettingsUseCase(repository),
+            updateDirectionUseCase = UpdateDirectionUseCase(repository),
+            updateModelUseCase = UpdateModelUseCase(repository),
+            updateTelemetryConsentUseCase = UpdateTelemetryConsentUseCase(repository),
+            updateAccountProfileUseCase = UpdateAccountProfileUseCase(repository),
+            updateSyncEnabledUseCase = UpdateSyncEnabledUseCase(repository),
+            syncAccountUseCase = SyncAccountUseCase(repository),
+            updateThemeModeUseCase = UpdateThemeModeUseCase(repository),
+            updateAppLanguageUseCase = UpdateAppLanguageUseCase(repository),
+            updateApiEndpointUseCase = UpdateApiEndpointUseCase(repository),
+            dispatcherProvider = dispatcherProvider
+        )
+    }
+}
+
+private class FakeTranslationRepository(
+    initialSettings: UserSettings = UserSettings()
+) : TranslationRepository {
+
+    override val sessionState: Flow<TranslationSessionState> = MutableStateFlow(TranslationSessionState())
+    override val liveTranscription: Flow<TranslationContent> = MutableSharedFlow()
+    override val history: Flow<List<TranslationHistoryItem>> = MutableStateFlow(emptyList())
+    private val settingsState = MutableStateFlow(initialSettings)
+    override val settings: Flow<UserSettings> = settingsState
+
+    var currentSettings: UserSettings = initialSettings
+        private set
+    var nextSyncStatus: AccountSyncStatus = AccountSyncStatus(success = true, message = null, syncedAt = null)
+    var syncCallCount: Int = 0
+
+    override suspend fun startRealtimeSession(settings: UserSettings) = Unit
+
+    override suspend fun stopRealtimeSession() = Unit
+
+    override suspend fun toggleMicrophone(): Boolean = false
+
+    override suspend fun updateDirection(direction: LanguageDirection) {
+        currentSettings = currentSettings.copy(direction = direction)
+        settingsState.value = currentSettings
+    }
+
+    override suspend fun updateModel(profile: TranslationModelProfile) {
+        currentSettings = currentSettings.copy(translationProfile = profile)
+        settingsState.value = currentSettings
+    }
+
+    override suspend fun updateTelemetryConsent(consent: Boolean) {
+        currentSettings = currentSettings.copy(allowTelemetry = consent)
+        settingsState.value = currentSettings
+    }
+
+    override suspend fun persistHistoryItem(content: TranslationContent) = Unit
+
+    override suspend fun clearHistory() = Unit
+
+    override suspend fun refreshSettings(): UserSettings = currentSettings
+
+    override suspend fun translateText(
+        text: String,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent {
+        throw UnsupportedOperationException("Not required in this test double.")
+    }
+
+    override suspend fun translateImage(
+        imageBytes: ByteArray,
+        direction: LanguageDirection,
+        profile: TranslationModelProfile
+    ): TranslationContent {
+        throw UnsupportedOperationException("Not required in this test double.")
+    }
+
+    override suspend fun detectLanguage(text: String): SupportedLanguage? = null
+
+    override suspend fun updateHistoryFavorite(id: Long, isFavorite: Boolean) = Unit
+
+    override suspend fun updateHistoryTags(id: Long, tags: Set<String>) = Unit
+
+    override suspend fun syncAccount(): AccountSyncStatus {
+        syncCallCount += 1
+        nextSyncStatus.syncedAt?.let { instant ->
+            currentSettings = currentSettings.copy(lastSyncedAt = instant)
+            settingsState.value = currentSettings
+        }
+        return nextSyncStatus
+    }
+
+    override suspend fun updateAccountProfile(profile: AccountProfile) {
+        currentSettings = currentSettings.copy(
+            accountId = profile.accountId,
+            accountEmail = profile.email,
+            accountDisplayName = profile.displayName
+        )
+    }
+
+    override suspend fun updateSyncEnabled(enabled: Boolean) {
+        currentSettings = currentSettings.copy(syncEnabled = enabled)
+        settingsState.value = currentSettings
+    }
+
+    override suspend fun updateApiEndpoint(endpoint: String) {
+        currentSettings = currentSettings.copy(apiEndpoint = endpoint)
+        settingsState.value = currentSettings
+    }
+
+    override suspend fun updateThemeMode(themeMode: ThemeMode) {
+        currentSettings = currentSettings.copy(themeMode = themeMode)
+        settingsState.value = currentSettings
+    }
+
+    override suspend fun updateAppLanguage(language: String?) {
+        currentSettings = currentSettings.copy(appLanguage = language)
+        settingsState.value = currentSettings
+    }
+}

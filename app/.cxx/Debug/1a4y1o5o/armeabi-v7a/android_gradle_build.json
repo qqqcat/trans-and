@@ -1,0 +1,87 @@
+{
+  "buildFiles": [
+    "E:\\trans-and\\app\\src\\main\\cpp\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\ggml\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\ggml\\src\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\ggml\\src\\ggml-cpu\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\src\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "D:\\Appdata\\local\\SDK\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "E:\\trans-and\\app\\.cxx\\Debug\\1a4y1o5o\\armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "D:\\Appdata\\local\\SDK\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "E:\\trans-and\\app\\.cxx\\Debug\\1a4y1o5o\\armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "ggml::@cade7c40eb77897bc760": {
+      "toolchain": "toolchain",
+      "abi": "armeabi-v7a",
+      "artifactName": "ggml",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-cpu.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-base.so"
+      ]
+    },
+    "ggml-base::@cade7c40eb77897bc760": {
+      "toolchain": "toolchain",
+      "abi": "armeabi-v7a",
+      "artifactName": "ggml-base",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-base.so",
+      "runtimeFiles": []
+    },
+    "ggml-cpu::@cade7c40eb77897bc760": {
+      "toolchain": "toolchain",
+      "abi": "armeabi-v7a",
+      "artifactName": "ggml-cpu",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-cpu.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-base.so"
+      ]
+    },
+    "whisper::@cdd0e931aeba9a187bb7": {
+      "toolchain": "toolchain",
+      "abi": "armeabi-v7a",
+      "artifactName": "whisper",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libwhisper.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-cpu.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-base.so"
+      ]
+    },
+    "whisper-bridge::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "armeabi-v7a",
+      "artifactName": "whisper-bridge",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libwhisper-bridge.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libwhisper.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-cpu.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\armeabi-v7a\\libggml-base.so"
+      ]
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "D:\\Appdata\\local\\SDK\\ndk\\26.1.10909125\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang.exe",
+      "cppCompilerExecutable": "D:\\Appdata\\local\\SDK\\ndk\\26.1.10909125\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}
