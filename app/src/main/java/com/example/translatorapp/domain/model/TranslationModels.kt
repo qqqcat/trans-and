@@ -78,9 +78,33 @@ data class LanguageDirection(
     }
 }
 
-enum class TranslationModelProfile(val displayName: String) {
-    Balanced("GPT-4o mini"),
-    Accuracy("GPT-4.1")
+enum class TranslationModelProfile(
+    val displayName: String,
+    val realtimeModel: String?,
+    val transcriptionModel: String?,
+    val textModel: String
+) {
+    Balanced(
+        displayName = "GPT Realtime Mini",
+        realtimeModel = "gpt-realtime-mini",
+        transcriptionModel = "gpt-4o-transcribe-diarize",
+        textModel = "gpt-4o"
+    ),
+    Accuracy(
+        displayName = "GPT Realtime",
+        realtimeModel = "gpt-realtime",
+        transcriptionModel = "gpt-4o-transcribe-diarize",
+        textModel = "gpt-4o"
+    ),
+    Offline(
+        displayName = "Whisper v3 (离线)",
+        realtimeModel = null,
+        transcriptionModel = null,
+        textModel = "gpt-4o"
+    );
+
+    val supportsRealtime: Boolean
+        get() = realtimeModel != null
 }
 
 enum class TranslationInputMode {

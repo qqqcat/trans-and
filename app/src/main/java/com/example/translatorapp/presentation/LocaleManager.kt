@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import java.util.Locale
+import com.example.translatorapp.R
 
 object LocaleManager {
     private const val TAG = "LocaleManager"
@@ -114,7 +115,7 @@ object LocaleManager {
     private fun restartApp(context: android.content.Context) {
         try {
             // Show a toast to inform user about restart
-            android.widget.Toast.makeText(context, "Restarting app to apply language change...", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.locale_restart_message), android.widget.Toast.LENGTH_SHORT).show()
 
             // Use AlarmManager to schedule restart
             val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)

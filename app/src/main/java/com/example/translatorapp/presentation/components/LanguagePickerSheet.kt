@@ -286,8 +286,9 @@ private fun LanguageOptionRow(
     )
 }
 
+@Composable
 private fun directionLabel(direction: LanguageDirection): String {
-    val source = direction.sourceLanguage?.displayName ?: "自动检测"
+    val source = direction.sourceLanguage?.displayName ?: stringResource(id = R.string.home_language_auto_detect)
     val target = direction.targetLanguage.displayName
-    return "$source → $target"
+    return "$source ${stringResource(id = R.string.settings_language_arrow)} $target"
 }

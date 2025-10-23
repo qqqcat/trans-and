@@ -85,6 +85,7 @@ class HomeViewModel @Inject constructor(
                 if (session.errorMessage != null) {
                     isStartingSession = false
                 }
+                hasStartedSession = session.isActive
                 _uiState.update { current ->
                     var updatedSession = current.session.copy(
                         direction = session.direction,
@@ -421,27 +422,39 @@ class HomeViewModel @Inject constructor(
             )
             return
         }
-        if (hasStartedSession && isStartingSession) return
+        if (hasStartedSession) return
         hasStartedSession = true
         isStartingSession = true
         recalculateStatus()
         viewModelScope.launch(dispatcherProvider.io) {
-            val latestSettings = runCatching { loadSettingsUseCase() }
-                .onSuccess { applySettings(it) }
-                .getOrElse { throwable ->
-                    isStartingSession = false
-                    hasStartedSession = false
-                    pushMessageFromThrowable(throwable, fallback = "加载配置失败")
-                    recalculateStatus()
-                    return@launch
-                }
-            runCatching { startRealtimeSession(latestSettings) }
-                .onFailure { throwable ->
-                    isStartingSession = false
-                    hasStartedSession = false
-                    pushMessageFromThrowable(throwable, fallback = "实时会话启动失败")
-                    recalculateStatus()
-                }
+            val settingsResult = runCatching { loadSettingsUseCase() }
+            val settings = settingsResult.getOrElse { throwable ->
+                hasStartedSession = false
+                isStartingSession = false
+                pushMessageFromThrowable(throwable, fallback = "无法加载设置，已停止实时会话")
+                recalculateStatus()
+                return@launch
+            }
+            currentSettings = settings
+            _uiState.update { it.copy(settings = settings) }
+            if (!settings.translationProfile.supportsRealtime) {
+                hasStartedSession = false
+                isStartingSession = false
+                pushMessage(
+                    message = "当前选择的模型不支持实时翻译，请在设置中切换实时模型",
+                    level = UiMessageLevel.Warning,
+                    action = UiAction.OpenSettings
+                )
+                recalculateStatus()
+                return@launch
+            }
+            val result = runCatching { startRealtimeSession(settings) }
+            result.onFailure { error ->
+                hasStartedSession = false
+                isStartingSession = false
+                pushMessageFromThrowable(error, fallback = "实时会话启动失败")
+                recalculateStatus()
+            }
         }
     }
 

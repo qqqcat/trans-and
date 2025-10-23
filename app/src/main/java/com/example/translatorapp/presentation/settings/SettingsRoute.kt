@@ -869,9 +869,10 @@ private fun networkSummary(state: SettingsUiState): String {
     return "API: $api"
 }
 
+@Composable
 private fun accountSummary(state: SettingsUiState): String {
-    val email = state.settings.accountEmail?.takeIf { it.isNotBlank() } ?: "邮箱未设置"
-    val sync = if (state.syncEnabled) "同步已启用" else "同步已禁用"
+    val email = state.settings.accountEmail?.takeIf { it.isNotBlank() } ?: stringResource(id = R.string.settings_account_email_not_set)
+    val sync = if (state.syncEnabled) stringResource(id = R.string.settings_account_sync_enabled) else stringResource(id = R.string.settings_account_sync_disabled)
     return "$email · $sync"
 }
 

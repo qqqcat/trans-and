@@ -842,7 +842,7 @@ private fun LanguageSummaryCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Text(text = "→", style = MaterialTheme.typography.titleMedium)
+            Text(text = stringResource(id = R.string.settings_language_arrow), style = MaterialTheme.typography.titleMedium)
             Column(
                 modifier = Modifier
                     .weight(1f)

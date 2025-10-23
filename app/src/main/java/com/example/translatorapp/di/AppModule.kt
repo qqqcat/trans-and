@@ -41,64 +41,64 @@ object AppModule {
     @Singleton
     fun provideContext(application: Application): Context = application.applicationContext
 
-    @Provides
-    @Singleton
-    fun provideJson(): Json = Json { ignoreUnknownKeys = true }
+        @Provides
+        @Singleton
+        fun provideJson(): Json = Json { ignoreUnknownKeys = true }
 
-    @Provides
-    @Singleton
-    fun provideOkHttp(): OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
-        .build()
+        @Provides
+        @Singleton
+        fun provideOkHttp(): OkHttpClient = OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
+            .build()
 
-    @Provides
-    @Singleton
-    fun provideApiConfig(): ApiConfig = ApiConfig(BuildConfig.REALTIME_BASE_URL)
+        @Provides
+        @Singleton
+        fun provideApiConfig(): ApiConfig = ApiConfig(BuildConfig.REALTIME_BASE_URL)
 
-    @Provides
-    @Singleton
-    fun provideRetrofit(
-        okHttpClient: OkHttpClient,
-        json: Json,
-        apiConfig: ApiConfig
-    ): Retrofit = Retrofit.Builder()
-        .baseUrl(apiConfig.baseUrl)
-        .client(okHttpClient)
-        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-        .build()
+        @Provides
+        @Singleton
+        fun provideRetrofit(
+            okHttpClient: OkHttpClient,
+            json: Json,
+            apiConfig: ApiConfig
+        ): Retrofit = Retrofit.Builder()
+            .baseUrl(apiConfig.baseUrl)
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
 
-    @Provides
-    @Singleton
-    fun provideApiRelayService(retrofit: Retrofit): ApiRelayService = retrofit.create(ApiRelayService::class.java)
+        @Provides
+        @Singleton
+        fun provideApiRelayService(retrofit: Retrofit): ApiRelayService = retrofit.create(ApiRelayService::class.java)
 
-    @Provides
-    @Singleton
-    fun provideRealtimeApi(service: ApiRelayService): RealtimeApi = RealtimeApi(service)
+        @Provides
+        @Singleton
+        fun provideRealtimeApi(service: ApiRelayService): RealtimeApi = RealtimeApi(service)
 
-    @Provides
-    @Singleton
-    fun provideRealtimeEventStreamConfig(): RealtimeEventStreamConfig = RealtimeEventStreamConfig()
+        @Provides
+        @Singleton
+        fun provideRealtimeEventStreamConfig(): RealtimeEventStreamConfig = RealtimeEventStreamConfig()
 
-    @Provides
-    @Singleton
-    fun provideHistoryDatabase(context: Context): HistoryDatabase = Room.databaseBuilder(
-        context,
-        HistoryDatabase::class.java,
-        "translator-history.db"
-    )
-        .addMigrations(HistoryDatabase.MIGRATION_1_2)
-        .build()
+        @Provides
+        @Singleton
+        fun provideHistoryDatabase(context: Context): HistoryDatabase = Room.databaseBuilder(
+            context,
+            HistoryDatabase::class.java,
+            "translator-history.db"
+        )
+            .addMigrations(HistoryDatabase.MIGRATION_1_2)
+            .build()
 
-    @Provides
-    fun provideHistoryDao(db: HistoryDatabase): HistoryDao = db.historyDao()
+        @Provides
+        fun provideHistoryDao(db: HistoryDatabase): HistoryDao = db.historyDao()
 
-    @Provides
-    @Singleton
-    fun provideDispatcherProvider(): DispatcherProvider = object : DispatcherProvider {
-        override val io: CoroutineDispatcher = Dispatchers.IO
-        override val default: CoroutineDispatcher = Dispatchers.Default
-        override val main: CoroutineDispatcher = Dispatchers.Main
-    }
+        @Provides
+        @Singleton
+        fun provideDispatcherProvider(): DispatcherProvider = object : DispatcherProvider {
+            override val io: CoroutineDispatcher = Dispatchers.IO
+            override val default: CoroutineDispatcher = Dispatchers.Default
+            override val main: CoroutineDispatcher = Dispatchers.Main
+        }
 
     @Provides
     @Singleton
@@ -113,11 +113,5 @@ object AppModule {
             .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
             .createPeerConnectionFactory()
     }
-
-    @Provides
-    @Singleton
-    fun provideTranslationRepository(
-        impl: TranslationRepositoryImpl
-    ): TranslationRepository = impl
 
 }

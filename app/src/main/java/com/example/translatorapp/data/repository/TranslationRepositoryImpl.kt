@@ -1,6 +1,5 @@
 package com.example.translatorapp.data.repository
 
-import android.util.Base64
 import com.example.translatorapp.data.datasource.HistoryDao
 import com.example.translatorapp.data.datasource.RealtimeSessionManager
 import com.example.translatorapp.data.datasource.UserPreferencesDataSource
@@ -31,6 +30,7 @@ import com.example.translatorapp.network.TextTranslationRequest
 import com.example.translatorapp.network.ensureTrailingSlash
 import com.example.translatorapp.util.DispatcherProvider
 import java.io.IOException
+import android.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -72,6 +72,9 @@ class TranslationRepositoryImpl @Inject constructor(
 
     override suspend fun startRealtimeSession(settings: UserSettings) {
         preferencesDataSource.update(settings)
+        if (!settings.translationProfile.supportsRealtime) {
+            return
+        }
         sessionMutex.withLock {
             realtimeSessionManager.start(settings)
         }
@@ -146,7 +149,7 @@ class TranslationRepositoryImpl @Inject constructor(
                     text = text,
                     sourceLanguage = direction.sourceLanguage?.code,
                     targetLanguage = direction.targetLanguage.code,
-                    model = profile.name
+                    model = profile.textModel
                 )
             )
         }
@@ -176,7 +179,7 @@ class TranslationRepositoryImpl @Inject constructor(
                     imageBase64 = encoded,
                     sourceLanguage = direction.sourceLanguage?.code,
                     targetLanguage = direction.targetLanguage.code,
-                    model = profile.name
+                    model = profile.textModel
                 )
             )
         }
@@ -304,7 +307,7 @@ class TranslationRepositoryImpl @Inject constructor(
             apiFactory.create(baseUrl)
         } catch (throwable: Throwable) {
             throw TranslatorException(
-                userMessage = "API Host 鏃犳晥鎴栦笉鍙敤锛岃鍦ㄨ缃〉纭杈撳叆鏄惁姝ｇ‘",
+                userMessage = "API Host 无效或不可用，请在设置页确认输入是否正确",
                 action = UiAction.OpenSettings,
                 cause = throwable
             )
@@ -335,13 +338,13 @@ class TranslationRepositoryImpl @Inject constructor(
     private fun Throwable.toTranslatorException(): TranslatorException = when (this) {
         is TranslatorException -> this
         is IOException -> TranslatorException(
-            userMessage = "缃戠粶杩炴帴寮傚父锛岃妫€鏌ョ綉缁滄垨浠ｇ悊璁剧疆",
+            userMessage = "网络连接错误，请检查网络或代理设置",
             action = UiAction.Retry,
             cause = this
         )
         is HttpException -> this.toTranslatorException()
         else -> TranslatorException(
-            userMessage = this.message ?: "鍙戠敓鏈煡閿欒锛岃绋嶅悗鍐嶈瘯",
+            userMessage = this.message ?: "发生未知错误，请稍后重试",
             action = UiAction.Retry,
             cause = this
         )
@@ -357,11 +360,11 @@ class TranslationRepositoryImpl @Inject constructor(
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
         val baseMessage = when (code()) {
-            401 -> "璁よ瘉澶辫触锛岃妫€鏌ヨ处鎴锋垨 API Key 璁剧疆"
-            403 -> "娌℃湁璁块棶鏉冮檺锛岃纭璐﹀彿鏉冮檺鎴栭搴?"
-            404 -> "鏈嶅姟涓嶅彲杈撅紝璇锋鏌?API Host 閰嶇疆"
-            429 -> "璇锋眰杩囦簬棰戠箒锛岃绋嶅悗閲嶈瘯"
-            else -> "鏈嶅姟鍝嶅簲寮傚父锛圚TTP ${code()}锛?"
+            401 -> "验证失败，请检查账号或 API Key 设置"
+            403 -> "没有访问权限，请确认账号权限或设置"
+            404 -> "服务不可用，请检查 API Host 配置"
+            429 -> "请求过于频繁，请稍后重试"
+            else -> "服务响应错误 (${code()})"
         }
         val message = errorBody ?: baseMessage
         return TranslatorException(

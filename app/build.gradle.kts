@@ -14,9 +14,11 @@ plugins {
 }
 
 val localProperties = gradleLocalProperties(rootDir, providers)
-val realtimeBaseUrl =
-    (localProperties.getProperty("realtime.apiBaseUrl") ?: "https://api.realtime-proxy.example/")
-        .replace("\"", "\\\"")
+val realtimeBaseUrl = (
+    System.getenv("TRANSAND_REALTIME_BASE_URL")?.takeUnless { it.isBlank() }
+        ?: localProperties.getProperty("realtime.apiBaseUrl")?.takeUnless { it.isBlank() }
+        ?: "https://api.realtime-proxy.example/"
+).replace("\"", "\\\"")
 
 android {
     namespace = "com.example.translatorapp"

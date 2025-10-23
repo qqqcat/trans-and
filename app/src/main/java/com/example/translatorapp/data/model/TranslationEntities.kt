@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
+import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationHistoryItem
 import com.example.translatorapp.domain.model.TranslationInputMode
 import kotlinx.datetime.toInstant
@@ -64,3 +65,22 @@ data class TranslationHistoryEntity(
 }
 
 fun TranslationHistoryItem.toEntity(): TranslationHistoryEntity = TranslationHistoryEntity.fromDomain(this)
+
+fun TranslationContent.toHistoryEntity(direction: LanguageDirection): TranslationHistoryEntity {
+    val actualDirection = LanguageDirection(
+        sourceLanguage = detectedSourceLanguage ?: direction.sourceLanguage,
+        targetLanguage = targetLanguage ?: direction.targetLanguage
+    )
+    val item = TranslationHistoryItem(
+        id = 0,
+        direction = actualDirection,
+        sourceText = transcript,
+        translatedText = translation,
+        createdAt = timestamp,
+        inputMode = inputMode,
+        detectedSourceLanguage = detectedSourceLanguage,
+        isFavorite = false,
+        tags = emptySet()
+    )
+    return TranslationHistoryEntity.fromDomain(item)
+}

@@ -448,8 +448,9 @@ private fun formatTimestamp(item: TranslationHistoryItem): String {
     )
 }
 
+@Composable
 private fun directionLabel(item: TranslationHistoryItem): String {
-    val source = item.direction.sourceLanguage?.displayName ?: "自动检测"
+    val source = item.direction.sourceLanguage?.displayName ?: stringResource(id = R.string.home_language_auto_detect)
     val target = item.direction.targetLanguage.displayName
-    return "$source → $target"
+    return "$source ${stringResource(id = R.string.settings_language_arrow)} $target"
 }
