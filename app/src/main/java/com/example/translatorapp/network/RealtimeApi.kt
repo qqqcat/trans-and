@@ -27,12 +27,31 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
+import android.util.Log
+
 @Singleton
 class RealtimeApi @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
     private val config: AzureOpenAIConfig
 ) {
+
+    /**
+     * 构建 gpt-4o-transcribe-diarize 专用 REST API endpoint
+     * https://cater-mh074r36-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview
+     */
+    fun buildTranscriptionUrl(): String {
+        return "https://cater-mh074r36-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview"
+    }
+
+    /**
+     * 构建 Azure OpenAI Realtime WebSocket URL，符合官方文档：
+     * wss://<endpoint>/openai/v1/realtime?model=gpt-realtime 或 gpt-realtime-mini
+     */
+    fun buildRealtimeWebSocketUrl(model: String): String {
+        val base = config.normalizedEndpoint.removeSuffix("/")
+        return "wss://" + base.removePrefix("https://") + "/openai/v1/realtime?model=" + model + "&api-version=" + config.realtimeApiVersion
+    }
 
     private val sessionDeployments = ConcurrentHashMap<String, String>()
     private val jsonMediaType = "application/json".toMediaType()
@@ -55,18 +74,30 @@ class RealtimeApi @Inject constructor(
             })
         }
 
-        val url = buildRealtimeUrl(pathSegments = listOf("openai", "realtime"), deployment = deployment)
+        // GA 版本 endpoint: /openai/v1/sessions
+        val url = config.normalizedEndpoint.removeSuffix("/") + "/openai/v1/sessions?api-version=" + config.realtimeApiVersion
         val requestBuilder = Request.Builder()
             .url(url)
             .applyAzureHeaders()
             .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMediaType))
 
-        val responseBody = executeRequest(requestBuilder)
+        // 打印请求关键信息
+        Log.d("RealtimeApi", "[startSession] URL: $url")
+        Log.d("RealtimeApi", "[startSession] Headers: " + requestBuilder.build().headers.toString())
+        Log.d("RealtimeApi", "[startSession] Payload: ${payload}")
+
+        val responseBody: String
+        try {
+            responseBody = executeRequestWithLog(requestBuilder, "startSession")
+        } catch (e: Exception) {
+            Log.e("RealtimeApi", "[startSession] Exception: ${e.message}", e)
+            throw e
+        }
         val parsed = json.parseToJsonElement(responseBody).jsonObject
         val sessionId = parsed["id"]?.jsonPrimitive?.content
-            ?: error("Missing session id in realtime response")
+            ?: error("Missing session id in session response")
         val clientSecret = parsed["client_secret"]?.jsonObject?.get("value")?.jsonPrimitive?.content
-            ?: error("Missing client secret in realtime response")
+            ?: error("Missing client secret in session response")
         val webrtc = parsed["webrtc"]?.jsonObject
             ?: error("Missing WebRTC negotiation payload")
         val sdp = webrtc["sdp"]?.jsonPrimitive?.content
@@ -85,7 +116,7 @@ class RealtimeApi @Inject constructor(
         val deployment = sessionDeployments[sessionId]
             ?: error("Unknown realtime session: $sessionId")
         val url = buildRealtimeUrl(
-            pathSegments = listOf("openai", "realtime", "sessions", sessionId),
+            pathSegments = listOf("openai", "v1", "realtime", "sessions", sessionId),
             deployment = deployment
         )
         val payload = buildJsonObject {
@@ -98,7 +129,7 @@ class RealtimeApi @Inject constructor(
             .url(url)
             .applyAzureHeaders()
             .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMediaType))
-        executeRequest(requestBuilder)
+    executeRequestWithLog(requestBuilder, "sendSdpAnswer")
     }
 
     suspend fun updateSession(
@@ -124,7 +155,7 @@ class RealtimeApi @Inject constructor(
         }
         model?.let { sessionDeployments[sessionId] = it }
         val url = buildRealtimeUrl(
-            pathSegments = listOf("openai", "realtime", "sessions", sessionId),
+            pathSegments = listOf("openai", "v1", "realtime", "sessions", sessionId),
             deployment = model ?: deployment
         )
         val body = if (payload.isEmpty()) {
@@ -136,20 +167,20 @@ class RealtimeApi @Inject constructor(
             .url(url)
             .applyAzureHeaders()
             .post(body)
-        executeRequest(requestBuilder)
+    executeRequestWithLog(requestBuilder, "stopSession")
     }
 
     suspend fun stopSession(sessionId: String) {
         val deployment = sessionDeployments.remove(sessionId) ?: return
         val url = buildRealtimeUrl(
-            pathSegments = listOf("openai", "realtime", "sessions", sessionId),
+            pathSegments = listOf("openai", "v1", "realtime", "sessions", sessionId),
             deployment = deployment
         )
         val requestBuilder = Request.Builder()
             .url(url)
             .applyAzureHeaders()
             .delete()
-        executeRequest(requestBuilder)
+    executeRequestWithLog(requestBuilder, "updateSession")
     }
 
     fun forgetSession(sessionId: String) {
@@ -195,7 +226,7 @@ class RealtimeApi @Inject constructor(
             .url(url)
             .applyAzureHeaders()
             .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMediaType))
-        val responseBody = executeRequest(requestBuilder)
+    val responseBody = executeRequestWithLog(requestBuilder, "translateText")
         val parsed = json.parseToJsonElement(responseBody).jsonObject
         val translation = parsed["choices"]
             ?.jsonArray
@@ -261,7 +292,7 @@ class RealtimeApi @Inject constructor(
             .url(url)
             .applyAzureHeaders()
             .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMediaType))
-        val responseBody = executeRequest(requestBuilder)
+    val responseBody = executeRequestWithLog(requestBuilder, "translateImage")
         val translation = json.parseToJsonElement(responseBody).jsonObject["choices"]
             ?.jsonArray
             ?.firstOrNull()
@@ -315,7 +346,7 @@ class RealtimeApi @Inject constructor(
             .url(url)
             .applyAzureHeaders()
             .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMediaType))
-        val responseBody = executeRequest(requestBuilder)
+    val responseBody = executeRequestWithLog(requestBuilder, "detectLanguage")
         val languageCode = json.parseToJsonElement(responseBody).jsonObject["choices"]
             ?.jsonArray
             ?.firstOrNull()
@@ -382,13 +413,19 @@ class RealtimeApi @Inject constructor(
             .header("Content-Type", "application/json")
     }
 
-    private fun executeRequest(builder: Request.Builder): String {
+    private fun executeRequestWithLog(builder: Request.Builder, tag: String): String {
         okHttpClient.newCall(builder.build()).execute().use { response ->
+            val code = response.code
+            val msg = response.message
+            val headers = response.headers.toString()
+            val bodyStr = response.body?.string()
+            Log.d("RealtimeApi", "[$tag] Response code: $code, message: $msg")
+            Log.d("RealtimeApi", "[$tag] Response headers: $headers")
+            Log.d("RealtimeApi", "[$tag] Response body: $bodyStr")
             if (!response.isSuccessful) {
-                val message = response.body?.string()
-                throw IOException("Azure OpenAI request failed: ${response.code} ${response.message}. Body: $message")
+                throw IOException("Azure OpenAI request failed: $code $msg. Body: $bodyStr")
             }
-            return response.body?.string() ?: throw IOException("Empty response body")
+            return bodyStr ?: throw IOException("Empty response body")
         }
     }
 

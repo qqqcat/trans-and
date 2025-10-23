@@ -17,7 +17,7 @@ val localProperties = gradleLocalProperties(rootDir, providers)
 val realtimeBaseUrl = (
     System.getenv("TRANSAND_REALTIME_BASE_URL")?.takeUnless { it.isBlank() }
         ?: localProperties.getProperty("realtime.apiBaseUrl")?.takeUnless { it.isBlank() }
-        ?: "https://api.realtime-proxy.example/"
+        ?: "https://cater-mh074r36-eastus2.openai.azure.com/"
 ).replace("\"", "\\\"")
 
 android {
@@ -30,9 +30,9 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        buildConfigField("String", "REALTIME_BASE_URL", "\"$realtimeBaseUrl\"")
-        buildConfigField("String", "AZURE_OPENAI_ENDPOINT", "\"${localProperties.getProperty("azure.openai.endpoint", "")}\"")
-        buildConfigField("String", "AZURE_OPENAI_API_KEY", "\"${localProperties.getProperty("azure.openai.apiKey", "")}\"")
+    buildConfigField("String", "REALTIME_BASE_URL", "\"$realtimeBaseUrl\"")
+    buildConfigField("String", "AZURE_OPENAI_ENDPOINT", "\"https://cater-mh074r36-eastus2.openai.azure.com/\"")
+    buildConfigField("String", "AZURE_OPENAI_API_KEY", "\"${localProperties.getProperty("azure.openai.apiKey", "***AZURE_OPENAI_API_KEY_REMOVED***")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

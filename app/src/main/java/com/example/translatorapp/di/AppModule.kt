@@ -54,7 +54,7 @@ object AppModule {
 
         @Provides
         @Singleton
-        fun provideApiConfig(): ApiConfig = ApiConfig(BuildConfig.REALTIME_BASE_URL)
+    fun provideApiConfig(): ApiConfig = ApiConfig(BuildConfig.AZURE_OPENAI_ENDPOINT)
 
         @Provides
         @Singleton

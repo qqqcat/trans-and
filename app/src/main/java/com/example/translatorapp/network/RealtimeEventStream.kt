@@ -38,7 +38,7 @@ import okio.ByteString
 
 @Singleton
 class RealtimeEventStream @Inject constructor(
-    okHttpClient: OkHttpClient,
+    private val okHttpClient: OkHttpClient,
     private val json: Json,
     private val azureConfig: AzureOpenAIConfig,
     private val config: RealtimeEventStreamConfig
@@ -49,7 +49,9 @@ class RealtimeEventStream @Inject constructor(
 
     fun listen(sessionId: String, token: String, deployment: String): Flow<TranslationContent> = callbackFlow {
         val shouldReconnect = AtomicBoolean(true)
-        val url = buildUrl(sessionId, deployment)
+        // 使用新版 WebSocket URL 生成逻辑，确保与 Azure 官方文档一致
+        val wsUrl = RealtimeApi(okHttpClient, json, azureConfig).buildRealtimeWebSocketUrl(deployment)
+        val url = wsUrl.toHttpUrl()
         var currentDelayMs = config.initialRetryDelayMs
         var reconnectAttempts = 0
         var reconnectJob: Job? = null
@@ -101,7 +103,6 @@ class RealtimeEventStream @Inject constructor(
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $token")
-                .addHeader("api-key", azureConfig.apiKey)
                 .build()
             val listener = object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
