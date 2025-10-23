@@ -29,6 +29,23 @@ import kotlin.coroutines.resume
 
 @Singleton
 class WebRtcClient @Inject constructor(
+
+    suspend fun createOffer(): SessionDescription? = suspendCancellableCoroutine { continuation ->
+        val peer = peerConnection ?: run {
+            continuation.resume(null)
+            return@suspendCancellableCoroutine
+        }
+        peer.createOffer(object : SimpleSdpObserver() {
+            override fun onCreateSuccess(sdp: SessionDescription) {
+                peer.setLocalDescription(SimpleSdpObserver(), sdp)
+                continuation.resume(sdp)
+            }
+
+            override fun onCreateFailure(error: String?) {
+                continuation.resume(null)
+            }
+        }, MediaConstraints())
+    }
     private val peerConnectionFactory: PeerConnectionFactory
 ) {
     private val logTag = "WebRtcClient"

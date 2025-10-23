@@ -44,8 +44,9 @@ data class SessionMetricsRequest(
 data class SessionStopRequest(
     @SerialName("sessionId") val sessionId: String
 )
-
+    @SerialName("webrtcSdp") val webrtcSdp: String? = null,
 @Serializable
+    @SerialName("clientSecret") val clientSecret: String? = null,
 data class IceServerDto(
     @SerialName("urls") val urls: List<String>,
     @SerialName("username") val username: String? = null,

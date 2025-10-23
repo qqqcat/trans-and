@@ -1,12 +1,15 @@
 
 package com.example.translatorapp.network
 
+
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.SupportedLanguage
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -32,10 +35,9 @@ import android.util.Log
 
 @Singleton
 class RealtimeApi @Inject constructor(
+    private val service: ApiRelayService,
     private val okHttpClient: OkHttpClient,
-    private val json: Json,
-    private val config: AzureOpenAIConfig,
-    private val service: ApiRelayService
+    private val apiConfig: ApiConfig
 ) {
 
     /**
@@ -171,24 +173,33 @@ class RealtimeApi @Inject constructor(
         )
     }
 
-    suspend fun sendSdpAnswer(sessionId: String, sdp: String) {
-        val deployment = sessionDeployments[sessionId]
-            ?: error("Unknown realtime session: $sessionId")
-        val url = buildRealtimeUrl(
-            pathSegments = listOf("openai", "v1", "realtime", "sessions", sessionId),
-            deployment = deployment
-        )
-        val payload = buildJsonObject {
-            put("webrtc", buildJsonObject {
-                put("sdp", JsonPrimitive(sdp))
-                put("type", JsonPrimitive("answer"))
-            })
-        }
-        val requestBuilder = Request.Builder()
+
+    suspend fun negotiateRealtimeRtc(
+        clientSecret: String,
+        offerSdp: String,
+        model: String
+    ): String = withContext(Dispatchers.IO) {
+        val base = apiConfig.baseUrl.toHttpUrl()
+        val url = base.newBuilder()
+            .addPathSegment("realtimertc")
+            .addQueryParameter("model", model)
+            .build()
+        val request = Request.Builder()
             .url(url)
-            .applyAzureHeaders()
-            .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMediaType))
-    executeRequestWithLog(requestBuilder, "sendSdpAnswer")
+            .header("Authorization", "Bearer $clientSecret")
+            .post(offerSdp.toRequestBody("application/sdp".toMediaType()))
+            .build()
+        okHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val body = response.body?.string()
+                val errorSuffix = body?.let { " - $it" } ?: ""
+                throw IOException(
+                    "Realtime RTC negotiation failed: ${response.code} ${response.message}$errorSuffix"
+                )
+            }
+            response.body?.string()
+                ?: throw IOException("Realtime RTC negotiation returned empty body")
+        }
     }
 
     suspend fun updateSession(

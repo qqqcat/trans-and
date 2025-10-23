@@ -75,11 +75,10 @@ object AppModule {
         @Provides
         @Singleton
         fun provideRealtimeApi(
+            service: ApiRelayService,
             okHttpClient: OkHttpClient,
-            json: Json,
-            config: AzureOpenAIConfig,
-            service: ApiRelayService
-        ): RealtimeApi = RealtimeApi(okHttpClient, json, config, service)
+            apiConfig: ApiConfig
+        ): RealtimeApi = RealtimeApi(service, okHttpClient, apiConfig)
 
         @Provides
         @Singleton

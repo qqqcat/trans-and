@@ -56,98 +56,72 @@ class RealtimeSessionManager @Inject constructor(
     private var sessionId: String? = null
     private var remoteAudioJob: Job? = null
     private var eventStreamJob: Job? = null
+    private var sessionJob: Job? = null
     private var lastAudioTimestamp: Instant? = null
 
     override suspend fun start(settings: UserSettings) {
         mutex.withLock {
             if (_state.value.isActive) return
-            if (!settings.translationProfile.supportsRealtime) {
-                _state.value = TranslationSessionState(
-                    direction = settings.direction,
-                    errorMessage = "当前模型不支持实时会话"
-                )
-                return
-            }
-            val realtimeModel = settings.translationProfile.realtimeModel ?: return
             _state.value = _state.value.copy(
                 isActive = true,
-                isMicrophoneOpen = false,
                 direction = settings.direction,
-                errorMessage = null,
-                currentSegment = null
+                errorMessage = null
             )
             try {
                 val response = realtimeApi.startSession(
                     SessionStartRequest(
                         direction = settings.direction.encode(),
-                        model = realtimeModel
+                        model = settings.translationProfile.name,
+                        offlineFallback = settings.offlineFallbackEnabled
                     )
                 )
                 sessionId = response.sessionId
-                val token = response.token.takeIf { it.isNotBlank() }
-                    ?: error("Missing realtime event token")
+                val clientSecret = response.clientSecret
+                    ?: error("Missing client secret for realtime negotiation")
+                val realtimeModel = settings.translationProfile.toRealtimeModelName()
                 webRtcClient.createPeerConnection(response.iceServers.toIceServers())
-                webRtcClient.setOnIceCandidateListener { candidate ->
-                    // 发送本地 ICE candidate 到服务端
-                    sessionId?.let { sid ->
-                        coroutineScope.launch {
-                            realtimeApi.sendIceCandidate(sid, candidate)
-                        }
-                    }
-                }
-                // 不再从 REST 响应设置 remote SDP，等待 WebSocket eventStream 下发 sdpOffer 后再设置
-                // TODO: 监听服务端下发的 remote ICE candidate 并调用 onRemoteIceCandidate
+                val offer = webRtcClient.createOffer()
+                    ?: error("Unable to create local SDP offer")
+                val answerSdp = realtimeApi.negotiateRealtimeRtc(
+                    clientSecret = clientSecret,
+                    offerSdp = offer.description,
+                    model = realtimeModel
+                )
+                webRtcClient.setRemoteDescription(
+                    SessionDescription(SessionDescription.Type.ANSWER, answerSdp)
+                )
                 audioSessionController.startCapture { buffer ->
                     if (webRtcClient.sendAudioFrame(buffer)) {
                         lastAudioTimestamp = Clock.System.now()
                     }
                 }
                 _state.value = _state.value.copy(isMicrophoneOpen = true)
-                remoteAudioJob?.cancel()
-                remoteAudioJob = coroutineScope.launch {
+                sessionJob = coroutineScope.launch {
                     webRtcClient.remoteAudio.collect { audioBytes ->
                         audioSessionController.playAudio(audioBytes)
                     }
                 }
-                eventStreamJob?.cancel()
-                eventStreamJob = coroutineScope.launch {
-                    try {
-                        realtimeEventStream.listen(apiConfig.baseUrl, response.sessionId, token).collect { content ->
-                            // 监听 eventStream 下发的 ICE candidate
-                            content.iceCandidate?.let { ice ->
-                                val candidate = org.webrtc.IceCandidate(
-                                    ice.sdpMid,
-                                    ice.sdpMLineIndex ?: 0,
-                                    ice.candidate
-                                )
-                                Log.d(logTag, "Received ICE candidate from server: $candidate")
-                                onRemoteIceCandidate(candidate)
-                            }
-                            // 监听 eventStream 下发的 SDP offer/answer
-                            content.sdpOffer?.let { offer ->
-                                val sdp = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.OFFER, offer)
-                                Log.d(logTag, "Received SDP offer from server: $sdp")
-                                webRtcClient.setRemoteDescription(sdp)
-                            }
-                            content.sdpAnswer?.let { answer ->
-                                val sdp = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.ANSWER, answer)
-                                Log.d(logTag, "Received SDP answer from server: $sdp")
-                                webRtcClient.setRemoteDescription(sdp)
-                            }
-                            onTranslationReceived(content)
-                        }
-                    } catch (cancellation: CancellationException) {
-                        throw cancellation
-                    } catch (error: Throwable) {
-                        handleRealtimeError(error)
-                    }
-                }
             } catch (t: Throwable) {
-                handleSessionStartupFailure(settings, t)
+                audioSessionController.stopCapture()
+                audioSessionController.releasePlayback()
+                webRtcClient.close()
+                sessionJob?.cancel()
+                sessionJob = null
+                sessionId = null
+                lastAudioTimestamp = null
+                _state.value = TranslationSessionState(
+                    direction = settings.direction,
+                    errorMessage = t.message
+                        ?: "Failed to establish realtime session"
+                )
             }
-        }
     }
 
+private fun TranslationModelProfile.toRealtimeModelName(): String = when (this) {
+    TranslationModelProfile.Balanced -> "gpt-realtime-mini"
+    TranslationModelProfile.Accuracy -> "gpt-4.1-realtime-preview"
+    TranslationModelProfile.Offline -> "gpt-realtime-mini"
+}
     // 供 eventStream/信令通道调用，处理远端 ICE candidate
     fun onRemoteIceCandidate(candidate: org.webrtc.IceCandidate) {
     webRtcClient.addIceCandidate(candidate)
