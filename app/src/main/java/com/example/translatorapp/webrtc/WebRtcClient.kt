@@ -1,6 +1,7 @@
 package com.example.translatorapp.webrtc
 
 import java.nio.ByteBuffer
+import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,7 @@ import kotlin.coroutines.resume
 class WebRtcClient @Inject constructor(
     private val peerConnectionFactory: PeerConnectionFactory
 ) {
+    private val logTag = "WebRtcClient"
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
     private val _remoteAudio = MutableSharedFlow<ByteArray>(
@@ -50,7 +52,8 @@ class WebRtcClient @Inject constructor(
     private var onIceCandidateCallback: ((IceCandidate) -> Unit)? = null
 
     fun setOnIceCandidateListener(listener: (IceCandidate) -> Unit) {
-        onIceCandidateCallback = listener
+    onIceCandidateCallback = listener
+    Log.d(logTag, "Set ICE candidate listener: $listener")
     }
 
     fun createPeerConnection(
@@ -58,22 +61,31 @@ class WebRtcClient @Inject constructor(
     ) {
         if (peerConnection != null) return
         val configuration = PeerConnection.RTCConfiguration(iceServers)
+        Log.d(logTag, "Creating PeerConnection with iceServers: $iceServers")
         val observer = object : PeerConnection.Observer {
-            override fun onSignalingChange(newState: PeerConnection.SignalingState) {}
+            override fun onSignalingChange(newState: PeerConnection.SignalingState) {
+                Log.d(logTag, "Signaling state changed: $newState")
+            }
 
-            override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState) {}
+            override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState) {
+                Log.d(logTag, "ICE connection state changed: $newState")
+            }
 
             override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState) {}
 
             override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
+                Log.d(logTag, "PeerConnection state changed: $newState")
                 _connectionState.value = newState
             }
 
-            override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState) {}
+            override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState) {
+                Log.d(logTag, "ICE gathering state changed: $newState")
+            }
 
             override fun onIceConnectionReceivingChange(receiving: Boolean) {}
 
             override fun onIceCandidate(candidate: IceCandidate) {
+                Log.d(logTag, "Local ICE candidate generated: $candidate")
                 onIceCandidateCallback?.invoke(candidate)
             }
 
@@ -84,12 +96,15 @@ class WebRtcClient @Inject constructor(
             override fun onRemoveStream(stream: MediaStream) {}
 
             override fun onDataChannel(channel: DataChannel) {
+                Log.d(logTag, "DataChannel created: ${channel.label()}")
                 if (channel.label() == AUDIO_DOWNSTREAM_LABEL) {
                     attachDownstreamChannel(channel)
                 }
             }
 
-            override fun onRenegotiationNeeded() {}
+            override fun onRenegotiationNeeded() {
+                Log.d(logTag, "Renegotiation needed")
+            }
 
             override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {}
 
@@ -109,11 +124,20 @@ class WebRtcClient @Inject constructor(
     }
 
     fun setRemoteDescription(sdp: SessionDescription) {
-        peerConnection?.setRemoteDescription(SimpleSdpObserver(), sdp)
+        Log.d(logTag, "Setting remote description: $sdp")
+        peerConnection?.setRemoteDescription(object : SimpleSdpObserver() {
+            override fun onSetSuccess() {
+                Log.d(logTag, "Remote description set successfully")
+            }
+            override fun onSetFailure(error: String?) {
+                Log.e(logTag, "Set remote description failed: $error")
+            }
+        }, sdp)
     }
 
     fun addIceCandidate(candidate: IceCandidate) {
-        peerConnection?.addIceCandidate(candidate)
+    Log.d(logTag, "Adding remote ICE candidate: $candidate")
+    peerConnection?.addIceCandidate(candidate)
     }
 
     suspend fun createAnswer(): SessionDescription? = suspendCancellableCoroutine { continuation ->
@@ -123,6 +147,7 @@ class WebRtcClient @Inject constructor(
         }
         peer.createAnswer(object : SimpleSdpObserver() {
             override fun onCreateSuccess(sdp: SessionDescription?) {
+                Log.d(logTag, "SDP answer created: $sdp")
                 if (sdp == null) {
                     continuation.resume(null)
                     return
@@ -132,6 +157,7 @@ class WebRtcClient @Inject constructor(
             }
 
             override fun onCreateFailure(error: String?) {
+                Log.e(logTag, "SDP answer creation failed: $error")
                 continuation.resume(null)
             }
         }, MediaConstraints())

@@ -13,7 +13,8 @@ import javax.inject.Inject
 
 class RealtimeSessionManager @Inject constructor(
     private val sessionService: RealtimeSessionService,
-    private val rtcClient: RealtimeRtcClient
+    private val rtcClient: RealtimeRtcClient,
+    private val realtimeApi: com.example.translatorapp.network.RealtimeApi
 ) {
     var eventChannel: RtcEventChannel? = null
     var peerConnection: PeerConnection? = null
@@ -47,6 +48,7 @@ class RealtimeSessionManager @Inject constructor(
         eventChannel = dataChannel?.let { RtcEventChannel(it) }
         // 4. 创建音频轨道
         rtcClient.addAudioTrack()
+
         // 5. SDP offer 协商
         val offer = rtcClient.createOffer()
         rtcClient.setLocalDescription(offer, object : SdpObserver {
@@ -55,8 +57,25 @@ class RealtimeSessionManager @Inject constructor(
             override fun onCreateFailure(p0: String?) {}
             override fun onSetFailure(p0: String?) {}
         })
+
         // 6. HTTP POST offer.sdp 到 Azure WebRTC 端点，带 Bearer client_secret
-        // TODO: 实现 HTTP POST 发送 offer.sdp 并 setRemoteDescription(answer)
+        // 通过 RealtimeApi 实现 POST 协商，获取 answer 并设置 remoteDescription
+        try {
+            val answerSdp = realtimeApi.sendOfferAndGetAnswer(sessionId!!, offer.description, clientSecret!!)
+            if (answerSdp != null) {
+                val answer = SessionDescription(SessionDescription.Type.ANSWER, answerSdp)
+                rtcClient.setRemoteDescription(answer, object : SdpObserver {
+                    override fun onCreateSuccess(p0: SessionDescription?) {}
+                    override fun onSetSuccess() {}
+                    override fun onCreateFailure(p0: String?) {}
+                    override fun onSetFailure(p0: String?) {}
+                })
+            }
+        } catch (e: Exception) {
+            // 日志输出
+            android.util.Log.e("RealtimeSessionManager", "WebRTC offer/answer 协商失败: ${e.message}", e)
+            return@withContext false
+        }
         return@withContext true
     }
 

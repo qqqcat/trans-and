@@ -1,6 +1,7 @@
 package com.example.translatorapp.network
 
 import com.example.translatorapp.domain.model.SupportedLanguage
+import android.util.Log
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
 import java.util.concurrent.TimeUnit
@@ -44,6 +45,7 @@ class RealtimeEventStream @Inject constructor(
     private val config: RealtimeEventStreamConfig,
     private val service: ApiRelayService
 ) {
+    private val logTag = "RealtimeEventStream"
     private val socketClient: OkHttpClient = okHttpClient.newBuilder()
         .pingInterval(config.heartbeatIntervalSeconds, TimeUnit.SECONDS)
         .build()

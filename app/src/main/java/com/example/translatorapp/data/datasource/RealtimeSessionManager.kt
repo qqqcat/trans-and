@@ -1,6 +1,7 @@
 package com.example.translatorapp.data.datasource
 
 import com.example.translatorapp.audio.AudioSessionController
+import android.util.Log
 import com.example.translatorapp.domain.model.LanguageDirection
 import com.example.translatorapp.domain.model.ManagedVoiceSession
 import com.example.translatorapp.domain.model.TranslationContent
@@ -40,6 +41,8 @@ class RealtimeSessionManager @Inject constructor(
     private val dispatcherProvider: DispatcherProvider,
     private val apiConfig: ApiConfig
 ) : ManagedVoiceSession {
+
+    private val logTag = "RealtimeSessionManager"
 
     private val coroutineScope = CoroutineScope(dispatcherProvider.io)
     private val mutex = Mutex()
@@ -117,15 +120,18 @@ class RealtimeSessionManager @Inject constructor(
                                     ice.sdpMLineIndex ?: 0,
                                     ice.candidate
                                 )
+                                Log.d(logTag, "Received ICE candidate from server: $candidate")
                                 onRemoteIceCandidate(candidate)
                             }
                             // 监听 eventStream 下发的 SDP offer/answer
                             content.sdpOffer?.let { offer ->
                                 val sdp = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.OFFER, offer)
+                                Log.d(logTag, "Received SDP offer from server: $sdp")
                                 webRtcClient.setRemoteDescription(sdp)
                             }
                             content.sdpAnswer?.let { answer ->
                                 val sdp = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.ANSWER, answer)
+                                Log.d(logTag, "Received SDP answer from server: $sdp")
                                 webRtcClient.setRemoteDescription(sdp)
                             }
                             onTranslationReceived(content)
@@ -144,7 +150,7 @@ class RealtimeSessionManager @Inject constructor(
 
     // 供 eventStream/信令通道调用，处理远端 ICE candidate
     fun onRemoteIceCandidate(candidate: org.webrtc.IceCandidate) {
-        webRtcClient.addIceCandidate(candidate)
+    webRtcClient.addIceCandidate(candidate)
     }
 
     override suspend fun stop() {

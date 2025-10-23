@@ -1,3 +1,4 @@
+
 package com.example.translatorapp.network
 
 import com.example.translatorapp.domain.model.LanguageDirection
@@ -36,6 +37,33 @@ class RealtimeApi @Inject constructor(
     private val config: AzureOpenAIConfig,
     private val service: ApiRelayService
 ) {
+
+    /**
+     * 发送 offer.sdp 到 Azure WebRTC 端点，返回 answer.sdp
+     */
+    suspend fun sendOfferAndGetAnswer(sessionId: String, offerSdp: String, clientSecret: String): String? {
+        val deployment = sessionDeployments[sessionId]
+            ?: error("Unknown realtime session: $sessionId")
+        val url = buildRealtimeUrl(
+            pathSegments = listOf("openai", "v1", "realtime", "sessions", sessionId),
+            deployment = deployment
+        )
+        val payload = buildJsonObject {
+            put("webrtc", buildJsonObject {
+                put("sdp", JsonPrimitive(offerSdp))
+                put("type", JsonPrimitive("offer"))
+            })
+        }
+        val requestBuilder = Request.Builder()
+            .url(url)
+            .applyAzureHeaders()
+            .addHeader("Authorization", "Bearer $clientSecret")
+            .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMediaType))
+        val responseBody = executeRequestWithLog(requestBuilder, "sendOfferAndGetAnswer")
+        val parsed = json.parseToJsonElement(responseBody).jsonObject
+        val answerSdp = parsed["webrtc"]?.jsonObject?.get("sdp")?.jsonPrimitive?.contentOrNull
+        return answerSdp
+    }
 
     // 发送本地 ICE candidate 到服务端
     suspend fun sendIceCandidate(sessionId: String, candidate: org.webrtc.IceCandidate) {
