@@ -1,0 +1,60 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install",
+			"ggml_add_backend_library",
+			"ggml_add_cpu_backend_variant_impl"
+		],
+		"files" : 
+		[
+			"E:/trans-and/third_party/whisper.cpp/ggml/src/CMakeLists.txt",
+			"E:/trans-and/third_party/whisper.cpp/ggml/src/ggml-cpu/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 2,
+				"file" : 0,
+				"line" : 378,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 22,
+				"parent" : 1
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 251,
+				"parent" : 2
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"E:/trans-and/app/build/intermediates/cxx/Debug/1a4y1o5o/obj/arm64-v8a/libggml-cpu.so"
+			],
+			"targetId" : "ggml-cpu::@cade7c40eb77897bc760",
+			"targetIndex" : 2,
+			"type" : "target"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "whispercpp-build/ggml/src",
+		"source" : "E:/trans-and/third_party/whisper.cpp/ggml/src"
+	}
+}

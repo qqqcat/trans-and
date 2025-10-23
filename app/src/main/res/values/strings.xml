@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TransAnd</string>
+
+    <!-- Common -->
+    <string name="action_back">Back</string>
+    <string name="privacy_policy">Privacy Policy</string>
+
+    <!-- Home -->
+    <string name="home_title">Real-time Translation</string>
+    <string name="home_status_active">Session Active</string>
+    <string name="home_status_inactive">Microphone Disabled</string>
+    <string name="home_status_connecting">Connecting to the realtime service…</string>
+    <string name="home_status_permission">Waiting for microphone permission</string>
+    <string name="home_status_indicator_on">Microphone is capturing</string>
+    <string name="home_status_indicator_off">Microphone is idle</string>
+    <string name="home_latency_label">ASR %1$d ms · Translation %2$d ms · TTS %3$d ms</string>
+    <string name="home_current_configuration">Current Configuration</string>
+    <string name="home_language_auto_detect">Auto Detect</string>
+    <string name="home_model_label">Model: %1$s</string>
+    <string name="home_adjust_settings">Adjust Settings</string>
+    <string name="home_input_mode_label">Input Mode</string>
+    <string name="home_input_mode_voice">Realtime Voice</string>
+    <string name="home_input_mode_text">Text Input</string>
+    <string name="home_input_mode_image">Image Translation</string>
+    <string name="home_input_mode_voice_subtitle">Enable microphone for realtime listening</string>
+    <string name="home_input_mode_text_subtitle">Type or paste text manually</string>
+    <string name="home_input_mode_image_subtitle">Recognise text contained in images</string>
+    <string name="home_input_mode_more">More</string>
+    <string name="home_input_mode_more_title">Choose Additional Modes</string>
+    <string name="home_voice_active_description">Keep the device quiet while realtime translation is recording.</string>
+    <string name="home_voice_inactive_description">Tap below to enable the microphone and resume translating.</string>
+    <string name="home_action_mute">Turn Mic Off</string>
+    <string name="home_action_unmute">Turn Mic On</string>
+    <string name="home_action_processing">Processing…</string>
+    <string name="home_initialization_downloading">Downloading offline model %1$d%%</string>
+    <string name="home_initialization_preparing">Preparing offline model…</string>
+    <string name="home_initialization_ready">Offline model ready</string>
+
+    <!-- Permission guidance -->
+    <string name="permission_guidance_title">Microphone Permission Required</string>
+    <string name="permission_guidance_description">Please grant microphone access so we can translate speech in realtime.</string>
+    <string name="permission_guidance_step_request">• Tap “Allow” in the permission dialog.</string>
+    <string name="permission_guidance_step_settings">• If you have denied it before, open Settings &gt; App permissions to enable it manually.</string>
+    <string name="permission_guidance_request">Request Permission</string>
+    <string name="permission_guidance_open_settings">Open System Settings</string>
+
+    <!-- Text translation -->
+    <string name="home_text_translation_title">Text Translation</string>
+    <string name="home_text_input_label">Enter the text you want to translate</string>
+    <string name="home_translate_text_action">Translate Text</string>
+    <string name="home_detected_language_label">Detected language: %1$s</string>
+
+    <!-- Image translation -->
+    <string name="home_image_translation_title">Image Translation</string>
+    <string name="home_image_translation_hint">Supports JPG and PNG. Choose a photo containing clear text.</string>
+    <string name="home_pick_image_action">Select an Image</string>
+
+    <!-- History preview -->
+    <string name="home_history_preview_title">History</string>
+    <string name="home_history_preview_description">Review previous conversations or favourites.</string>
+    <string name="home_timeline_description">The latest 100 segments appear in this list.</string>
+    <string name="home_stop_session">End Session</string>
+    <string name="home_open_history">Open History</string>
+    <string name="home_open_settings">Open Settings</string>
+
+    <!-- Offline diagnostics -->
+    <string name="offline_test_title">Offline Engine Diagnostics</string>
+    <string name="offline_test_start">Start Session</string>
+    <string name="offline_test_toggle_mic">Toggle Microphone</string>
+    <string name="offline_test_stop">Stop Session</string>
+    <string name="offline_test_clear">Clear Logs</string>
+    <string name="offline_test_status_template">Session: %1$s · Microphone: %2$s</string>
+    <string name="offline_test_status_active">Running</string>
+    <string name="offline_test_status_inactive">Stopped</string>
+    <string name="offline_test_mic_on">Capturing</string>
+    <string name="offline_test_mic_off">Muted</string>
+    <string name="offline_test_logs">Realtime Logs</string>
+    <string name="offline_test_empty">No recognition results yet. Tap “Start Session” to begin testing.</string>
+    <string name="offline_test_error">Error: %1$s</string>
+    <string name="offline_test_progress_downloading">Downloading model %1$d%%</string>
+    <string name="offline_test_progress_preparing">Loading offline model…</string>
+    <string name="offline_test_progress_ready">Offline model ready</string>
+    <string name="offline_test_busy_starting">Starting offline session…</string>
+    <string name="offline_test_busy_stopping">Stopping offline session…</string>
+    <string name="offline_test_busy_toggling">Toggling microphone…</string>
+    <string name="settings_open_offline_test">Open Offline Diagnostics</string>
+
+    <!-- History -->
+    <string name="history_title">History</string>
+    <string name="history_search_placeholder">Search original or translated text</string>
+    <string name="history_filter_favorites">Favourites only</string>
+    <string name="history_filter_tags_label">Filter by tags</string>
+    <string name="history_tag_input_label">Tags (comma separated)</string>
+    <string name="history_tag_input_hint">Example: meeting, travel, work</string>
+    <string name="history_save_tags_action">Save Tags</string>
+    <string name="history_favorite_action">Favourite this entry</string>
+    <string name="history_empty_placeholder">No history yet</string>
+    <string name="history_clear_all">Clear History</string>
+    <string name="history_load_more">Load more</string>
+    <string name="history_share_title">Share Translation</string>
+    <string name="history_share_action">Share</string>
+    <string name="history_share_content">Original: %1$s\nTranslation: %2$s</string>
+
+    <!-- Subtitle timeline -->
+    <string name="subtitle_timeline_title">Live transcript</string>
+    <string name="subtitle_timeline_empty">Start a conversation to see realtime segments here.</string>
+    <string name="subtitle_timeline_source_label">Original</string>
+    <string name="subtitle_timeline_translation_label">Translation</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_language">Language Direction</string>
+    <string name="settings_section_model">Translation Model</string>
+    <string name="settings_section_offline_models">Offline Models</string>
+    <string name="settings_section_network">Network &amp; Service</string>
+    <string name="settings_section_preferences">General Preferences</string>
+    <string name="settings_section_diagnostics">Device Diagnostics</string>
+    <string name="settings_diagnostics_hint">Use these tools to verify the microphone and system TTS are functioning correctly. Keep the environment quiet when running the checks.</string>
+    <string name="settings_diagnostics_microphone">Test Microphone</string>
+    <string name="settings_diagnostics_tts">Test TTS</string>
+    <string name="settings_diagnostics_running">Diagnostics in progress…</string>
+    <string name="settings_section_account">Account &amp; Sync</string>
+    <string name="settings_section_version">Version Information</string>
+    <string name="settings_auto_detect_label">Auto detect source language</string>
+    <string name="settings_source_language_label">Source language</string>
+    <string name="settings_target_language_label">Target language</string>
+    <string name="settings_language_search_hint">Search language</string>
+    <string name="settings_language_favorites_section">Favourite directions</string>
+    <string name="settings_language_tab_source">Source</string>
+    <string name="settings_language_tab_target">Target</string>
+    <string name="settings_language_select_source">Choose source language (current: %1$s)</string>
+    <string name="settings_language_select_target">Choose target language (current: %1$s)</string>
+    <string name="settings_language_auto_detect_hint">Auto detection is enabled. We will detect the source language automatically.</string>
+    <string name="settings_language_add_favorite">Add this direction to favourites</string>
+    <string name="settings_language_remove_favorite">Remove from favourites</string>
+    <string name="settings_offline_fallback_label">Use offline model when network fails</string>
+    <string name="settings_telemetry_label">Share anonymous usage data</string>
+    <string name="settings_api_endpoint_label">Custom realtime service host</string>
+    <string name="settings_api_endpoint_hint">Example: https://your-proxy.example/</string>
+    <string name="settings_api_endpoint_default">Default host: %1$s</string>
+    <string name="settings_api_endpoint_save">Save host</string>
+    <string name="settings_api_endpoint_reset">Restore default</string>
+    <string name="settings_api_endpoint_error">Enter a valid http(s):// address or leave blank for default.</string>
+    <string name="settings_account_email">Sign-in email</string>
+    <string name="settings_account_display_name">Display name</string>
+    <string name="settings_save_account">Save account details</string>
+    <string name="settings_sync_toggle">Sync history</string>
+    <string name="settings_sync_now">Sync now</string>
+    <string name="settings_last_sync">Last sync: %1$s</string>
+    <string name="settings_sync_never">Never synced</string>
+    <string name="settings_message_saved">Settings saved</string>
+    <string name="settings_message_sync_in_progress">Sync in progress…</string>
+    <string name="settings_message_sync_success">Sync succeeded</string>
+    <string name="settings_message_sync_failed">Sync failed: %1$s</string>
+    <string name="settings_model_picker_title">Select translation model</string>
+    <string name="settings_model_open_picker">Choose model</string>
+
+    <!-- Theme -->
+    <string name="settings_section_theme">Theme &amp; Appearance</string>
+    <string name="settings_theme_description">Choose how the app theme behaves</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+
+
+
+    <!-- Misc -->
+    <string name="history_tag_separator">•</string>
+    <string name="settings_offline_tiny_title">Whisper Tiny</string>
+    <string name="settings_offline_tiny_subtitle">Smallest Whisper model bundled with the app for basic offline recognition.</string>
+    <string name="settings_offline_tiny_action">Download Tiny</string>
+    <string name="settings_offline_turbo_title">Whisper Turbo</string>
+    <string name="settings_offline_turbo_description">High quality offline model with multilingual support.</string>
+    <string name="settings_offline_turbo_installed">Installed · Provides multilingual offline recognition</string>
+    <string name="settings_offline_turbo_download">Download Turbo</string>
+    <string name="settings_offline_turbo_refresh">Re-download</string>
+    <string name="settings_offline_remove">Remove model</string>
+    <string name="settings_offline_status_installing">Downloading…</string>
+    <string name="settings_offline_status_ready">Ready</string>
+    <string name="settings_offline_status_active">Currently in use</string>
+    <string name="settings_offline_status_missing">Not installed</string>
+
+    <!-- Language Settings -->
+    <string name="settings_section_language_note">Language Settings</string>
+    <string name="settings_language_system_note">The app language follows your system language settings. To change the language, please modify your device\'s system language.</string>
+    <string name="settings_language_arrow">→</string>
+    <string name="settings_sync_enabled">Sync enabled</string>
+    <string name="settings_sync_disabled">Sync disabled</string>
+    <string name="settings_offline_fallback_enabled">Offline fallback enabled</string>
+    <string name="settings_offline_fallback_disabled">Offline fallback disabled</string>
+    <string name="settings_message_language_direction_updated">Language direction updated</string>
+    <string name="settings_message_source_language_updated">Source language updated</string>
+    <string name="settings_message_target_language_updated">Target language updated</string>
+    <string name="settings_message_auto_detect_enabled">Auto detection enabled</string>
+    <string name="settings_message_auto_detect_disabled">Switched to manual selection</string>
+    <string name="settings_message_model_switched">Model switched to %1$s</string>
+    <string name="settings_message_data_sharing_enabled">Data sharing enabled</string>
+    <string name="settings_message_data_sharing_disabled">Data sharing disabled</string>
+    <string name="settings_message_service_address_restored">Default service address restored</string>
+    <string name="settings_message_service_address_updated">Service address updated</string>
+    <string name="settings_message_invalid_email">Please enter a valid email</string>
+    <string name="settings_message_account_updated">Account information updated</string>
+    <string name="settings_message_sync_enabled">Sync enabled</string>
+    <string name="settings_message_sync_disabled">Sync disabled</string>
+    <string name="settings_message_microphone_test_completed">Microphone test completed</string>
+    <string name="settings_message_tts_test_completed">TTS test completed</string>
+    <string name="settings_api_endpoint_validation_error">Please enter a valid address starting with http(s):// or leave blank to use the default service.</string>
+    <string name="locale_restart_message">Restarting app to apply language change...</string>
+    <string name="sync_account_not_bound">尚未绑定账号</string>
+    <string name="sync_disabled">同步已关闭</string>
+    <string name="error_auth_failed">验证失败，请检查账号或 API Key 设置</string>
+    <string name="error_access_denied">没有访问权限，请确认账号权限或设置</string>
+    <string name="error_service_unavailable">服务不可用，请检查 API Host 配置</string>
+    <string name="error_network_connection">网络连接错误，请检查网络或代理设置</string>
+    <string name="error_unknown">发生未知错误，请稍后重试</string>
+    <string name="error_invalid_api_host">API Host 无效或不可用，请在设置页确认输入是否正确</string>
+    <string name="error_rate_limited">请求过于频繁，请稍后重试</string>
+    <string name="error_service_response">服务响应错误 (%1$d)</string>
+    <string name="settings_account_email_not_set">邮箱未设置</string>
+    <string name="settings_account_sync_enabled">同步已启用</string>
+    <string name="settings_account_sync_disabled">同步已禁用</string>
+</resources>
+
+
+

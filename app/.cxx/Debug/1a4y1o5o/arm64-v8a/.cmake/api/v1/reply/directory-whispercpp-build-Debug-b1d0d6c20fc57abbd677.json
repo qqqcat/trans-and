@@ -1,0 +1,88 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"E:/trans-and/third_party/whisper.cpp/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 179,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 199,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 207,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"E:/trans-and/app/build/intermediates/cxx/Debug/1a4y1o5o/obj/arm64-v8a/libwhisper.so"
+			],
+			"targetId" : "whisper::@cdd0e931aeba9a187bb7",
+			"targetIndex" : 3,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "include",
+			"paths" : 
+			[
+				"E:/trans-and/third_party/whisper.cpp/include/whisper.h"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "lib/cmake/whisper",
+			"paths" : 
+			[
+				"E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/whispercpp-build/whisper-config.cmake",
+				"E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/whispercpp-build/whisper-version.cmake"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "lib/pkgconfig",
+			"paths" : 
+			[
+				"E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/whispercpp-build/whisper.pc"
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "whispercpp-build",
+		"source" : "E:/trans-and/third_party/whisper.cpp"
+	}
+}

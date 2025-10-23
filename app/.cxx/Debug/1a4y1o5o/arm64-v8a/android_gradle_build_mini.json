@@ -1,0 +1,70 @@
+{
+  "buildFiles": [
+    "E:\\trans-and\\app\\src\\main\\cpp\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\ggml\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\ggml\\src\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\ggml\\src\\ggml-cpu\\CMakeLists.txt",
+    "E:\\trans-and\\third_party\\whisper.cpp\\src\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "D:\\Appdata\\local\\SDK\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "E:\\trans-and\\app\\.cxx\\Debug\\1a4y1o5o\\arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "D:\\Appdata\\local\\SDK\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "E:\\trans-and\\app\\.cxx\\Debug\\1a4y1o5o\\arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "whisper-bridge::@6890427a1f51a3e7e1df": {
+      "artifactName": "whisper-bridge",
+      "abi": "arm64-v8a",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libwhisper-bridge.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libwhisper.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-cpu.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-base.so"
+      ]
+    },
+    "ggml-cpu::@cade7c40eb77897bc760": {
+      "artifactName": "ggml-cpu",
+      "abi": "arm64-v8a",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-cpu.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-base.so"
+      ]
+    },
+    "ggml-base::@cade7c40eb77897bc760": {
+      "artifactName": "ggml-base",
+      "abi": "arm64-v8a",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-base.so",
+      "runtimeFiles": []
+    },
+    "ggml::@cade7c40eb77897bc760": {
+      "artifactName": "ggml",
+      "abi": "arm64-v8a",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-cpu.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-base.so"
+      ]
+    },
+    "whisper::@cdd0e931aeba9a187bb7": {
+      "artifactName": "whisper",
+      "abi": "arm64-v8a",
+      "output": "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libwhisper.so",
+      "runtimeFiles": [
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-cpu.so",
+        "E:\\trans-and\\app\\build\\intermediates\\cxx\\Debug\\1a4y1o5o\\obj\\arm64-v8a\\libggml-base.so"
+      ]
+    }
+  }
+}

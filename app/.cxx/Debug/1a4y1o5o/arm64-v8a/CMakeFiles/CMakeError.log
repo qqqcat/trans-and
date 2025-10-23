@@ -1,0 +1,167 @@
+Checking whether the ASM compiler is GNU using "--version" did not match "(GNU assembler)|(GCC)|(Free Software Foundation)":
+Android (10552028, based on r487747d) clang version 17.0.2 (https://android.googlesource.com/toolchain/llvm-project d9f89f4d16663d5012e5c09495f3b30ece3d2362)
+Target: x86_64-w64-windows-gnu
+Thread model: posix
+InstalledDir: D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/bin
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_0ca95 && [1/2] Building C object CMakeFiles/cmTC_0ca95.dir/src.c.o
+FAILED: CMakeFiles/cmTC_0ca95.dir/src.c.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DCMAKE_HAVE_LIBC_PTHREAD  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -std=gnu11 -MD -MT CMakeFiles/cmTC_0ca95.dir/src.c.o -MF CMakeFiles\cmTC_0ca95.dir\src.c.o.d -o CMakeFiles/cmTC_0ca95.dir/src.c.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.c
+E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.c:13:3: error: call to undeclared function 'pthread_cancel'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  pthread_cancel(thread);
+  ^
+E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.c:13:3: note: did you mean 'pthread_once'?
+D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/pthread.h:258:5: note: 'pthread_once' declared here
+int pthread_once(pthread_once_t* _Nonnull __once, void (* _Nonnull __init_routine)(void));
+    ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Performing C++ SOURCE FILE Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E failed with the following output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_91d15 && [1/2] Building CXX object CMakeFiles/cmTC_91d15.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_91d15.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security    -fPIE   -mfp16-format=ieee -std=gnu++17 -MD -MT CMakeFiles/cmTC_91d15.dir/src.cxx.o -MF CMakeFiles\cmTC_91d15.dir\src.cxx.o.d -o CMakeFiles/cmTC_91d15.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unknown argument: '-mfp16-format=ieee'
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_dotprod failed with the following compile output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_701bd && [1/2] Building CXX object CMakeFiles/cmTC_701bd.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_701bd.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_dotprod  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+dotprod -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_701bd.dir/src.cxx.o -MF CMakeFiles\cmTC_701bd.dir\src.cxx.o.d -o CMakeFiles/cmTC_701bd.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+dotprod' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+...and run output:
+
+Return value: 1
+Source file was:
+#include <arm_neon.h>
+int main() { int8x16_t _a, _b; volatile int32x4_t _s = vdotq_s32(_s, _a, _b); return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_nodotprod failed with the following output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_a57ea && [1/2] Building CXX object CMakeFiles/cmTC_a57ea.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_a57ea.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_nodotprod  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+nodotprod -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_a57ea.dir/src.cxx.o -MF CMakeFiles\cmTC_a57ea.dir\src.cxx.o.d -o CMakeFiles/cmTC_a57ea.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+nodotprod' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_i8mm failed with the following compile output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_4cb39 && [1/2] Building CXX object CMakeFiles/cmTC_4cb39.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_4cb39.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_i8mm  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+i8mm -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_4cb39.dir/src.cxx.o -MF CMakeFiles\cmTC_4cb39.dir\src.cxx.o.d -o CMakeFiles/cmTC_4cb39.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+i8mm' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+...and run output:
+
+Return value: 1
+Source file was:
+#include <arm_neon.h>
+int main() { int8x16_t _a, _b; volatile int32x4_t _s = vmmlaq_s32(_s, _a, _b); return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_noi8mm failed with the following output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_23b96 && [1/2] Building CXX object CMakeFiles/cmTC_23b96.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_23b96.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_noi8mm  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+noi8mm -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_23b96.dir/src.cxx.o -MF CMakeFiles\cmTC_23b96.dir\src.cxx.o.d -o CMakeFiles/cmTC_23b96.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+noi8mm' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_sve failed with the following compile output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_70186 && [1/2] Building CXX object CMakeFiles/cmTC_70186.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_70186.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_sve  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+sve -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_70186.dir/src.cxx.o -MF CMakeFiles\cmTC_70186.dir\src.cxx.o.d -o CMakeFiles/cmTC_70186.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+sve' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+...and run output:
+
+Return value: 1
+Source file was:
+#include <arm_sve.h>
+int main()  { svfloat32_t _a, _b; volatile svfloat32_t _c = svadd_f32_z(svptrue_b8(), _a, _b); return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_nosve failed with the following output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_3714a && [1/2] Building CXX object CMakeFiles/cmTC_3714a.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_3714a.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_nosve  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+nosve -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_3714a.dir/src.cxx.o -MF CMakeFiles\cmTC_3714a.dir\src.cxx.o.d -o CMakeFiles/cmTC_3714a.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+nosve' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_sme failed with the following compile output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_54292 && [1/2] Building CXX object CMakeFiles/cmTC_54292.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_54292.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_sme  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+sme -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_54292.dir/src.cxx.o -MF CMakeFiles\cmTC_54292.dir\src.cxx.o.d -o CMakeFiles/cmTC_54292.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+sme' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+...and run output:
+
+Return value: 1
+Source file was:
+#include <arm_sme.h>
+__arm_locally_streaming int main() { __asm__ volatile("smstart; smstop;"); return 0; }
+Performing C++ SOURCE FILE Test GGML_MACHINE_SUPPORTS_nosme failed with the following output:
+Change Dir: E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):D:\Appdata\local\SDK\cmake\3.22.1\bin\ninja.exe cmTC_b5ca4 && [1/2] Building CXX object CMakeFiles/cmTC_b5ca4.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_b5ca4.dir/src.cxx.o 
+D:\Appdata\local\SDK\ndk\26.1.10909125\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=D:/Appdata/local/SDK/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_MACHINE_SUPPORTS_nosme  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -mcpu=native+nosme -fPIE -std=gnu++17 -MD -MT CMakeFiles/cmTC_b5ca4.dir/src.cxx.o -MF CMakeFiles\cmTC_b5ca4.dir\src.cxx.o.d -o CMakeFiles/cmTC_b5ca4.dir/src.cxx.o -c E:/trans-and/app/.cxx/Debug/1a4y1o5o/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+clang++: error: unsupported argument 'native+nosme' to option '-mcpu='
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+int main() { return 0; }
