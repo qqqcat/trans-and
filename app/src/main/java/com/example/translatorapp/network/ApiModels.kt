@@ -1,7 +1,16 @@
+
 package com.example.translatorapp.network
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+@Serializable
+data class IceCandidateDto(
+    @SerialName("sessionId") val sessionId: String,
+    @SerialName("candidate") val candidate: String,
+    @SerialName("sdpMid") val sdpMid: String? = null,
+    @SerialName("sdpMLineIndex") val sdpMLineIndex: Int? = null
+)
 
 @Serializable
 data class SessionStartRequest(
@@ -12,7 +21,6 @@ data class SessionStartRequest(
 @Serializable
 data class SessionStartResponse(
     @SerialName("sessionId") val sessionId: String,
-    @SerialName("webrtcSdp") val webrtcSdp: String,
     @SerialName("token") val token: String,
     @SerialName("iceServers") val iceServers: List<IceServerDto> = emptyList()
 )

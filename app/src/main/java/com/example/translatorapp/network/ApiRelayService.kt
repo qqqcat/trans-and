@@ -4,6 +4,11 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface ApiRelayService {
+    // ...existing endpoints...
+
+    @POST("session/ice")
+    suspend fun sendIceCandidate(@Body body: IceCandidateDto)
+
     @POST("session/start")
     suspend fun startSession(@Body body: SessionStartRequest): SessionStartResponse
 

@@ -29,6 +29,8 @@ import com.example.translatorapp.domain.usecase.UpdateDirectionUseCase
 import com.example.translatorapp.domain.usecase.UpdateModelUseCase
 import com.example.translatorapp.util.DispatcherProvider
 import com.example.translatorapp.util.PermissionManager
+import com.example.translatorapp.data.realtime.RealtimeSessionManager
+import com.example.translatorapp.audio.AudioSessionController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,8 +56,44 @@ class HomeViewModel @Inject constructor(
     private val translateImageUseCase: TranslateImageUseCase,
     private val detectLanguageUseCase: DetectLanguageUseCase,
     private val dispatcherProvider: DispatcherProvider,
-    private val permissionManager: PermissionManager
+    private val permissionManager: PermissionManager,
+    private val realtimeSessionManager: RealtimeSessionManager,
+    private val audioSessionController: AudioSessionController
 ) : ViewModel() {
+
+    // WebRTC迁移：会话与音频链路控制
+    fun startWebRtcSession(model: String) {
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            try {
+                val ok = realtimeSessionManager.startSession(model)
+                if (ok) {
+                    _uiState.update { it.copy(isLoading = false, session = it.session.copy(status = SessionStatus.Streaming)) }
+                } else {
+                    _uiState.update { it.copy(isLoading = false, session = it.session.copy(status = SessionStatus.Idle, lastErrorMessage = "WebRTC会话启动失败")) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, session = it.session.copy(status = SessionStatus.Idle, lastErrorMessage = e.message)) }
+            }
+        }
+    }
+
+    fun stopWebRtcSession() {
+        realtimeSessionManager.close()
+        _uiState.update { it.copy(session = it.session.copy(status = SessionStatus.Idle)) }
+    }
+
+    fun startWebRtcRecording() {
+        _uiState.update { it.copy(session = it.session.copy(isMicrophoneOpen = true)) }
+        audioSessionController.startCapture { buffer ->
+            // TODO: 推送 buffer 到 WebRTC 音频轨道
+        }
+    }
+
+    fun stopWebRtcRecording() {
+        audioSessionController.stopCapture()
+        _uiState.update { it.copy(session = it.session.copy(isMicrophoneOpen = false)) }
+    }
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()

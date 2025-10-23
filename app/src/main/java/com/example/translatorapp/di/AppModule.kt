@@ -77,8 +77,9 @@ object AppModule {
         fun provideRealtimeApi(
             okHttpClient: OkHttpClient,
             json: Json,
-            config: AzureOpenAIConfig
-        ): RealtimeApi = RealtimeApi(okHttpClient, json, config)
+            config: AzureOpenAIConfig,
+            service: ApiRelayService
+        ): RealtimeApi = RealtimeApi(okHttpClient, json, config, service)
 
         @Provides
         @Singleton
@@ -89,7 +90,7 @@ object AppModule {
         fun provideAzureOpenAIConfig(): AzureOpenAIConfig = AzureOpenAIConfig(
             endpoint = BuildConfig.AZURE_OPENAI_ENDPOINT,
             apiKey = BuildConfig.AZURE_OPENAI_API_KEY,
-            realtimeApiVersion = "2024-10-01-preview",
+            realtimeApiVersion = "2025-04-01-preview",
             textApiVersion = "2024-06-01",
             transcriptionApiVersion = "2024-06-01"
         )
@@ -115,18 +116,19 @@ object AppModule {
             override val main: CoroutineDispatcher = Dispatchers.Main
         }
 
+
+    // WebRTC/Realtime 依赖注入
     @Provides
     @Singleton
-    fun providePeerConnectionFactory(context: Context): PeerConnectionFactory {
-        val initializationOptions = PeerConnectionFactory.InitializationOptions.builder(context)
-            .setEnableInternalTracer(false)
-            .createInitializationOptions()
-        PeerConnectionFactory.initialize(initializationOptions)
-        val eglBase = EglBase.create()
-        return PeerConnectionFactory.builder()
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
-            .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
-            .createPeerConnectionFactory()
-    }
+    fun provideRealtimeSessionService(retrofit: Retrofit): com.example.translatorapp.network.RealtimeSessionService =
+        retrofit.create(com.example.translatorapp.network.RealtimeSessionService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRealtimeRtcClient(
+        peerConnectionFactory: org.webrtc.PeerConnectionFactory,
+        eglBase: org.webrtc.EglBase
+    ): com.example.translatorapp.webrtc.RealtimeRtcClient =
+        com.example.translatorapp.webrtc.RealtimeRtcClient(peerConnectionFactory, eglBase)
 
 }

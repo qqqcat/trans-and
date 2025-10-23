@@ -47,9 +47,14 @@ class WebRtcClient @Inject constructor(
     private var upstreamChannel: DataChannel? = null
     private var downstreamChannel: DataChannel? = null
 
+    private var onIceCandidateCallback: ((IceCandidate) -> Unit)? = null
+
+    fun setOnIceCandidateListener(listener: (IceCandidate) -> Unit) {
+        onIceCandidateCallback = listener
+    }
+
     fun createPeerConnection(
-        iceServers: List<PeerConnection.IceServer>,
-        onIceCandidate: ((IceCandidate) -> Unit)? = null
+        iceServers: List<PeerConnection.IceServer>
     ) {
         if (peerConnection != null) return
         val configuration = PeerConnection.RTCConfiguration(iceServers)
@@ -69,7 +74,7 @@ class WebRtcClient @Inject constructor(
             override fun onIceConnectionReceivingChange(receiving: Boolean) {}
 
             override fun onIceCandidate(candidate: IceCandidate) {
-                onIceCandidate?.invoke(candidate)
+                onIceCandidateCallback?.invoke(candidate)
             }
 
             override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>) {}

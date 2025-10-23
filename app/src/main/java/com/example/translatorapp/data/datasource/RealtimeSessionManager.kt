@@ -65,8 +65,7 @@ class RealtimeSessionManager @Inject constructor(
                 )
                 return
             }
-            val realtimeModel = settings.translationProfile.realtimeModel
-                ?: return
+            val realtimeModel = settings.translationProfile.realtimeModel ?: return
             _state.value = _state.value.copy(
                 isActive = true,
                 isMicrophoneOpen = false,
@@ -85,12 +84,16 @@ class RealtimeSessionManager @Inject constructor(
                 val token = response.token.takeIf { it.isNotBlank() }
                     ?: error("Missing realtime event token")
                 webRtcClient.createPeerConnection(response.iceServers.toIceServers())
-                webRtcClient.setRemoteDescription(
-                    SessionDescription(SessionDescription.Type.OFFER, response.webrtcSdp)
-                )
-                val answer = webRtcClient.createAnswer()
-                    ?: error("Unable to create local SDP answer")
-                realtimeApi.sendSdpAnswer(response.sessionId, answer.description)
+                webRtcClient.setOnIceCandidateListener { candidate ->
+                    // 发送本地 ICE candidate 到服务端
+                    sessionId?.let { sid ->
+                        coroutineScope.launch {
+                            realtimeApi.sendIceCandidate(sid, candidate)
+                        }
+                    }
+                }
+                // 不再从 REST 响应设置 remote SDP，等待 WebSocket eventStream 下发 sdpOffer 后再设置
+                // TODO: 监听服务端下发的 remote ICE candidate 并调用 onRemoteIceCandidate
                 audioSessionController.startCapture { buffer ->
                     if (webRtcClient.sendAudioFrame(buffer)) {
                         lastAudioTimestamp = Clock.System.now()
@@ -107,6 +110,24 @@ class RealtimeSessionManager @Inject constructor(
                 eventStreamJob = coroutineScope.launch {
                     try {
                         realtimeEventStream.listen(apiConfig.baseUrl, response.sessionId, token).collect { content ->
+                            // 监听 eventStream 下发的 ICE candidate
+                            content.iceCandidate?.let { ice ->
+                                val candidate = org.webrtc.IceCandidate(
+                                    ice.sdpMid,
+                                    ice.sdpMLineIndex ?: 0,
+                                    ice.candidate
+                                )
+                                onRemoteIceCandidate(candidate)
+                            }
+                            // 监听 eventStream 下发的 SDP offer/answer
+                            content.sdpOffer?.let { offer ->
+                                val sdp = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.OFFER, offer)
+                                webRtcClient.setRemoteDescription(sdp)
+                            }
+                            content.sdpAnswer?.let { answer ->
+                                val sdp = org.webrtc.SessionDescription(org.webrtc.SessionDescription.Type.ANSWER, answer)
+                                webRtcClient.setRemoteDescription(sdp)
+                            }
                             onTranslationReceived(content)
                         }
                     } catch (cancellation: CancellationException) {
@@ -119,6 +140,11 @@ class RealtimeSessionManager @Inject constructor(
                 handleSessionStartupFailure(settings, t)
             }
         }
+    }
+
+    // 供 eventStream/信令通道调用，处理远端 ICE candidate
+    fun onRemoteIceCandidate(candidate: org.webrtc.IceCandidate) {
+        webRtcClient.addIceCandidate(candidate)
     }
 
     override suspend fun stop() {

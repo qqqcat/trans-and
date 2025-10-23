@@ -41,7 +41,8 @@ class RealtimeEventStream @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
     private val azureConfig: AzureOpenAIConfig,
-    private val config: RealtimeEventStreamConfig
+    private val config: RealtimeEventStreamConfig,
+    private val service: ApiRelayService
 ) {
     private val socketClient: OkHttpClient = okHttpClient.newBuilder()
         .pingInterval(config.heartbeatIntervalSeconds, TimeUnit.SECONDS)
@@ -50,7 +51,7 @@ class RealtimeEventStream @Inject constructor(
     fun listen(sessionId: String, token: String, deployment: String): Flow<TranslationContent> = callbackFlow {
         val shouldReconnect = AtomicBoolean(true)
         // 使用新版 WebSocket URL 生成逻辑，确保与 Azure 官方文档一致
-        val wsUrl = RealtimeApi(okHttpClient, json, azureConfig).buildRealtimeWebSocketUrl(deployment)
+    val wsUrl = RealtimeApi(okHttpClient, json, azureConfig, service).buildRealtimeWebSocketUrl(deployment)
         val url = wsUrl.toHttpUrl()
         var currentDelayMs = config.initialRetryDelayMs
         var reconnectAttempts = 0
@@ -204,6 +205,39 @@ class RealtimeEventStream @Inject constructor(
         }
         if (type in TERMINAL_EVENT_TYPES) {
             return RelayEventAction.Terminate(SessionTerminatedException(type))
+        }
+        // 解析 ICE candidate 信令
+        if (type == "ice.candidate") {
+            val data = element["data"]
+            val iceCandidate = data?.let {
+                runCatching { json.decodeFromJsonElement(com.example.translatorapp.network.IceCandidateDto.serializer(), it) }.getOrNull()
+            }
+            if (iceCandidate != null) {
+                return RelayEventAction.Translation(
+                    TranslationContent(
+                        transcript = "",
+                        translation = "",
+                        iceCandidate = iceCandidate
+                    )
+                )
+            }
+        }
+
+        // 解析 WebRTC SDP offer/answer 信令
+        if (type == "webrtc.offer" || type == "webrtc.answer") {
+            val data = element["data"]
+            val sdp = data?.jsonObject?.get("sdp")?.jsonPrimitive?.contentOrNull
+            if (!sdp.isNullOrBlank()) {
+                return RelayEventAction.Translation(
+                    TranslationContent(
+                        transcript = "",
+                        translation = "",
+                        // 新增 sdpOffer/sdpAnswer 字段，需在 TranslationContent 定义
+                        sdpOffer = if (type == "webrtc.offer") sdp else null,
+                        sdpAnswer = if (type == "webrtc.answer") sdp else null
+                    )
+                )
+            }
         }
         if (type.startsWith("response.")) {
             val delta = element["delta"]?.jsonPrimitive?.contentOrNull

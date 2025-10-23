@@ -144,6 +144,9 @@ data class TranslationContent(
     val detectedSourceLanguage: SupportedLanguage? = null,
     val targetLanguage: SupportedLanguage? = null,
     val inputMode: TranslationInputMode = TranslationInputMode.Voice,
+    val iceCandidate: com.example.translatorapp.network.IceCandidateDto? = null,
+    val sdpOffer: String? = null,
+    val sdpAnswer: String? = null,
 )
 
 data class TranslationSessionState(

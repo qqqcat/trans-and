@@ -33,8 +33,25 @@ import android.util.Log
 class RealtimeApi @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
-    private val config: AzureOpenAIConfig
+    private val config: AzureOpenAIConfig,
+    private val service: ApiRelayService
 ) {
+
+    // 发送本地 ICE candidate 到服务端
+    suspend fun sendIceCandidate(sessionId: String, candidate: org.webrtc.IceCandidate) {
+        val dto = IceCandidateDto(
+            sessionId = sessionId,
+            candidate = candidate.sdp,
+            sdpMid = candidate.sdpMid,
+            sdpMLineIndex = candidate.sdpMLineIndex
+        )
+        service.sendIceCandidate(dto)
+    }
+
+    // 处理服务端下发的 ICE candidate（如通过 eventStream 或轮询）
+    fun onIceCandidateReceived(candidate: org.webrtc.IceCandidate) {
+        // 由 SessionManager 统一分发
+    }
 
     /**
      * 构建 gpt-4o-transcribe-diarize 专用 REST API endpoint
@@ -50,7 +67,13 @@ class RealtimeApi @Inject constructor(
      */
     fun buildRealtimeWebSocketUrl(model: String): String {
         val base = config.normalizedEndpoint.removeSuffix("/")
-        return "wss://" + base.removePrefix("https://") + "/openai/v1/realtime?model=" + model + "&api-version=" + config.realtimeApiVersion
+        return if (config.realtimeApiVersion.startsWith("2025-")) {
+            // Preview: wss://<endpoint>/openai/realtime?api-version=2025-04-01-preview&deployment=xxx
+            "wss://" + base.removePrefix("https://") + "/openai/realtime?api-version=" + config.realtimeApiVersion + "&deployment=" + model
+        } else {
+            // GA: wss://<endpoint>/openai/v1/realtime?model=xxx
+            "wss://" + base.removePrefix("https://") + "/openai/v1/realtime?model=" + model
+        }
     }
 
     private val sessionDeployments = ConcurrentHashMap<String, String>()
@@ -60,22 +83,31 @@ class RealtimeApi @Inject constructor(
         val deployment = request.model
         val direction = LanguageDirection.decode(request.direction)
         val instructions = buildInstructions(direction)
-        val payload = buildJsonObject {
-            put("model", JsonPrimitive(deployment))
-            put("session", buildJsonObject {
-                put("instructions", JsonPrimitive(instructions))
-                put("modalities", buildJsonArray {
-                    add(JsonPrimitive("text"))
-                    add(JsonPrimitive("audio"))
+        val isPreview = config.realtimeApiVersion.startsWith("2025-")
+        val (url, payload) = if (isPreview) {
+            // Preview: /openai/realtimeapi/sessions?api-version=2025-04-01-preview&deployment=xxx, payload {"model":xxx}
+            val url = config.normalizedEndpoint.removeSuffix("/") + "/openai/realtimeapi/sessions?api-version=" + config.realtimeApiVersion + "&deployment=" + deployment
+            val payload = buildJsonObject {
+                put("model", JsonPrimitive(deployment))
+            }
+            url to payload
+        } else {
+            // GA: /openai/v1/sessions?model=xxx, payload {"session":{...}}
+            val url = config.normalizedEndpoint.removeSuffix("/") + "/openai/v1/sessions?model=" + deployment
+            val payload = buildJsonObject {
+                put("session", buildJsonObject {
+                    put("instructions", JsonPrimitive(instructions))
+                    put("modalities", buildJsonArray {
+                        add(JsonPrimitive("text"))
+                        add(JsonPrimitive("audio"))
+                    })
+                    put("voice", JsonPrimitive("alloy"))
+                    put("input_audio_format", JsonPrimitive("pcm16"))
+                    put("output_audio_format", JsonPrimitive("pcm16"))
                 })
-                put("voice", JsonPrimitive("alloy"))
-                put("input_audio_format", JsonPrimitive("pcm16"))
-                put("output_audio_format", JsonPrimitive("pcm16"))
-            })
+            }
+            url to payload
         }
-
-        // GA 版本 endpoint: /openai/v1/sessions
-        val url = config.normalizedEndpoint.removeSuffix("/") + "/openai/v1/sessions?api-version=" + config.realtimeApiVersion
         val requestBuilder = Request.Builder()
             .url(url)
             .applyAzureHeaders()
@@ -100,13 +132,10 @@ class RealtimeApi @Inject constructor(
             ?: error("Missing client secret in session response")
         val webrtc = parsed["webrtc"]?.jsonObject
             ?: error("Missing WebRTC negotiation payload")
-        val sdp = webrtc["sdp"]?.jsonPrimitive?.content
-            ?: error("Missing WebRTC offer")
         val iceServers = webrtc["ice_servers"]?.jsonArray?.map { parseIceServer(it) }.orEmpty()
         sessionDeployments[sessionId] = deployment
         return SessionStartResponse(
             sessionId = sessionId,
-            webrtcSdp = sdp,
             token = clientSecret,
             iceServers = iceServers
         )
@@ -386,10 +415,18 @@ class RealtimeApi @Inject constructor(
     }
 
     private fun buildRealtimeUrl(pathSegments: List<String>, deployment: String): HttpUrl {
+        val isPreview = config.realtimeApiVersion.startsWith("2025-")
         val base = config.normalizedEndpoint.toHttpUrl().newBuilder()
-        pathSegments.forEach { base.addPathSegment(it) }
-        base.addQueryParameter("api-version", config.realtimeApiVersion)
-        base.addQueryParameter("deployment", deployment)
+        if (isPreview) {
+            // Preview: /openai/realtime/sessions/{id}?api-version=2025-04-01-preview&deployment=xxx
+            pathSegments.forEach { base.addPathSegment(it) }
+            base.addQueryParameter("api-version", config.realtimeApiVersion)
+            base.addQueryParameter("deployment", deployment)
+        } else {
+            // GA: /openai/v1/realtime/sessions/{id}?model=xxx
+            pathSegments.forEach { base.addPathSegment(it) }
+            base.addQueryParameter("model", deployment)
+        }
         return base.build()
     }
 
