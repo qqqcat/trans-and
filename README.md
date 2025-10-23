@@ -8,11 +8,12 @@ TransAnd 是一款基于《PRDdesign.md》设计的原生 Android 实时语音�
 - **多语言与模型管理**：设置页支持自动/手动源语言切换、目标语言快捷选择以及模型档位（GPT-4.1、GPT-4o mini、Whisper v3 离线）切换，并提供实时延迟、权限提示。
 - **网络与偏好配置**：新增 API Host 输入校验、离线兜底与匿名遥测开关，帮助用户快速排查网络代理问题。
 - **历史记录升级**：历史页支持搜索、收藏、标签筛选以及分页加载，并提供分享、标签编辑能力。
+- **国际化支持**：完整的多语言界面支持，包括英语、中文（简体/繁体）、法语、阿拉伯语、西班牙语、日语、韩语、俄语等9种语言，确保全球用户获得本地化的使用体验。
 
 ## 技术架构
 | 层级 | 说明 |
 | ---- | ---- |
-| UI 层 | 使用 Jetpack Compose 与 Navigation 构建 `HomeRoute`、`SettingsRoute`、`HistoryRoute`，并封装麦克风按钮、状态指示器等可复用组件。 |
+| UI 层 | 使用 Jetpack Compose 与 Navigation 构建 `HomeRoute`、`SettingsRoute`、`HistoryRoute`，并封装麦克风按钮、状态指示器等可复用组件。支持完整的国际化架构，通过 `stringResource` 与多语言资源文件实现界面本地化。 |
 | 领域层 | 定义 `LanguageDirection`、`TranslationModelProfile` 等核心模型及一组用例（如 `StartRealtimeSessionUseCase`、`ToggleMicrophoneUseCase`），确保业务逻辑独立可测。 |
 | 数据层 | `TranslationRepositoryImpl` 聚合 `RealtimeSessionManager`、`UserPreferencesDataSource`、`HistoryDao`，统一暴露会话状态、实时字幕与历史列表。 |
 | 系统服务 | `AudioSessionController` 与 `WebRtcClient` 分别封装录音/播放和 RTCPeerConnection 管理，`NetworkMonitor`、`PermissionManager` 提供系统状态辅助。 |
@@ -59,10 +60,12 @@ TransAnd 是一款基于《PRDdesign.md》设计的原生 Android 实时语音�
 ## 质量保障
 - 领域层单元测试：`app/src/test/.../StartRealtimeSessionUseCaseTest.kt` 与 `app/src/test/.../HistoryUiStateTest.kt` 覆盖会话启动、分页可见性等关键逻辑。
 - 数据持久化：Room 数据库与 DataStore 确保用户偏好、翻译历史可靠存储。
+- 国际化支持：完整的多语言字符串资源覆盖，通过 `SettingsViewModelTest` 等测试确保 ViewModel 中的字符串资源正确访问。
 - 架构文档：`docs/implementation-notes.md` 汇总模块边界、扩展计划，可结合 PRD 进行验收。
 
 ## 后续扩展建议
 - 对接真实的 API Relay，实现 WebRTC 音频上传与流式文本下行。
 - 增加性能指标可视化与离线模型智能切换策略。
 - 扩展 UI/E2E 自动化测试，覆盖权限申请、弱网提示与前台服务保活场景。
+- 完善国际化支持，增加更多语言包、RTL布局适配以及本地化日期时间格式。
 

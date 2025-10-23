@@ -7,11 +7,14 @@
 - Reuse existing audio capture, repository, and UI flows with minimal disruption.
 
 ## Current Status
-- ✅ Whisper tiny packaged with the app (copied from assets on first launch).
-- ✅ Offline session routing uses native whisper.cpp JNI path.
-- ✅ Turbo 模型不足内存时自动降级到 Tiny，并把具体错误反馈给前端。
-- ✅ Settings exposes turbo model download/removal with progress feedback.
-- ✅ Voice/Text input selector redesigned vertically with dedicated “更多” actions sheet.
+- ✅ Whisper.cpp 第三方库已集成到项目中 (third_party/whisper.cpp)
+- ✅ whisper.android JNI 封装库已包含，提供 LibWhisper 和 WhisperCpuConfig 类
+- ✅ Tiny 模型已打包到应用中 (assets)，支持基础的英语语音识别
+- ✅ Turbo 模型下载功能已在设置中实现，支持多语种识别和翻译
+- ✅ 语音/文本输入选择器已重新设计为垂直布局，包含"更多"操作表
+- ✅ 内存不足时自动降级到 Tiny 模型，并向用户反馈具体错误信息
+- 🔄 离线语音控制器 (OfflineVoiceController) 架构设计中，计划集成 WhisperRuntime 和本地 TTS
+- 🔄 本地 TTS 合成器 (LocalTtsSynthesizer) 待实现，使用 Android TextToSpeech API
 
 ## Target Architecture
 - `AudioSessionController` keeps ownership of PCM capture at 16 kHz mono.
@@ -58,19 +61,25 @@
 
 ## Implementation Phases
 1. **Scaffolding (current task)**  
-   - Define Kotlin interfaces (`OfflineVoiceController`, `WhisperRuntime`, `OfflineModelManager`, `LocalTtsSynthesizer`).  
-   - Wire Hilt modules, configuration flags, and repository decision logic.  
-   - Provide model manifest schema and download placeholder implementation.
+   - ✅ Define Kotlin interfaces (`OfflineVoiceController`, `WhisperRuntime`, `OfflineModelManager`, `LocalTtsSynthesizer`).  
+   - ✅ Wire Hilt modules, configuration flags, and repository decision logic.  
+   - ✅ Provide model manifest schema and download placeholder implementation.
+   - 🔄 Integrate whisper.cpp JNI wrapper with existing LibWhisper classes
+   - 🔄 Implement OfflineVoiceController to coordinate capture, buffering, and inference
 2. **Native Bring-up**  
-   - Integrate whisper.cpp submodule, add CMake toolchain, implement JNI wrapper.  
-   - Validate transcription pipeline with unit tests using short PCM fixtures.
+   - 🔄 Integrate whisper.cpp submodule, add CMake toolchain, implement JNI wrapper.  
+   - 🔄 Validate transcription pipeline with unit tests using short PCM fixtures.
 3. **Model Delivery**  
-   - Implement asset packs / download manager, UI messaging, error handling.  
-   - Add background workers and storage quota management.
-4. **Polish And QA**  
-   - Optimize latency (thread tuning, VAD window).  
-   - Add instrumentation tests, telemetry hooks (offline safe).  
-   - Update documentation, release notes, and fallback heuristics.
+   - ✅ Implement asset packs / download manager, UI messaging, error handling.  
+   - ✅ Add background workers and storage quota management.
+4. **TTS Integration**  
+   - 🔄 Implement `LocalTtsSynthesizer` with Android `TextToSpeech`.
+   - 🔄 Pre-load voices matching `UserSettings.direction.targetLanguage`.
+   - 🔄 Provide synthesized audio as PCM for reuse by `AudioSessionController.playAudio`.
+5. **Polish And QA**  
+   - 🔄 Optimize latency (thread tuning, VAD window).  
+   - 🔄 Add instrumentation tests, telemetry hooks (offline safe).  
+   - 🔄 Update documentation, release notes, and fallback heuristics.
 
 ## Risks And Mitigations
 - **Large model sizes**: use optional downloads, show storage usage, support deletion.  
