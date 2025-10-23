@@ -2,3 +2,6 @@
 /build/
 /app/build/
 **/build/
+
+# API Keys and sensitive configuration
+Modelkey.txt
