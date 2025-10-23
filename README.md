@@ -1,36 +1,60 @@
 # TransAnd Android 实时翻译应用
 
-TransAnd 是一款基于《PRDdesign.md》设计的原生 Android 实时语音翻译应用 Demo，结合云端实时推理与本地兜底能力，帮助用户在中文与法语场景下进行低延迟交流。项目采用 Jetpack Compose 构建 UI，配合 Hilt、Room、DataStore 与 WebRTC 实现模块化、可扩展的体系结构。
+TransAnd 是一款基于《PRDdesign.md》设计的原生 Android 实时语音翻译应用 Demo，专注于实现中英法语之间的实时翻译。项目采用 Jetpack Compose 构建 UI，配合 Hilt、Room、DataStore 与 WebRTC 实现模块化架构。
 
 ## 核心功能
-- **实时同声传译**：通过 `RealtimeSessionManager` 协调音频采集、API Relay 会话与 WebRTC 下行音频播放，展示实时字幕与译文。
-- **状态化的首页体验**：新的 Home 页以卡片形式呈现会话状态、输入模式切换、字幕时间轴与可操作错误提示，确保底部导航不遮挡内容。
-- **多语言与模型管理**：设置页支持自动/手动源语言切换、目标语言快捷选择以及模型档位（GPT-4.1、GPT-4o mini、Whisper v3 离线）切换，并提供实时延迟、权限提示。
-- **网络与偏好配置**：新增 API Host 输入校验、离线兜底与匿名遥测开关，帮助用户快速排查网络代理问题。
-- **历史记录升级**：历史页支持搜索、收藏、标签筛选以及分页加载，并提供分享、标签编辑能力。
-- **国际化支持**：完整的多语言界面支持，包括英语、中文（简体/繁体）、法语、阿拉伯语、西班牙语、日语、韩语、俄语等9种语言，确保全球用户获得本地化的使用体验。
+
+### ✅ 已实现功能
+- **完整的用户界面**：使用 Jetpack Compose 构建现代化 UI，包括首页、设置页、历史记录页
+- **多语言支持**：支持10种语言（中文简体/繁体、英语、法语、西班牙语、德语、日语、韩语、葡萄牙语、俄语、阿拉伯语）
+- **国际化 (i18n)**：完整的多语言界面支持，所有UI文案均通过 `stringResource()` 实现
+- **实时翻译架构**：基于 WebRTC + OpenAI Realtime API 的实时翻译框架
+- **数据持久化**：使用 Room 数据库存储翻译历史，DataStore 保存用户偏好
+- **音频处理**：集成音频采集和播放功能，支持实时语音输入
+- **网络通信**：基于 Retrofit + OkHttp 的 API 通信，支持实时事件流处理
+
+### 🚧 开发中功能
+- **实时翻译服务**：核心翻译功能需要配合后端 API Relay 服务使用
 
 ## 技术架构
+
 | 层级 | 说明 |
 | ---- | ---- |
-| UI 层 | 使用 Jetpack Compose 与 Navigation 构建 `HomeRoute`、`SettingsRoute`、`HistoryRoute`，并封装麦克风按钮、状态指示器等可复用组件。支持完整的国际化架构，通过 `stringResource` 与多语言资源文件实现界面本地化。 |
-| 领域层 | 定义 `LanguageDirection`、`TranslationModelProfile` 等核心模型及一组用例（如 `StartRealtimeSessionUseCase`、`ToggleMicrophoneUseCase`），确保业务逻辑独立可测。 |
-| 数据层 | `TranslationRepositoryImpl` 聚合 `RealtimeSessionManager`、`UserPreferencesDataSource`、`HistoryDao`，统一暴露会话状态、实时字幕与历史列表。 |
-| 系统服务 | `AudioSessionController` 与 `WebRtcClient` 分别封装录音/播放和 RTCPeerConnection 管理，`NetworkMonitor`、`PermissionManager` 提供系统状态辅助。 |
-| 依赖注入 | `AppModule` 通过 Hilt 提供 Retrofit(`ApiRelayService`)、Room、PeerConnectionFactory、协程调度器等依赖。 |
+| UI 层 | 使用 Jetpack Compose 与 Navigation 构建 `HomeRoute`、`SettingsRoute`、`HistoryRoute`，并封装复用组件。支持完整的国际化架构。 |
+| 领域层 | 定义 `LanguageDirection`、`TranslationModelProfile` 等核心模型及用例集合，确保业务逻辑独立可测。 |
+| 数据层 | `TranslationRepositoryImpl` 聚合实时会话管理、历史记录与用户偏好，提供统一的数据访问接口。 |
+| 系统服务 | `AudioSessionController` 与 `WebRtcClient` 分别封装录音/播放和 WebRTC 管理，`NetworkMonitor` 提供网络状态检测。 |
+| 依赖注入 | `AppModule` 通过 Hilt 提供 Retrofit、Room、PeerConnectionFactory 等依赖。 |
 
 ## 目录结构
-```text
+
+```
 .
 ├── app/                      # Android 模块
 │   ├── build.gradle.kts      # 模块配置、依赖管理
 │   └── src/main/java/com/example/translatorapp/
 │       ├── presentation/     # Compose UI 与导航
+│       │   ├── components/   # 复用组件
+│       │   ├── home/         # 首页路由
+│       │   ├── settings/     # 设置页路由
+│       │   ├── history/      # 历史记录页路由
+│       │   └── theme/        # 主题配置
 │       ├── domain/           # 领域模型与用例
-│       ├── data/             # 数据源与仓库实现
-│       ├── audio/, webrtc/   # 系统能力封装
-│       └── network/, di/     # 网络与依赖注入配置
-├── docs/implementation-notes.md  # 架构补充说明
+│       │   ├── model/        # 核心数据模型
+│       │   ├── repository/   # 仓库接口定义
+│       │   └── usecase/      # 业务用例
+│       ├── data/             # 数据层实现
+│       │   ├── repository/   # 仓库实现
+│       │   ├── datasource/   # 数据源
+│       │   └── model/        # 数据模型
+│       ├── audio/            # 音频处理
+│       ├── webrtc/           # WebRTC 通信
+│       ├── network/          # 网络层
+│       ├── util/             # 工具类
+│       └── di/               # 依赖注入配置
+├── third_party/              # 第三方库
+│   └── whisper.cpp/          # 第三方语音处理库（已集成但未使用）
+├── docs/                     # 项目文档
 └── PRDdesign.md              # 产品需求文档
 ```
 
@@ -58,14 +82,14 @@ TransAnd 是一款基于《PRDdesign.md》设计的原生 Android 实时语音�
 > 注：在无外网的环境下首次执行可能因无法下载 Android Gradle Plugin 而失败，可预先配置镜像或离线仓库。
 
 ## 质量保障
-- 领域层单元测试：`app/src/test/.../StartRealtimeSessionUseCaseTest.kt` 与 `app/src/test/.../HistoryUiStateTest.kt` 覆盖会话启动、分页可见性等关键逻辑。
-- 数据持久化：Room 数据库与 DataStore 确保用户偏好、翻译历史可靠存储。
-- 国际化支持：完整的多语言字符串资源覆盖，通过 `SettingsViewModelTest` 等测试确保 ViewModel 中的字符串资源正确访问。
-- 架构文档：`docs/implementation-notes.md` 汇总模块边界、扩展计划，可结合 PRD 进行验收。
+- 领域层单元测试：基础的单元测试覆盖核心业务逻辑
+- 数据持久化：Room 数据库与 DataStore 确保用户偏好、翻译历史可靠存储
+- 国际化支持：完整的多语言字符串资源覆盖
+- 架构文档：`docs/implementation-notes.md` 汇总模块边界、扩展计划，可结合 PRD 进行验收
 
 ## 后续扩展建议
-- 对接真实的 API Relay，实现 WebRTC 音频上传与流式文本下行。
-- 增加性能指标可视化与离线模型智能切换策略。
-- 扩展 UI/E2E 自动化测试，覆盖权限申请、弱网提示与前台服务保活场景。
-- 完善国际化支持，增加更多语言包、RTL布局适配以及本地化日期时间格式。
+- 对接真实的 API Relay 服务，实现完整的 WebRTC 音频上传与流式文本下行
+- 增加性能指标可视化与智能切换策略
+- 扩展 UI/E2E 自动化测试，覆盖权限申请、弱网提示与前台服务保活场景
+- 完善国际化支持，增加更多语言包、RTL布局适配以及本地化日期时间格式
 
