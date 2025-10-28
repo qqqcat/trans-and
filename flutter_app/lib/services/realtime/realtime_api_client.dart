@@ -37,7 +37,8 @@ class RealtimeApiClient {
       _dio = dio ?? Dio();
 
   static const _previewApiVersion = '2025-04-01-preview';
-  static const _responsesApiVersion = 'preview';
+  static const _responsesApiVersion = '2024-08-01-preview';
+  static const _defaultRealtimeVoice = 'verse';
 
   final SettingsStorage _settingsStorage;
   final Dio _dio;
@@ -62,12 +63,15 @@ class RealtimeApiClient {
 
     final uri = _buildStartSessionUri(endpoint, realtimeDeployment);
     final payload = _isPreview
-        ? <String, dynamic>{'model': realtimeDeployment}
+        ? <String, dynamic>{
+            'model': realtimeDeployment,
+            'voice': _defaultRealtimeVoice,
+          }
         : <String, dynamic>{
             'session': {
               'instructions': 'You are a realtime interpreter.',
               'modalities': ['text', 'audio'],
-              'voice': 'alloy',
+              'voice': _defaultRealtimeVoice,
               'input_audio_format': 'pcm16',
               'output_audio_format': 'pcm16',
             },
@@ -226,16 +230,18 @@ class RealtimeApiClient {
 
     final normalized = AppConfig.normalizeEndpoint(endpoint);
     final baseUri = Uri.parse(normalized);
-    final Map<String, String>? queryParameters = _responsesApiVersion.isEmpty
-        ? null
-        : {'api-version': _responsesApiVersion};
+    final pathSegments = [
+      ...baseUri.pathSegments.where((segment) => segment.isNotEmpty),
+      'openai',
+      'deployments',
+      responsesDeployment,
+      'responses',
+    ];
+    final queryParameters = <String, String>{
+      'api-version': _responsesApiVersion,
+    };
     final uri = baseUri.replace(
-      pathSegments: [
-        ...baseUri.pathSegments.where((segment) => segment.isNotEmpty),
-        'openai',
-        'v1',
-        'responses',
-      ],
+      pathSegments: pathSegments,
       queryParameters: queryParameters,
     );
 
