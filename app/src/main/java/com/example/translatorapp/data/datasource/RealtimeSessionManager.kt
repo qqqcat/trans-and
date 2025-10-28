@@ -57,6 +57,7 @@ class RealtimeSessionManager @Inject constructor(
     private var remoteAudioJob: Job? = null
     private var eventStreamJob: Job? = null
     private var lastAudioTimestamp: Instant? = null
+    private var lastTranscriptSignature: String? = null
 
     override suspend fun start(settings: UserSettings) {
         mutex.withLock {
@@ -76,6 +77,7 @@ class RealtimeSessionManager @Inject constructor(
                 errorMessage = null,
                 currentSegment = null
             )
+            lastTranscriptSignature = null
             try {
                 val response = realtimeApi.startSession(
                     SessionStartRequest(
@@ -112,7 +114,7 @@ class RealtimeSessionManager @Inject constructor(
                 eventStreamJob?.cancel()
                 eventStreamJob = coroutineScope.launch {
                     try {
-                        realtimeEventStream.listen(apiConfig.baseUrl, response.sessionId, token).collect { content ->
+                        realtimeEventStream.listen(sessionId = response.sessionId, token = token, deployment = realtimeModel).collect { content ->
                             // 监听 eventStream 下发的 ICE candidate
                             content.iceCandidate?.let { ice ->
                                 val candidate = org.webrtc.IceCandidate(
@@ -223,6 +225,7 @@ class RealtimeSessionManager @Inject constructor(
         val id = sessionId
         sessionId = null
         lastAudioTimestamp = null
+        lastTranscriptSignature = null
         if (notifyBackend) {
             id?.let { runCatching { realtimeApi.stopSession(it) } }
         }
@@ -257,6 +260,15 @@ class RealtimeSessionManager @Inject constructor(
             targetLanguage = content.targetLanguage ?: _state.value.direction.targetLanguage,
             detectedSourceLanguage = content.detectedSourceLanguage ?: _state.value.direction.sourceLanguage
         )
+        val hasText = normalized.transcript.isNotBlank() || normalized.translation.isNotBlank()
+        if (!hasText) {
+            return
+        }
+        val signature = "${normalized.transcript}|${normalized.translation}"
+        if (signature == lastTranscriptSignature) {
+            return
+        }
+        lastTranscriptSignature = signature
         _transcripts.emit(normalized)
         _state.value = _state.value.copy(currentSegment = normalized)
         sessionId?.let { id ->

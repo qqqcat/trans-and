@@ -1,9 +1,9 @@
 package com.example.translatorapp.network
 
-import com.example.translatorapp.domain.model.SupportedLanguage
 import android.util.Log
 import com.example.translatorapp.domain.model.TranslationContent
 import com.example.translatorapp.domain.model.TranslationInputMode
+import com.example.translatorapp.domain.model.SupportedLanguage
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -26,6 +26,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl
@@ -42,8 +43,7 @@ class RealtimeEventStream @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
     private val azureConfig: AzureOpenAIConfig,
-    private val config: RealtimeEventStreamConfig,
-    private val service: ApiRelayService
+    private val config: RealtimeEventStreamConfig
 ) {
     private val logTag = "RealtimeEventStream"
     private val socketClient: OkHttpClient = okHttpClient.newBuilder()
@@ -52,9 +52,7 @@ class RealtimeEventStream @Inject constructor(
 
     fun listen(sessionId: String, token: String, deployment: String): Flow<TranslationContent> = callbackFlow {
         val shouldReconnect = AtomicBoolean(true)
-        // 使用新版 WebSocket URL 生成逻辑，确保与 Azure 官方文档一致
-    val wsUrl = RealtimeApi(okHttpClient, json, azureConfig, service).buildRealtimeWebSocketUrl(deployment)
-        val url = wsUrl.toHttpUrl()
+        val url = buildUrl(sessionId, deployment)
         var currentDelayMs = config.initialRetryDelayMs
         var reconnectAttempts = 0
         var reconnectJob: Job? = null
@@ -179,17 +177,34 @@ class RealtimeEventStream @Inject constructor(
     }
 
     private fun buildUrl(sessionId: String, deployment: String): HttpUrl {
-        val base = azureConfig.normalizedEndpoint.toHttpUrl()
+        val normalizedEndpoint = azureConfig.normalizedEndpoint.trim().removeSuffix("/")
+        val httpCompatibleEndpoint = when {
+            normalizedEndpoint.startsWith("ws://", ignoreCase = true) ->
+                "http://" + normalizedEndpoint.substringAfter("://")
+            normalizedEndpoint.startsWith("wss://", ignoreCase = true) ->
+                "https://" + normalizedEndpoint.substringAfter("://")
+            else -> normalizedEndpoint
+        }
+        val base = httpCompatibleEndpoint.toHttpUrl()
         val scheme = if (base.isHttps) SECURE_WEBSOCKET_SCHEME else WEBSOCKET_SCHEME
-        val normalizedPath = config.path.trim('/')
         val builder = base.newBuilder().scheme(scheme)
+        val normalizedPath = config.path.trim('/')
+        val isPreview = azureConfig.realtimeApiVersion.startsWith("2025-")
         if (normalizedPath.isNotEmpty()) {
             builder.addPathSegments(normalizedPath)
+        } else {
+            if (isPreview) {
+                builder.addPathSegments("openai/realtime")
+                builder.addQueryParameter("api-version", azureConfig.realtimeApiVersion)
+                builder.addQueryParameter("deployment", deployment)
+            } else {
+                builder.addPathSegments("openai/v1/realtime")
+                builder.addQueryParameter("model", deployment)
+            }
         }
         config.queryParameters.forEach { (key, value) ->
             builder.addQueryParameter(key, value)
         }
-        builder.addQueryParameter("deployment", deployment)
         builder.addQueryParameter("session", sessionId)
         return builder.build()
     }
@@ -241,6 +256,51 @@ class RealtimeEventStream @Inject constructor(
                 )
             }
         }
+        if (type.startsWith("response.audio_transcript")) {
+            val transcript = element["transcript"]?.jsonPrimitive?.contentOrNull
+            val delta = element["delta"]?.jsonPrimitive?.contentOrNull
+            val text = transcript ?: delta
+            val isFinal = type.endsWith(".done")
+            if (!isFinal || text.isNullOrBlank()) {
+                return null
+            }
+            val normalized = text.trim()
+            if (normalized.isEmpty()) return null
+            return RelayEventAction.Translation(
+                TranslationContent(
+                    transcript = "",
+                    translation = normalized,
+                    inputMode = TranslationInputMode.Voice
+                )
+            )
+        }
+
+        if (type == "response.output_item.done") {
+            val item = element["item"]?.jsonObject ?: return null
+            val role = item["role"]?.jsonPrimitive?.contentOrNull
+            val parts = item["content"]?.jsonArray ?: return null
+            val message = parts.mapNotNull { partElement ->
+                val part = partElement.jsonObject
+                val partType = part["type"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                when (partType) {
+                    "audio" -> part["transcript"]?.jsonPrimitive?.contentOrNull
+                    "text", "input_text", "output_text" -> part["text"]?.jsonPrimitive?.contentOrNull
+                    else -> null
+                }
+            }.joinToString(" ").trim()
+            if (message.isEmpty()) {
+                return null
+            }
+            val isUser = role == "user"
+            return RelayEventAction.Translation(
+                TranslationContent(
+                    transcript = if (isUser) message else "",
+                    translation = if (isUser) "" else message,
+                    inputMode = TranslationInputMode.Voice
+                )
+            )
+        }
+
         if (type.startsWith("response.")) {
             val delta = element["delta"]?.jsonPrimitive?.contentOrNull
             if (delta.isNullOrBlank()) {
@@ -319,7 +379,7 @@ private sealed interface RelayEventAction {
 }
 
 data class RealtimeEventStreamConfig(
-    val path: String = "session/events",
+    val path: String = "",
     val queryParameters: Map<String, String> = emptyMap(),
     val heartbeatIntervalSeconds: Long = 15L,
     val initialRetryDelayMs: Long = 1_000L,
@@ -334,3 +394,4 @@ data class RealtimeEventStreamConfig(
 private class SessionTerminatedException(eventType: String) : RuntimeException(
     "Session terminated by relay event: $eventType"
 )
+

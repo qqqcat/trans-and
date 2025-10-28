@@ -165,6 +165,9 @@ class HomeViewModel @Inject constructor(
     private fun observeTranscriptChanges() {
         viewModelScope.launch(dispatcherProvider.io) {
             observeLiveTranscription().collect { content ->
+                if (content.transcript.isBlank() && content.translation.isBlank()) {
+                    return@collect
+                }
                 persistHistoryUseCase(content)
                 _uiState.update { current ->
                     val updatedTimeline = current.timeline.copy(
