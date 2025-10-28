@@ -1,0 +1,46 @@
+name: transand_flutter
+description: Cross-platform (Android & iOS) realtime translation app rebuilt with Flutter.
+publish_to: "none"
+
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  hooks_riverpod: ^2.5.1
+  flutter_riverpod: ^2.6.1
+  flutter_hooks: ^0.21.3+1
+  dio: ^5.4.3+1
+  web_socket_channel: ^3.0.3
+  go_router: ^14.3.0
+  flutter_webrtc: ^1.2.0
+  webrtc_interface: ^1.3.0
+  just_audio: ^0.10.5
+  audio_session: ^0.2.2
+  shared_preferences: ^2.3.1
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  sqlite3_flutter_libs: ^0.5.24
+  intl: ^0.20.2
+  uuid: ^4.4.0
+  logger: ^2.3.0
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
+  drift: ^2.21.0
+  drift_flutter: ^0.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.10.1
+  freezed: ^3.2.3
+  json_serializable: ^6.11.1
+
+flutter:
+  uses-material-design: true

@@ -5,3 +5,4 @@
 
 # API Keys and sensitive configuration
 Modelkey.txt
+flutter_app/.env.local

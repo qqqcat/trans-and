@@ -10,6 +10,7 @@ import com.example.translatorapp.domain.model.SupportedLanguage
 import com.example.translatorapp.domain.model.ThemeMode
 import com.example.translatorapp.domain.model.TranslationModelProfile
 import com.example.translatorapp.domain.model.UserSettings
+import com.example.translatorapp.network.ApiConfig
 import kotlinx.datetime.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -75,7 +76,11 @@ class UserPreferencesDataSource @Inject constructor(
             accountEmail = prefs[Keys.accountEmail],
             accountDisplayName = prefs[Keys.accountDisplayName],
             lastSyncedAt = prefs[Keys.lastSyncedAt]?.let { runCatching { Instant.parse(it) }.getOrNull() },
-            apiEndpoint = prefs[Keys.apiHost] ?: ""
+            apiEndpoint = prefs[Keys.apiHost]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { ApiConfig.normalizeToHttp(it) }
+                ?.removeSuffix("/")
+                ?: ""
         )
     }
 

@@ -46,6 +46,7 @@ class WebRtcClient @Inject constructor(
     private var peerConnection: PeerConnection? = null
     private var audioSource: AudioSource? = null
     private var audioTrack: AudioTrack? = null
+    private var audioSender: org.webrtc.RtpSender? = null
     private var upstreamChannel: DataChannel? = null
     private var downstreamChannel: DataChannel? = null
 
@@ -61,6 +62,7 @@ class WebRtcClient @Inject constructor(
     ) {
         if (peerConnection != null) return
         val configuration = PeerConnection.RTCConfiguration(iceServers)
+        configuration.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
         Log.d(logTag, "Creating PeerConnection with iceServers: $iceServers")
         val observer = object : PeerConnection.Observer {
             override fun onSignalingChange(newState: PeerConnection.SignalingState) {
@@ -115,9 +117,9 @@ class WebRtcClient @Inject constructor(
         audioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
         audioTrack = peerConnectionFactory.createAudioTrack(LOCAL_AUDIO_TRACK_ID, audioSource)
         audioTrack?.setEnabled(true)
-        val mediaStream = peerConnectionFactory.createLocalMediaStream(LOCAL_MEDIA_STREAM_ID)
-        mediaStream.addTrack(audioTrack)
-        peer?.addStream(mediaStream)
+        audioTrack?.let { track ->
+            audioSender = peer?.addTrack(track, listOf(LOCAL_MEDIA_STREAM_ID))
+        }
         upstreamChannel = peer?.createDataChannel(AUDIO_UPSTREAM_LABEL, DataChannel.Init().apply {
             ordered = true
         })
@@ -205,6 +207,7 @@ class WebRtcClient @Inject constructor(
         audioSource?.dispose()
         audioTrack = null
         audioSource = null
+        audioSender = null
         _connectionState.value = PeerConnection.PeerConnectionState.CLOSED
     }
 

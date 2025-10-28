@@ -18,6 +18,7 @@ import com.example.translatorapp.domain.usecase.UpdateModelUseCase
 import com.example.translatorapp.domain.usecase.UpdateSyncEnabledUseCase
 import com.example.translatorapp.domain.usecase.UpdateThemeModeUseCase
 import com.example.translatorapp.domain.usecase.UpdateTelemetryConsentUseCase
+import com.example.translatorapp.network.ApiConfig
 import com.example.translatorapp.domain.usecase.UpdateAppLanguageUseCase
 import com.example.translatorapp.util.DispatcherProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -281,12 +282,21 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private fun normalizeEndpoint(endpoint: String): String = endpoint.trim().removeSuffix("/")
+    private fun normalizeEndpoint(endpoint: String): String {
+        if (endpoint.isBlank()) return ""
+        val normalized = ApiConfig.normalizeToHttp(endpoint)
+        return normalized.removeSuffix("/")
+    }
 
     private fun validateEndpoint(endpoint: String): String? {
         if (endpoint.isBlank()) return null
-        return if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) null
-        else application.getString(R.string.settings_api_endpoint_validation_error)
+        if (endpoint.startsWith("http://", ignoreCase = true) || endpoint.startsWith("https://", ignoreCase = true)) {
+            return null
+        }
+        if (endpoint.startsWith("wss://", ignoreCase = true) || endpoint.startsWith("ws://", ignoreCase = true)) {
+            return null
+        }
+        return application.getString(R.string.settings_api_endpoint_validation_error)
     }
 
     private fun formatInstant(instant: Instant?): String? {

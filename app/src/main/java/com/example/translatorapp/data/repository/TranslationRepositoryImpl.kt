@@ -280,7 +280,10 @@ class TranslationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateApiEndpoint(endpoint: String) {
-        val normalized = endpoint.trim().trimEnd('/')
+        val normalized = endpoint.trim().takeIf { it.isNotBlank() }
+            ?.let { ApiConfig.normalizeToHttp(it) }
+            ?.removeSuffix("/")
+            ?: ""
         val current = preferencesDataSource.settings.first()
         if (current.apiEndpoint == normalized) {
             return
