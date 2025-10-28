@@ -1,19 +1,26 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../core/logging/logger.dart';
 import '../../domain/models/session_models.dart';
+import '../../services/audio/audio_session_service.dart';
 import '../../services/realtime/realtime_api_client.dart';
 
 class WebRtcService {
-  WebRtcService({required RealtimeApiClient realtimeApiClient})
-    : _realtimeApiClient = realtimeApiClient;
+  WebRtcService({
+    required RealtimeApiClient realtimeApiClient,
+    required AudioSessionService audioSessionService,
+  }) : _realtimeApiClient = realtimeApiClient,
+       _audioSessionService = audioSessionService;
 
   final RealtimeApiClient _realtimeApiClient;
+  final AudioSessionService _audioSessionService;
 
   RTCPeerConnection? _peerConnection;
   RTCDataChannel? _controlChannel;
+  MediaStream? _localStream;
 
   final _metricsController = StreamController<LatencyMetrics>.broadcast();
 
@@ -62,21 +69,22 @@ class WebRtcService {
         'sdpMLineIndex': candidate.sdpMLineIndex,
       });
     };
-    pc.onDataChannel = (dataChannel) {
-      _attachDataChannel(dataChannel);
-    };
+    pc.onDataChannel = _attachDataChannel;
     pc.onTrack = (event) {
       logInfo('Remote track received', {
         'trackId': event.track.id,
         'kind': event.track.kind,
       });
+      if (event.track.kind == 'audio' && event.streams.isNotEmpty) {
+        unawaited(_audioSessionService.attachRemoteStream(event.streams.first));
+      }
     };
 
-    // Create a control/data channel for low-latency events.
-    final dataChannelInit = RTCDataChannelInit()..ordered = true;
+    await _prepareLocalMedia(pc);
+
     final dataChannel = await pc.createDataChannel(
       'oai-events',
-      dataChannelInit,
+      RTCDataChannelInit()..ordered = true,
     );
     _attachDataChannel(dataChannel);
 
@@ -86,6 +94,11 @@ class WebRtcService {
     });
     await pc.setLocalDescription(offer);
     final localSdp = await _waitForCompleteLocalSdp(pc);
+    if (localSdp.trim().isEmpty) {
+      throw StateError(
+        'Local SDP offer is empty; cannot establish realtime session.',
+      );
+    }
 
     final answerSdp = await _realtimeApiClient.sendOfferAndGetAnswer(
       sessionId: session.sessionId,
@@ -102,8 +115,33 @@ class WebRtcService {
     await _controlChannel?.close();
     _controlChannel = null;
 
+    final localTracks = _localStream?.getTracks() ?? <MediaStreamTrack>[];
+    for (final track in localTracks) {
+      await track.stop();
+    }
+    await _localStream?.dispose();
+    _localStream = null;
+
     await _peerConnection?.close();
     _peerConnection = null;
+
+    await _audioSessionService.detachRemoteStream();
+  }
+
+  Future<void> _prepareLocalMedia(RTCPeerConnection pc) async {
+    _localStream = await navigator.mediaDevices.getUserMedia({
+      'audio': {
+        'sampleRate': 24000,
+        'channelCount': 1,
+        'echoCancellation': true,
+        'noiseSuppression': true,
+      },
+      'video': false,
+    });
+
+    for (final track in _localStream!.getAudioTracks()) {
+      await pc.addTrack(track, _localStream!);
+    }
   }
 
   void _attachDataChannel(RTCDataChannel channel) {
@@ -116,7 +154,28 @@ class WebRtcService {
     };
     channel.onDataChannelState = (state) {
       logInfo('WebRTC data channel state: $state');
+      if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        _bootstrapSession();
+      }
     };
+  }
+
+  void _bootstrapSession() {
+    final channel = _controlChannel;
+    if (channel == null) return;
+
+    void send(Map<String, dynamic> payload) {
+      channel.send(RTCDataChannelMessage(jsonEncode(payload)));
+    }
+
+    send({
+      'type': 'session.update',
+      'session': {
+        'modalities': ['audio', 'text'],
+        'voice': 'verse',
+        'turn_detection': {'type': 'server_vad'},
+      },
+    });
   }
 
   Future<String> _waitForCompleteLocalSdp(RTCPeerConnection pc) async {

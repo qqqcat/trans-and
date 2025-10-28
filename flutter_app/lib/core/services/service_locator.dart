@@ -8,17 +8,19 @@ import '../../services/audio/audio_session_service.dart';
 import '../../services/realtime/realtime_api_client.dart';
 import '../../services/webrtc/webrtc_service.dart';
 
+final audioSessionServiceProvider = Provider<AudioSessionService>(
+  (ref) => AudioSessionService(),
+);
+
 final realtimeApiClientProvider = Provider<RealtimeApiClient>(
   (ref) => RealtimeApiClient(),
 );
 
 final webRtcServiceProvider = Provider<WebRtcService>(
-  (ref) =>
-      WebRtcService(realtimeApiClient: ref.read(realtimeApiClientProvider)),
-);
-
-final audioSessionServiceProvider = Provider<AudioSessionService>(
-  (ref) => AudioSessionService(),
+  (ref) => WebRtcService(
+    realtimeApiClient: ref.read(realtimeApiClientProvider),
+    audioSessionService: ref.read(audioSessionServiceProvider),
+  ),
 );
 
 final sessionRepositoryProvider = Provider<SessionRepository>(

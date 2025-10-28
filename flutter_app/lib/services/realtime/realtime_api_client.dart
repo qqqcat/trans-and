@@ -37,7 +37,7 @@ class RealtimeApiClient {
       _dio = dio ?? Dio();
 
   static const _previewApiVersion = '2025-04-01-preview';
-  static const _responsesApiVersion = '2024-08-01-preview';
+  static const _responsesApiVersion = '';
   static const _defaultRealtimeVoice = 'verse';
 
   final SettingsStorage _settingsStorage;
@@ -148,27 +148,40 @@ class RealtimeApiClient {
       'deployment': session.deployment,
     });
 
-    final response = await _dio.postUri(
-      session.webrtcEndpoint,
-      data: offerSdp,
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer ${session.ephemeralKey}',
-          'Accept': 'application/sdp',
-        },
-        contentType: 'application/sdp',
-        responseType: ResponseType.plain,
-      ),
-    );
+    try {
+      final response = await _dio.postUri(
+        session.webrtcEndpoint,
+        data: offerSdp,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${session.ephemeralKey}',
+            'Accept': 'application/sdp',
+          },
+          contentType: 'application/sdp',
+          responseType: ResponseType.plain,
+        ),
+      );
 
-    final answer = response.data;
-    if (answer is String) {
-      return answer;
+      final answer = response.data;
+      if (answer is String) {
+        return answer;
+      }
+      if (answer is List<int>) {
+        return String.fromCharCodes(answer);
+      }
+      return answer?.toString() ?? '';
+    } on DioException catch (error) {
+      logError(
+        'Realtime SDP exchange failed',
+        error: error,
+        stackTrace: error.stackTrace,
+        context: {
+          'statusCode': error.response?.statusCode,
+          'responseData': error.response?.data,
+        },
+      );
+      rethrow;
     }
-    if (answer is List<int>) {
-      return String.fromCharCodes(answer);
-    }
-    return answer?.toString() ?? '';
   }
 
   Future<void> teardownSession() async {
@@ -233,43 +246,24 @@ class RealtimeApiClient {
     final pathSegments = [
       ...baseUri.pathSegments.where((segment) => segment.isNotEmpty),
       'openai',
-      'deployments',
-      responsesDeployment,
+      'v1',
       'responses',
     ];
-    final queryParameters = <String, String>{
-      'api-version': _responsesApiVersion,
-    };
+    final Map<String, String>? queryParameters = _responsesApiVersion.isEmpty
+        ? null
+        : {'api-version': _responsesApiVersion};
     final uri = baseUri.replace(
       pathSegments: pathSegments,
       queryParameters: queryParameters,
     );
 
-    final body = {
-      'model': responsesDeployment,
-      'input': [
-        {
-          'role': 'system',
-          'content': [
-            {
-              'type': 'text',
-              'text':
-                  'You are a professional simultaneous interpreter. Translate user utterances into $targetLanguage concisely. Reply using only the translated text.',
-            },
-          ],
-        },
-        {
-          'role': 'user',
-          'content': [
-            {'type': 'input_text', 'text': sourceText},
-          ],
-        },
-      ],
-    };
+    final prompt =
+        'Translate the following utterance into $targetLanguage and reply using only the translated text:\n$sourceText';
+    final body = {'model': responsesDeployment, 'input': prompt};
 
     logInfo('Dispatching translation request', {
       'uri': uri.toString(),
-      'deployment': responsesDeployment,
+      'model': responsesDeployment,
       'targetLanguage': targetLanguage,
     });
 
