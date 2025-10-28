@@ -13,7 +13,8 @@ final realtimeApiClientProvider = Provider<RealtimeApiClient>(
 );
 
 final webRtcServiceProvider = Provider<WebRtcService>(
-  (ref) => WebRtcService(),
+  (ref) =>
+      WebRtcService(realtimeApiClient: ref.read(realtimeApiClientProvider)),
 );
 
 final audioSessionServiceProvider = Provider<AudioSessionService>(

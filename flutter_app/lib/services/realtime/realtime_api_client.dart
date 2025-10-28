@@ -37,7 +37,7 @@ class RealtimeApiClient {
       _dio = dio ?? Dio();
 
   static const _previewApiVersion = '2025-04-01-preview';
-  static const _responsesApiVersion = '2025-04-01-preview';
+  static const _responsesApiVersion = 'preview';
 
   final SettingsStorage _settingsStorage;
   final Dio _dio;
@@ -120,6 +120,13 @@ class RealtimeApiClient {
 
     _sessions[sessionId] = realtimeSession;
     _activeSession = realtimeSession;
+    logInfo('Realtime session issued', {
+      'sessionId': sessionId,
+      'webrtcEndpoint': realtimeSession.webrtcEndpoint.toString(),
+      'ephemeralKeyPrefix': clientSecret.length <= 8
+          ? clientSecret
+          : '${clientSecret.substring(0, 4)}...${clientSecret.substring(clientSecret.length - 4)}',
+    });
     return realtimeSession;
   }
 
@@ -143,9 +150,9 @@ class RealtimeApiClient {
       options: Options(
         headers: {
           'Authorization': 'Bearer ${session.ephemeralKey}',
-          'Content-Type': 'application/sdp',
           'Accept': 'application/sdp',
         },
+        contentType: 'application/sdp',
         responseType: ResponseType.plain,
       ),
     );
@@ -219,6 +226,9 @@ class RealtimeApiClient {
 
     final normalized = AppConfig.normalizeEndpoint(endpoint);
     final baseUri = Uri.parse(normalized);
+    final Map<String, String>? queryParameters = _responsesApiVersion.isEmpty
+        ? null
+        : {'api-version': _responsesApiVersion};
     final uri = baseUri.replace(
       pathSegments: [
         ...baseUri.pathSegments.where((segment) => segment.isNotEmpty),
@@ -226,7 +236,7 @@ class RealtimeApiClient {
         'v1',
         'responses',
       ],
-      queryParameters: {'api-version': _responsesApiVersion},
+      queryParameters: queryParameters,
     );
 
     final body = {
