@@ -106,9 +106,6 @@ class RealtimeApiClient {
           'Accept': 'application/json',
         },
         responseType: ResponseType.json,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 20),
-        sendTimeout: const Duration(seconds: 20),
       ),
     );
 
@@ -182,9 +179,6 @@ class RealtimeApiClient {
           },
           contentType: 'application/sdp',
           responseType: ResponseType.plain,
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 20),
-          sendTimeout: const Duration(seconds: 20),
         ),
       );
 
