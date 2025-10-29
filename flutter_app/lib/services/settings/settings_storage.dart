@@ -7,6 +7,13 @@ class SettingsStorage {
   static const _realtimeDeploymentKey = 'realtime_deployment';
   static const _responsesDeploymentKey = 'responses_deployment';
   static const _webRtcUrlKey = 'webrtc_url';
+  static const _realtimeTranscriptionModelKey = 'realtime_transcription_model';
+  static const _realtimeTurnDetectionModeKey = 'realtime_turn_detection_mode';
+  static const _realtimeTurnDetectionThresholdKey =
+      'realtime_turn_detection_threshold';
+  static const _realtimeTurnDetectionSilenceKey =
+      'realtime_turn_detection_silence_ms';
+  static const _muteMicDuringPlaybackKey = 'realtime_mute_mic_during_playback';
 
   Future<SharedPreferences> get _prefs async =>
       await SharedPreferences.getInstance();
@@ -78,5 +85,52 @@ class SettingsStorage {
     } else {
       await prefs.setString(_webRtcUrlKey, url);
     }
+  }
+
+  Future<String?> getRealtimeTranscriptionModel() async {
+    final prefs = await _prefs;
+    final stored = _normalize(prefs.getString(_realtimeTranscriptionModelKey));
+    final fallback = _normalize(AppConfig.instance.realtimeTranscriptionModel);
+    return stored ?? fallback;
+  }
+
+  Future<String> getTurnDetectionMode() async {
+    final prefs = await _prefs;
+    final stored = _normalize(prefs.getString(_realtimeTurnDetectionModeKey));
+    final fallback =
+        _normalize(AppConfig.instance.realtimeTurnDetectionMode) ??
+        'server_vad';
+    switch (stored ?? fallback) {
+      case 'none':
+        return 'none';
+      default:
+        return 'server_vad';
+    }
+  }
+
+  Future<double?> getTurnDetectionThreshold() async {
+    final prefs = await _prefs;
+    final stored = prefs.getDouble(_realtimeTurnDetectionThresholdKey);
+    final fallback = AppConfig.instance.realtimeTurnDetectionThreshold;
+    return stored ?? fallback;
+  }
+
+  Future<int?> getTurnDetectionSilenceMs() async {
+    final prefs = await _prefs;
+    final stored = prefs.getInt(_realtimeTurnDetectionSilenceKey);
+    final fallback = AppConfig.instance.realtimeTurnDetectionSilenceMs;
+    return stored ?? fallback;
+  }
+
+  Future<bool> getMuteMicDuringPlayback() async {
+    final prefs = await _prefs;
+    final stored = prefs.getBool(_muteMicDuringPlaybackKey);
+    return stored ?? AppConfig.instance.muteMicDuringPlayback;
+  }
+
+  String? _normalize(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

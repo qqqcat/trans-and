@@ -21,6 +21,9 @@ class WebRtcService {
   RTCPeerConnection? _peerConnection;
   RTCDataChannel? _controlChannel;
   MediaStream? _localStream;
+  RealtimeSession? _currentSession;
+  bool _remotePlaybackActive = false;
+  bool? _localMicEnabledBeforePlayback;
 
   final _metricsController = StreamController<LatencyMetrics>.broadcast();
 
@@ -28,6 +31,7 @@ class WebRtcService {
 
   Future<void> connect(RealtimeSession session) async {
     await disconnect();
+    _currentSession = session;
 
     final iceServers = session.iceServers.isNotEmpty
         ? session.iceServers
@@ -115,6 +119,10 @@ class WebRtcService {
     await _controlChannel?.close();
     _controlChannel = null;
 
+    _remotePlaybackActive = false;
+    _localMicEnabledBeforePlayback = null;
+    _currentSession = null;
+
     final localTracks = _localStream?.getTracks() ?? <MediaStreamTrack>[];
     for (final track in localTracks) {
       await track.stop();
@@ -135,6 +143,7 @@ class WebRtcService {
         'channelCount': 1,
         'echoCancellation': true,
         'noiseSuppression': true,
+        'autoGainControl': true,
       },
       'video': false,
     });
@@ -147,10 +156,18 @@ class WebRtcService {
   void _attachDataChannel(RTCDataChannel channel) {
     _controlChannel = channel;
     channel.onMessage = (message) {
-      logInfo('WebRTC data message', {
-        'binary': message.isBinary,
-        'text': message.isBinary ? null : message.text,
-      });
+      if (message.isBinary) {
+        logInfo('WebRTC data message', {
+          'binary': true,
+          'length': message.binary.length,
+        });
+        return;
+      }
+      final text = message.text;
+      if (text.isNotEmpty) {
+        _handleControlEvent(text);
+      }
+      logInfo('WebRTC data message', {'binary': false, 'text': text});
     };
     channel.onDataChannelState = (state) {
       logInfo('WebRTC data channel state: $state');
@@ -162,18 +179,32 @@ class WebRtcService {
 
   void _bootstrapSession() {
     final channel = _controlChannel;
-    if (channel == null) return;
+    final session = _currentSession;
+    if (channel == null || session == null) return;
 
     void send(Map<String, dynamic> payload) {
       channel.send(RTCDataChannelMessage(jsonEncode(payload)));
     }
 
+    final turnDetection = session.turnDetectionMode == 'none'
+        ? null
+        : {
+            'type': 'server_vad',
+            if (session.turnDetectionThreshold != null)
+              'threshold': session.turnDetectionThreshold,
+            if (session.turnDetectionSilenceMs != null)
+              'silence_duration_ms': session.turnDetectionSilenceMs,
+          };
+
     send({
       'type': 'session.update',
       'session': {
         'modalities': ['audio', 'text'],
-        'voice': 'verse',
-        'turn_detection': {'type': 'server_vad'},
+        'voice': session.voice,
+        'turn_detection': turnDetection,
+        'output_audio_format': {'type': 'pcm16'},
+        if (session.transcriptionModel != null)
+          'input_audio_transcription': {'model': session.transcriptionModel},
       },
     });
   }
@@ -205,5 +236,76 @@ class WebRtcService {
     );
     final localDescription = await pc.getLocalDescription();
     return localDescription?.sdp ?? '';
+  }
+
+  void _handleControlEvent(String payload) {
+    Map<String, dynamic>? data;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map<String, dynamic>) {
+        data = decoded;
+      }
+    } catch (error, stack) {
+      logWarning('Failed to decode realtime control message', {
+        'payload': payload,
+        'error': error.toString(),
+        'stackTrace': stack.toString(),
+      });
+      return;
+    }
+
+    if (data == null) return;
+    final type = data['type'] as String?;
+    if (type == null) return;
+
+    switch (type) {
+      case 'output_audio_buffer.started':
+        _handleRemotePlaybackStarted();
+        break;
+      case 'output_audio_buffer.completed':
+      case 'output_audio_buffer.done':
+      case 'output_audio_buffer.cleared':
+      case 'output_audio_buffer.stopped':
+      case 'response.done':
+        _handleRemotePlaybackFinished();
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _handleRemotePlaybackStarted() {
+    final session = _currentSession;
+    if (session == null ||
+        !session.muteMicDuringPlayback ||
+        _remotePlaybackActive) {
+      return;
+    }
+
+    final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
+    if (tracks.isEmpty) return;
+
+    _remotePlaybackActive = true;
+    _localMicEnabledBeforePlayback = tracks.first.enabled;
+    for (final track in tracks) {
+      track.enabled = false;
+    }
+    logInfo('Muted local microphone during assistant playback', {});
+  }
+
+  void _handleRemotePlaybackFinished() {
+    if (!_remotePlaybackActive) return;
+    final targetState = _localMicEnabledBeforePlayback;
+    _remotePlaybackActive = false;
+    _localMicEnabledBeforePlayback = null;
+
+    if (targetState == null) {
+      return;
+    }
+    final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
+    for (final track in tracks) {
+      track.enabled = targetState;
+    }
+    logInfo('Restored local microphone state after assistant playback', {});
   }
 }

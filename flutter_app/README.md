@@ -50,6 +50,18 @@ flutter run -d chrome \
 
 On mobile the existing `local.properties` fallback continues to work as long as the file lives next to the Flutter workspace root (`../local.properties`).
 
+### Optional realtime tuning
+
+You can fine-tune the realtime session defaults through optional defines / environment variables (they fall back to the values baked into `AppConfig`):
+
+| Key | Purpose |
+| --- | --- |
+| `AZURE_REALTIME_TRANSCRIPTION_MODEL` | Speech-to-text model used for automatic transcription (for example `gpt-4o-mini-transcribe` or `whisper-1`). |
+| `AZURE_REALTIME_TURN_DETECTION` | Set to `server_vad` (default) to keep Azure's voice-activity detection or `none` to drive turns manually. |
+| `AZURE_REALTIME_TURN_DETECTION_THRESHOLD` | Optional VAD score threshold (0-1) when using `server_vad`. |
+| `AZURE_REALTIME_TURN_DETECTION_SILENCE_MS` | Optional trailing silence duration (milliseconds) before a turn is committed. |
+| `AZURE_REALTIME_MUTE_MIC_DURING_PLAYBACK` | When `true` (default) the app temporarily mutes the local mic while the assistant is speaking to avoid barge-in feedback. |
+
 ## Setup & Tooling
 
 ```bash

@@ -44,10 +44,29 @@ class AudioSessionService {
 
   Future<void> _ensureMicrophonePermission() async {
     var status = await Permission.microphone.status;
-    if (status.isGranted) return;
-    status = await Permission.microphone.request();
-    if (!status.isGranted) {
-      throw StateError('Microphone permission is required to start capture.');
+    if (status.isGranted) {
+      return;
     }
+
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
+      throw StateError(
+        'Microphone permission has been permanently denied. Please enable it in system settings.',
+      );
+    }
+
+    status = await Permission.microphone.request();
+    if (status.isGranted) {
+      return;
+    }
+
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
+      throw StateError(
+        'Microphone permission has been permanently denied. Please enable it in system settings.',
+      );
+    }
+
+    throw StateError('Microphone permission is required to start capture.');
   }
 }

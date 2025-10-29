@@ -8,6 +8,11 @@ class AppConfig {
     this.realtimeDeployment,
     this.responsesDeployment,
     this.realtimeWebRtcUrl,
+    this.realtimeTranscriptionModel,
+    this.realtimeTurnDetectionMode,
+    this.realtimeTurnDetectionThreshold,
+    this.realtimeTurnDetectionSilenceMs,
+    required this.muteMicDuringPlayback,
   });
 
   static AppConfig? _instance;
@@ -17,6 +22,11 @@ class AppConfig {
   final String? realtimeDeployment;
   final String? responsesDeployment;
   final String? realtimeWebRtcUrl;
+  final String? realtimeTranscriptionModel;
+  final String? realtimeTurnDetectionMode;
+  final double? realtimeTurnDetectionThreshold;
+  final int? realtimeTurnDetectionSilenceMs;
+  final bool muteMicDuringPlayback;
 
   static AppConfig get instance {
     final config = _instance;
@@ -56,6 +66,31 @@ class AppConfig {
       readPlatformEnvironment('AZURE_REALTIME_WEBRTC_URL'),
     ]);
 
+    String? realtimeTranscriptionModel = _firstNonEmpty([
+      const String.fromEnvironment('AZURE_REALTIME_TRANSCRIPTION_MODEL'),
+      readPlatformEnvironment('AZURE_REALTIME_TRANSCRIPTION_MODEL'),
+    ]);
+
+    String? realtimeTurnDetectionMode = _firstNonEmpty([
+      const String.fromEnvironment('AZURE_REALTIME_TURN_DETECTION'),
+      readPlatformEnvironment('AZURE_REALTIME_TURN_DETECTION'),
+    ]);
+
+    String? realtimeTurnDetectionThresholdRaw = _firstNonEmpty([
+      const String.fromEnvironment('AZURE_REALTIME_TURN_DETECTION_THRESHOLD'),
+      readPlatformEnvironment('AZURE_REALTIME_TURN_DETECTION_THRESHOLD'),
+    ]);
+
+    String? realtimeTurnDetectionSilenceRaw = _firstNonEmpty([
+      const String.fromEnvironment('AZURE_REALTIME_TURN_DETECTION_SILENCE_MS'),
+      readPlatformEnvironment('AZURE_REALTIME_TURN_DETECTION_SILENCE_MS'),
+    ]);
+
+    String? muteMicDuringPlaybackRaw = _firstNonEmpty([
+      const String.fromEnvironment('AZURE_REALTIME_MUTE_MIC_DURING_PLAYBACK'),
+      readPlatformEnvironment('AZURE_REALTIME_MUTE_MIC_DURING_PLAYBACK'),
+    ]);
+
     if (endpoint == null || apiKey == null) {
       final properties = await loadLocalProperties();
       if (properties != null) {
@@ -70,6 +105,21 @@ class AppConfig {
         realtimeWebRtcUrl ??= _normalizeEmpty(
           properties['azure.openai.realtimeWebRtcUrl'] ?? '',
         );
+        realtimeTranscriptionModel ??= _normalizeEmpty(
+          properties['azure.openai.realtimeTranscriptionModel'] ?? '',
+        );
+        realtimeTurnDetectionMode ??= _normalizeEmpty(
+          properties['azure.openai.realtimeTurnDetection'] ?? '',
+        );
+        realtimeTurnDetectionThresholdRaw ??= _normalizeEmpty(
+          properties['azure.openai.realtimeTurnDetectionThreshold'] ?? '',
+        );
+        realtimeTurnDetectionSilenceRaw ??= _normalizeEmpty(
+          properties['azure.openai.realtimeTurnDetectionSilenceMs'] ?? '',
+        );
+        muteMicDuringPlaybackRaw ??= _normalizeEmpty(
+          properties['azure.openai.realtimeMuteMicDuringPlayback'] ?? '',
+        );
       }
     }
 
@@ -81,6 +131,15 @@ class AppConfig {
       );
     }
 
+    final double? realtimeTurnDetectionThreshold = _parseDouble(
+      realtimeTurnDetectionThresholdRaw,
+    );
+    final int? realtimeTurnDetectionSilenceMs = _parseInt(
+      realtimeTurnDetectionSilenceRaw,
+    );
+    final bool muteMicDuringPlayback =
+        _parseBool(muteMicDuringPlaybackRaw) ?? true;
+
     _instance = AppConfig._(
       endpoint: _normalizeEndpoint(endpoint),
       apiKey: apiKey,
@@ -89,6 +148,11 @@ class AppConfig {
       realtimeWebRtcUrl: realtimeWebRtcUrl == null || realtimeWebRtcUrl.isEmpty
           ? null
           : _normalizeBaseUrl(realtimeWebRtcUrl),
+      realtimeTranscriptionModel: realtimeTranscriptionModel,
+      realtimeTurnDetectionMode: realtimeTurnDetectionMode,
+      realtimeTurnDetectionThreshold: realtimeTurnDetectionThreshold,
+      realtimeTurnDetectionSilenceMs: realtimeTurnDetectionSilenceMs,
+      muteMicDuringPlayback: muteMicDuringPlayback,
     );
   }
 
@@ -120,4 +184,34 @@ String? _normalizeEmpty(String? value) {
     return null;
   }
   return trimmed;
+}
+
+double? _parseDouble(String? value) {
+  if (value == null) return null;
+  return double.tryParse(value.trim());
+}
+
+int? _parseInt(String? value) {
+  if (value == null) return null;
+  return int.tryParse(value.trim());
+}
+
+bool? _parseBool(String? value) {
+  if (value == null) return null;
+  switch (value.trim().toLowerCase()) {
+    case '1':
+    case 'true':
+    case 'yes':
+    case 'y':
+    case 'on':
+      return true;
+    case '0':
+    case 'false':
+    case 'no':
+    case 'off':
+    case 'n':
+      return false;
+    default:
+      return null;
+  }
 }

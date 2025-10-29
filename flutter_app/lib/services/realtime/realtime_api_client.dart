@@ -13,6 +13,12 @@ class RealtimeSession {
     required this.resourceEndpoint,
     required this.webrtcEndpoint,
     required this.iceServers,
+    required this.voice,
+    required this.turnDetectionMode,
+    this.turnDetectionThreshold,
+    this.turnDetectionSilenceMs,
+    this.transcriptionModel,
+    required this.muteMicDuringPlayback,
   });
 
   final String sessionId;
@@ -21,6 +27,14 @@ class RealtimeSession {
   final Uri resourceEndpoint;
   final Uri webrtcEndpoint;
   final List<IceServer> iceServers;
+  final String voice;
+  final String turnDetectionMode;
+  final double? turnDetectionThreshold;
+  final int? turnDetectionSilenceMs;
+  final String? transcriptionModel;
+  final bool muteMicDuringPlayback;
+
+  bool get isServerVadEnabled => turnDetectionMode != 'none';
 }
 
 class IceServer {
@@ -34,7 +48,13 @@ class IceServer {
 class RealtimeApiClient {
   RealtimeApiClient({SettingsStorage? settingsStorage, Dio? dio})
     : _settingsStorage = settingsStorage ?? SettingsStorage(),
-      _dio = dio ?? Dio();
+      _dio = dio ?? Dio() {
+    _dio.options = _dio.options.copyWith(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 20),
+      sendTimeout: const Duration(seconds: 20),
+    );
+  }
 
   static const _previewApiVersion = '2025-04-01-preview';
   static const _responsesApiVersion = '';
@@ -53,6 +73,7 @@ class RealtimeApiClient {
     final endpoint = await _settingsStorage.getApiEndpoint();
     final realtimeDeployment = await _settingsStorage.getRealtimeDeployment();
     final webRtcBaseUrl = await _settingsStorage.getWebRtcUrl();
+    final preferences = await _loadPreferences();
 
     if (realtimeDeployment.isEmpty) {
       throw StateError('Realtime deployment is not configured.');
@@ -62,24 +83,17 @@ class RealtimeApiClient {
     }
 
     final uri = _buildStartSessionUri(endpoint, realtimeDeployment);
-    final payload = _isPreview
-        ? <String, dynamic>{
-            'model': realtimeDeployment,
-            'voice': _defaultRealtimeVoice,
-          }
-        : <String, dynamic>{
-            'session': {
-              'instructions': 'You are a realtime interpreter.',
-              'modalities': ['text', 'audio'],
-              'voice': _defaultRealtimeVoice,
-              'input_audio_format': 'pcm16',
-              'output_audio_format': 'pcm16',
-            },
-          };
+    final payload = _buildSessionCreatePayload(
+      deployment: realtimeDeployment,
+      preferences: preferences,
+    );
 
     logInfo('Creating realtime session', {
       'uri': uri.toString(),
       'deployment': realtimeDeployment,
+      'turnDetection': preferences.turnDetectionMode,
+      'muteMicDuringPlayback': preferences.muteMicDuringPlayback,
+      'transcriptionModel': preferences.transcriptionModel,
     });
 
     final response = await _dio.postUri(
@@ -92,6 +106,9 @@ class RealtimeApiClient {
           'Accept': 'application/json',
         },
         responseType: ResponseType.json,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 20),
+        sendTimeout: const Duration(seconds: 20),
       ),
     );
 
@@ -120,6 +137,12 @@ class RealtimeApiClient {
       resourceEndpoint: Uri.parse(endpoint),
       webrtcEndpoint: _buildWebRtcUri(webRtcBaseUrl, realtimeDeployment),
       iceServers: iceServers,
+      voice: _defaultRealtimeVoice,
+      turnDetectionMode: preferences.turnDetectionMode,
+      turnDetectionThreshold: preferences.turnDetectionThreshold,
+      turnDetectionSilenceMs: preferences.turnDetectionSilenceMs,
+      transcriptionModel: preferences.transcriptionModel,
+      muteMicDuringPlayback: preferences.muteMicDuringPlayback,
     );
 
     _sessions[sessionId] = realtimeSession;
@@ -159,6 +182,9 @@ class RealtimeApiClient {
           },
           contentType: 'application/sdp',
           responseType: ResponseType.plain,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 20),
+          sendTimeout: const Duration(seconds: 20),
         ),
       );
 
@@ -329,4 +355,88 @@ class RealtimeApiClient {
       ..['model'] = deployment;
     return base.replace(queryParameters: query.isEmpty ? null : query);
   }
+
+  Map<String, dynamic> _buildSessionCreatePayload({
+    required String deployment,
+    required _RealtimePreferences preferences,
+  }) {
+    final turnDetectionPayload = preferences.turnDetectionMode == 'none'
+        ? null
+        : {
+            'type': 'server_vad',
+            if (preferences.turnDetectionThreshold != null)
+              'threshold': preferences.turnDetectionThreshold,
+            if (preferences.turnDetectionSilenceMs != null)
+              'silence_duration_ms': preferences.turnDetectionSilenceMs,
+          };
+    final transcriptionPayload = preferences.transcriptionModel == null
+        ? null
+        : {'model': preferences.transcriptionModel};
+
+    if (_isPreview) {
+      return <String, dynamic>{
+        'model': deployment,
+        'voice': _defaultRealtimeVoice,
+      };
+    }
+
+    return <String, dynamic>{
+      'session': {
+        'instructions': 'You are a realtime interpreter.',
+        'modalities': const ['text', 'audio'],
+        'voice': _defaultRealtimeVoice,
+        'input_audio_format': 'pcm16',
+        'output_audio_format': 'pcm16',
+        'turn_detection': turnDetectionPayload,
+        if (transcriptionPayload != null)
+          'input_audio_transcription': transcriptionPayload,
+      },
+    };
+  }
+
+  Future<_RealtimePreferences> _loadPreferences() async {
+    final transcriptionModel = await _settingsStorage
+        .getRealtimeTranscriptionModel();
+    final turnDetectionMode = await _settingsStorage.getTurnDetectionMode();
+    final turnDetectionThreshold = await _settingsStorage
+        .getTurnDetectionThreshold();
+    final turnDetectionSilenceMs = await _settingsStorage
+        .getTurnDetectionSilenceMs();
+    final muteMicDuringPlayback = await _settingsStorage
+        .getMuteMicDuringPlayback();
+
+    double? sanitizedThreshold;
+    if (turnDetectionThreshold != null) {
+      sanitizedThreshold = turnDetectionThreshold.clamp(0, 1).toDouble();
+    }
+
+    int? sanitizedSilenceMs;
+    if (turnDetectionSilenceMs != null && turnDetectionSilenceMs >= 0) {
+      sanitizedSilenceMs = turnDetectionSilenceMs;
+    }
+
+    return _RealtimePreferences(
+      turnDetectionMode: turnDetectionMode,
+      transcriptionModel: transcriptionModel,
+      turnDetectionThreshold: sanitizedThreshold,
+      turnDetectionSilenceMs: sanitizedSilenceMs,
+      muteMicDuringPlayback: muteMicDuringPlayback,
+    );
+  }
+}
+
+class _RealtimePreferences {
+  const _RealtimePreferences({
+    required this.turnDetectionMode,
+    required this.transcriptionModel,
+    required this.turnDetectionThreshold,
+    required this.turnDetectionSilenceMs,
+    required this.muteMicDuringPlayback,
+  });
+
+  final String turnDetectionMode;
+  final String? transcriptionModel;
+  final double? turnDetectionThreshold;
+  final int? turnDetectionSilenceMs;
+  final bool muteMicDuringPlayback;
 }
