@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -102,6 +103,7 @@ import com.example.translatorapp.presentation.theme.cardPadding
 import com.example.translatorapp.presentation.theme.computeBreakpoint
 import com.example.translatorapp.presentation.theme.horizontalPadding
 import com.example.translatorapp.presentation.theme.sectionSpacing
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
 @Composable
@@ -115,14 +117,14 @@ fun HomeRoute(
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = remember(context) { context.findActivity() }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
+    val audioaudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { granted -> viewModel.onPermissionResult(granted) }
+    ) { granted -> viewModel.onAudioPermissionResult(granted) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshPermissionStatus()
+                viewModel.refreshPermissions()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -137,11 +139,36 @@ fun HomeRoute(
             } ?: true
             if (!hasRequestedPermission.value || shouldShowRationale) {
                 hasRequestedPermission.value = true
-                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         } else {
             hasRequestedPermission.value = false
         }
+    }
+
+    var pendingCameraCapture by rememberSaveable { mutableStateOf(false) }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            val stream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+            viewModel.onImageTranslationRequested(
+                stream.toByteArray(),
+                context.getString(R.string.home_capture_image_description)
+            )
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onCameraPermissionResult(granted)
+        if (granted && pendingCameraCapture) {
+            takePictureLauncher.launch(null)
+        }
+        pendingCameraCapture = false
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -170,12 +197,21 @@ fun HomeRoute(
         paddingValues = paddingValues,
         onToggleMicrophone = viewModel::onToggleMicrophone,
         onStopSession = viewModel::onStopSession,
-        onRequestPermission = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+        onRequestPermission = { audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenPermissionSettings = openPermissionSettings,
         onOpenHistory = onOpenHistory,
         onTextChanged = viewModel::onTextInputChanged,
         onTranslateText = viewModel::onTranslateText,
         onPickImage = { imagePickerLauncher.launch("image/*") },
+        onCaptureImage = {
+            if (state.input.isCameraPermissionGranted) {
+                takePictureLauncher.launch(null)
+            } else {
+                pendingCameraCapture = true
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        },
+        onRequestCameraPermission = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) },
         onInputModeSelected = viewModel::onInputModeSelected,
         onAutoDetectChanged = viewModel::onAutoDetectChanged,
         onSourceLanguageSelected = viewModel::onSourceLanguageSelected,
@@ -198,6 +234,8 @@ private fun HomeScreen(
     onTextChanged: (String) -> Unit,
     onTranslateText: () -> Unit,
     onPickImage: () -> Unit,
+    onCaptureImage: () -> Unit,
+    onRequestCameraPermission: () -> Unit,
     onInputModeSelected: (TranslationInputMode) -> Unit,
     onAutoDetectChanged: (Boolean) -> Unit,
     onSourceLanguageSelected: (SupportedLanguage) -> Unit,
@@ -320,7 +358,9 @@ private fun HomeScreen(
                             state = state.input,
                             breakpoint = breakpoint,
                             cardPadding = cardPadding,
-                            onPickImage = onPickImage
+                            onPickImage = onPickImage,
+                            onCaptureImage = onCaptureImage,
+                            onRequestCameraPermission = onRequestCameraPermission
                         )
                     }
                 }
@@ -971,7 +1011,9 @@ private fun ImageInputCard(
     state: InputUiState,
     breakpoint: WindowBreakpoint,
     cardPadding: Dp,
-    onPickImage: () -> Unit
+    onPickImage: () -> Unit,
+    onCaptureImage: () -> Unit,
+    onRequestCameraPermission: () -> Unit
 ) {
     val spacing = LocalSpacing.current
     val isCompact = breakpoint == WindowBreakpoint.Compact
@@ -991,20 +1033,53 @@ private fun ImageInputCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Button(
-                onClick = onPickImage,
+            Row(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
-                enabled = !state.isImageTranslating
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
             ) {
-                if (state.isImageTranslating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .padding(end = spacing.xs)
-                            .height(18.dp),
-                        strokeWidth = 2.dp
-                    )
+                Button(
+                    onClick = onCaptureImage,
+                    enabled = !state.isImageTranslating
+                ) {
+                    if (state.isImageTranslating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(end = spacing.xs)
+                                .height(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    Text(text = stringResource(id = R.string.home_capture_image_action))
                 }
-                Text(text = stringResource(id = R.string.home_pick_image_action))
+                OutlinedButton(
+                    onClick = onPickImage,
+                    enabled = !state.isImageTranslating
+                ) {
+                    if (state.isImageTranslating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(end = spacing.xs)
+                                .height(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    Text(text = stringResource(id = R.string.home_pick_image_action))
+                }
+            }
+            if (!state.isCameraPermissionGranted) {
+                Text(
+                    text = stringResource(id = R.string.home_camera_permission_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(
+                    onClick = onRequestCameraPermission,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text(text = stringResource(id = R.string.home_camera_permission_request))
+                }
             }
         }
     }

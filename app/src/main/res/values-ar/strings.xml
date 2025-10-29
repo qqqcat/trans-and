@@ -55,6 +55,10 @@
     <string name="home_image_translation_title">ترجمة الصورة</string>
     <string name="home_image_translation_hint">يدعم JPG و PNG. اختر صورة تحتوي على نص واضح.</string>
     <string name="home_pick_image_action">اختيار صورة</string>
+    <string name="home_capture_image_action">التقاط صورة</string>
+    <string name="home_camera_permission_hint">يلزم الإذن باستخدام الكاميرا لالتقاط الصور للترجمة.</string>
+    <string name="home_camera_permission_request">منح إذن الكاميرا</string>
+    <string name="home_capture_image_description">صورة ملتقطة</string>
 
     <!-- History preview -->
     <string name="home_history_preview_title">التاريخ</string>

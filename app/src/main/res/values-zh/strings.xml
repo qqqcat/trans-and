@@ -55,6 +55,10 @@
     <string name="home_image_translation_title">图像翻译</string>
     <string name="home_image_translation_hint">支持 JPG 和 PNG。选择包含清晰文本的照片。</string>
     <string name="home_pick_image_action">选择图像</string>
+    <string name="home_capture_image_action">拍照</string>
+    <string name="home_camera_permission_hint">需要摄像头权限才能进行拍照翻译。</string>
+    <string name="home_camera_permission_request">授予摄像头权限</string>
+    <string name="home_capture_image_description">拍摄照片</string>
 
     <!-- History preview -->
     <string name="home_history_preview_title">历史记录</string>

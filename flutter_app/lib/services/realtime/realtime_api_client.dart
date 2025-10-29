@@ -171,14 +171,12 @@ class RealtimeApiClient {
       }
       return answer?.toString() ?? '';
     } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      final data = error.response?.data;
       logError(
-        'Realtime SDP exchange failed',
+        'Realtime SDP exchange failed (status: $status, body: $data)',
         error: error,
         stackTrace: error.stackTrace,
-        context: {
-          'statusCode': error.response?.statusCode,
-          'responseData': error.response?.data,
-        },
       );
       rethrow;
     }

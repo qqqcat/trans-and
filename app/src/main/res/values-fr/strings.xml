@@ -55,6 +55,10 @@
     <string name="home_image_translation_title">Traduction d\'image</string>
     <string name="home_image_translation_hint">Prend en charge JPG et PNG. Choisissez une photo contenant un texte clair.</string>
     <string name="home_pick_image_action">Sélectionner une image</string>
+    <string name="home_capture_image_action">Prendre une photo</string>
+    <string name="home_camera_permission_hint">L'autorisation de la caméra est nécessaire pour prendre des photos à traduire.</string>
+    <string name="home_camera_permission_request">Autoriser l'accès à la caméra</string>
+    <string name="home_capture_image_description">Photo capturée</string>
 
     <!-- History preview -->
     <string name="home_history_preview_title">Historique</string>

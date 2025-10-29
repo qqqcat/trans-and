@@ -55,6 +55,10 @@
     <string name="home_image_translation_title">画像翻訳</string>
     <string name="home_image_translation_hint">JPGとPNGに対応。明確なテキストを含む写真を選択してください。</string>
     <string name="home_pick_image_action">画像を選択</string>
+    <string name="home_capture_image_action">写真を撮影</string>
+    <string name="home_camera_permission_hint">翻訳用に写真を撮影するにはカメラ権限が必要です。</string>
+    <string name="home_camera_permission_request">カメラ権限を許可</string>
+    <string name="home_capture_image_description">撮影した写真</string>
 
     <!-- History preview -->
     <string name="home_history_preview_title">履歴</string>

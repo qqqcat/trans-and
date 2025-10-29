@@ -110,7 +110,7 @@ class HomeViewModel @Inject constructor(
         observeSessionChanges()
         observeTranscriptChanges()
         loadInitialSettings()
-        refreshPermissionStatus()
+        refreshPermissions()
     }
 
     private fun observeSessionChanges() {
@@ -272,19 +272,23 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun refreshPermissionStatus() {
-        viewModelScope.launch(dispatcherProvider.io) {
-            val granted = permissionManager.hasRecordAudioPermission()
-            permissionChecked = true
-            updateInput { it.copy(isRecordAudioPermissionGranted = granted) }
-            finalizeInitialization()
-            if (granted) {
-                maybeStartSession()
-            }
+    fun refreshPermissions() {
+        val audioGranted = permissionManager.hasRecordAudioPermission()
+        val cameraGranted = permissionManager.hasCameraPermission()
+        permissionChecked = true
+        updateInput {
+            it.copy(
+                isRecordAudioPermissionGranted = audioGranted,
+                isCameraPermissionGranted = cameraGranted
+            )
+        }
+        finalizeInitialization()
+        if (audioGranted) {
+            maybeStartSession()
         }
     }
 
-    fun onPermissionResult(isGranted: Boolean) {
+    fun onAudioPermissionResult(isGranted: Boolean) {
         permissionChecked = true
         updateInput { it.copy(isRecordAudioPermissionGranted = isGranted) }
         finalizeInitialization()
@@ -297,6 +301,17 @@ class HomeViewModel @Inject constructor(
             viewModelScope.launch(dispatcherProvider.io) {
                 stopRealtimeSession()
             }
+        }
+    }
+
+    fun onCameraPermissionResult(isGranted: Boolean) {
+        updateInput { it.copy(isCameraPermissionGranted = isGranted) }
+        if (!isGranted) {
+            pushMessage(
+                message = "需要摄像头权限才能拍照翻译",
+                level = UiMessageLevel.Warning,
+                action = UiAction.CheckPermissions
+            )
         }
     }
 
@@ -449,7 +464,7 @@ class HomeViewModel @Inject constructor(
     fun onMessageAction(action: UiAction) {
         when (action) {
             UiAction.Retry -> maybeStartSession()
-            UiAction.CheckPermissions -> refreshPermissionStatus()
+            UiAction.CheckPermissions -> refreshPermissions()
             UiAction.OpenSettings, UiAction.Dismiss -> Unit
         }
     }

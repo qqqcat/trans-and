@@ -55,6 +55,10 @@
     <string name="home_image_translation_title">Перевод изображений</string>
     <string name="home_image_translation_hint">Поддерживает JPG и PNG. Выберите фото с четким текстом.</string>
     <string name="home_pick_image_action">Выбрать изображение</string>
+    <string name="home_capture_image_action">Сделать снимок</string>
+    <string name="home_camera_permission_hint">Для съёмки фотографий для перевода требуется разрешение на камеру.</string>
+    <string name="home_camera_permission_request">Предоставить доступ к камере</string>
+    <string name="home_capture_image_description">Сделанная фотография</string>
 
     <!-- History preview -->
     <string name="home_history_preview_title">История</string>

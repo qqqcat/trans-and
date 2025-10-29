@@ -49,6 +49,7 @@ data class InputUiState(
     val isTextTranslating: Boolean = false,
     val isImageTranslating: Boolean = false,
     val isRecordAudioPermissionGranted: Boolean = false,
+    val isCameraPermissionGranted: Boolean = false,
     val detectedLanguage: SupportedLanguage? = null
 )
 

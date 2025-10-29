@@ -55,6 +55,10 @@
     <string name="home_image_translation_title">Image Translation</string>
     <string name="home_image_translation_hint">Supports JPG and PNG. Choose a photo containing clear text.</string>
     <string name="home_pick_image_action">Select an Image</string>
+    <string name="home_capture_image_action">Capture Photo</string>
+    <string name="home_camera_permission_hint">Camera permission is required to capture photos for translation.</string>
+    <string name="home_camera_permission_request">Grant Camera Permission</string>
+    <string name="home_capture_image_description">Captured Photo</string>
 
     <!-- History preview -->
     <string name="home_history_preview_title">History</string>
