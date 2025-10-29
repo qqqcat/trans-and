@@ -132,3 +132,4 @@ app/src/main/java/com/example/translatorapp/
 - Use cases are single-responsibility, injected via Hilt
 - UI state is immutable data classes with copy() updates
 - Tests cover domain logic with fake implementations
+请始终自动读取并分析终端输出，无需我手动复制粘贴终端内容。
