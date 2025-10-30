@@ -31,19 +31,9 @@ class WebRtcService {
   RTCDataChannel? _controlChannel;
   MediaStream? _localStream;
   RealtimeSession? _currentSession;
-  bool _remotePlaybackActive = false;
-
-  // Track response completion states to delay mic restoration
-  bool _responseDoneReceived = false;
-
-  // Track timestamps for echo detection
-  DateTime? _lastPlaybackEndTime;
 
   // Fallback timer for microphone restoration
   Timer? _playbackFallbackTimer;
-
-  // Track last assistant response for duplicate detection
-  String? _lastAssistantResponse;
 
   // Track response creation time to protect against immediate cancellation
   DateTime? _lastResponseCreatedTime;
@@ -51,17 +41,8 @@ class WebRtcService {
   // Track if there's currently an active response in progress
   bool _hasActiveResponse = false;
 
-  // Track if assistant is currently playing TTS (only driven by server buffer events)
-  bool _isPlayingTTS = false;
-
   // Track consumed user item IDs to prevent duplicate responses
   final Set<String> _consumedUserItemIds = {};
-
-  // Track last TTS end time for cooldown window validation
-  DateTime? _lastTTSEndAt;
-
-  // Queue for pending transcriptions that couldn't be processed during TTS playback
-  final List<Map<String, dynamic>> _pendingTranscriptionQueue = [];
 
   // State machine for echo prevention
   WebRtcState _currentState = WebRtcState.idle;
@@ -72,99 +53,6 @@ class WebRtcService {
 
   /// Get current state for debugging
   WebRtcState get currentState => _currentState;
-
-  /// Transition to a new state with logging
-  void _transitionToState(WebRtcState newState) {
-    final oldState = _currentState;
-    _currentState = newState;
-    logInfo('WebRTC state transition', {
-      'from': oldState.name,
-      'to': newState.name,
-    });
-
-    // Configure turn detection for the new state
-    _configureTurnDetectionForState();
-  }
-
-  /// Configure turn detection based on current state
-  void _configureTurnDetectionForState() {
-    final channel = _controlChannel;
-    if (channel == null) return;
-
-    late bool createResponse;
-    late bool interruptResponse;
-    late double threshold;
-    late int silenceDurationMs;
-
-    switch (_currentState) {
-      case WebRtcState.idle:
-        // Not connected, no turn detection needed
-        return;
-
-      case WebRtcState.listening:
-        // Normal listening mode
-        createResponse = true;
-        interruptResponse = true;
-        threshold = 0.6;
-        silenceDurationMs = 600;
-        break;
-
-      case WebRtcState.thinking:
-        // Processing input, disable auto-response to prevent duplicates
-        createResponse = false;
-        interruptResponse = true;
-        threshold = 0.6;
-        silenceDurationMs = 600;
-        break;
-
-      case WebRtcState.speaking:
-        // Playing TTS, disable auto-response to prevent echo loops
-        createResponse = false;
-        interruptResponse = false; // Allow barge-in but don't auto-create responses
-        threshold = 0.85; // Higher threshold to reduce false positives from echo
-        silenceDurationMs = 1000; // Longer silence to avoid echo triggering
-        break;
-
-      case WebRtcState.cooldown:
-        // Cooling down after TTS, keep auto-response disabled
-        createResponse = false;
-        interruptResponse = true;
-        threshold = 0.6;
-        silenceDurationMs = 600;
-        break;
-    }
-
-    channel.send(RTCDataChannelMessage(jsonEncode({
-      'type': 'session.update',
-      'session': {
-        'turn_detection': {
-          'type': 'server_vad',
-          'threshold': threshold,
-          'prefix_padding_ms': 300,
-          'silence_duration_ms': silenceDurationMs,
-          'create_response': createResponse,
-          'interrupt_response': interruptResponse,
-        },
-      },
-    })));
-
-    // Add observability log for create_response sending
-    if (createResponse) {
-      logInfo('Sending create_response: true to server', {
-        'state': _currentState.name,
-        'threshold': threshold,
-        'silence_duration_ms': silenceDurationMs,
-      });
-    }
-
-    logInfo('Configured turn detection for state', {
-      'state': _currentState.name,
-      'create_response': createResponse,
-      'interrupt_response': interruptResponse,
-      'threshold': threshold,
-      'silence_duration_ms': silenceDurationMs,
-    });
-  }
 
   /// Interrupt the current assistant response
   void interruptAssistant() {
@@ -288,8 +176,6 @@ class WebRtcService {
     await _controlChannel?.close();
     _controlChannel = null;
 
-    _remotePlaybackActive = false;
-    _responseDoneReceived = false;
     _currentSession = null;
 
     final localTracks = _localStream?.getTracks() ?? <MediaStreamTrack>[];
@@ -371,9 +257,8 @@ class WebRtcService {
         'turn_detection': turnDetection,
         'output_audio_format': 'pcm16',
         'max_response_output_tokens': 300,  // Increased from 160 to 300 for more complete responses
-        'instructions': '请简单确认用户输入，无需过多寒暄。用于调试模式，验证音频输出是否正常工作。',
         'input_audio_transcription': {
-          'model': session.transcriptionModel ?? 'gpt-4o-transcribe-diarize',
+          'model': session.transcriptionModel ?? 'gpt-realtime-mini',
           'language': 'zh',  // Explicitly set to Chinese for better transcription accuracy
         },
       },
@@ -416,11 +301,10 @@ class WebRtcService {
       if (decoded is Map<String, dynamic>) {
         data = decoded;
       }
-    } catch (error, stack) {
+    } catch (error) {
       logWarning('Failed to decode realtime control message', {
         'payload': payload,
         'error': error.toString(),
-        'stackTrace': stack.toString(),
       });
       return;
     }
@@ -429,137 +313,31 @@ class WebRtcService {
     final type = data['type'] as String?;
     if (type == null) return;
 
+    // Simplified event handling based on working example project
+    // Only handle core events needed for basic conversation flow
     switch (type) {
-      case 'output_audio_buffer.started':
-        _handleRemotePlaybackStarted();
+      case 'response.audio_transcript.done':
+        // Handle AI transcript completion (like example project)
+        final transcript = data['transcript'] as String?;
+        if (transcript != null && transcript.isNotEmpty) {
+          logInfo('AI transcript completed', {'transcript': transcript});
+          // Simplified: just log for now, UI can listen to other events if needed
+        }
         break;
-      case 'output_audio_buffer.stopped':
-        _handleRemotePlaybackStopped();
-        break;
-      case 'output_audio_buffer.cleared':
-        _handleOutputBufferCleared();
-        break;
-      case 'conversation.item.created':
-        _handleConversationItemCreated(data);
-        break;
-      case 'response.created':
-        _handleResponseCreated(data);
-        break;
-      case 'response.done':
-        _handleResponseDone();
-        break;
-      case 'input_audio_buffer.speech_started':
-        _handleSpeechStarted();
-        break;
-      case 'input_audio_buffer.committed':
-        _handleAudioBufferCommitted();
-        break;
-      case 'conversation.item.audio_transcription.completed':
-        _handleAudioTranscriptionCompleted(data);
-        break;
+
       case 'conversation.item.input_audio_transcription.completed':
+        // Handle user input transcription (simplified version)
         _handleInputAudioTranscriptionCompleted(data);
         break;
-      case 'conversation.item.truncated':
-        _handleConversationItemTruncated();
-        break;
+
       default:
+        // Ignore other events to reduce complexity
         break;
     }
   }
 
-  void _handleRemotePlaybackStarted() {
-    final session = _currentSession;
-    if (session == null ||
-        !session.muteMicDuringPlayback ||
-        _isPlayingTTS) {
-      return;
-    }
-
-    // Transition to Speaking state - disable auto-response during playback
-    _transitionToState(WebRtcState.speaking);
-
-    // Set playing state to block upstream audio (only driven by server buffer events)
-    _isPlayingTTS = true;
-
-    // Clear input audio buffer to prevent any pending audio from being processed
-    final channel = _controlChannel;
-    if (channel != null) {
-      channel.send(RTCDataChannelMessage(jsonEncode({
-        'type': 'input_audio_buffer.clear'
-      })));
-    }
-
-    // Cancel any pending fallback timer
-    _playbackFallbackTimer?.cancel();
-
-    final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
-    if (tracks.isEmpty) return;
-
-    _remotePlaybackActive = true;
-    for (final track in tracks) {
-      track.enabled = false;
-    }
-    logInfo('Muted local microphone during assistant TTS playback', {});
-  }
-
-  void _handleRemotePlaybackStopped() {
-    _lastPlaybackEndTime = DateTime.now(); // Track when playback ended for echo detection
-
-    // Immediately restore microphone when output_audio_buffer.stopped is received
-    // This provides more responsive barge-in compared to waiting for cleared event
-    // The 200ms cooldown timer is removed to prevent timing drift on different devices
-    _restoreMicrophone();
-  }
-
-  void _restoreMicrophone() {
-    // Re-enable local audio track immediately
-    final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
-    for (final track in tracks) {
-      track.enabled = true;
-    }
-    logInfo('Restored local microphone after TTS playback stopped', {});
-  }
-
-  void _handleOutputBufferCleared() {
-    _lastTTSEndAt = DateTime.now(); // Track when playback ended for time window validation
-
-    // Transition to Cooldown state - keep auto-response disabled during cooldown
-    _transitionToState(WebRtcState.cooldown);
-
-    // Clear TTS playing state (only driven by server buffer events)
-    _isPlayingTTS = false;
-
-    // Clear input audio buffer again to ensure no residual audio
-    final channel = _controlChannel;
-    if (channel != null) {
-      channel.send(RTCDataChannelMessage(jsonEncode({
-        'type': 'input_audio_buffer.clear'
-      })));
-    }
-
-    // Only restore microphone when both response.done and output_audio_buffer.cleared are received
-    // But now microphone is already restored in _handleRemotePlaybackStopped, so we just transition to listening
-    if (_responseDoneReceived && _remotePlaybackActive) {
-      logInfo('Response completed, transitioning to listening state', {});
-
-      // Transition to Listening state - re-enable auto-response
-      _transitionToState(WebRtcState.listening);
-
-      _remotePlaybackActive = false;
-      _responseDoneReceived = false;
-
-      // Try to process any pending transcriptions after cooldown
-      _tryProcessTranscriptionQueue();
-    }
-  }
-
-  void _handleConversationItemTruncated() {
-    // After conversation item is truncated, we can safely start new audio collection
-    // This completes the barge-in flow: cancel -> truncate -> wait for truncated -> start new input
-    logInfo('Conversation item truncated, barge-in flow completed', {});
-    // Note: Microphone restoration will be handled by the cleared event if it comes
-  }
+  // Removed all complex event handlers to simplify like the working example project
+  // Only keeping core transcription handling to prevent repeat loops and ensure responses
 
   Future<void> _sendInitialSessionUpdate(RealtimeSession session) async {
     final channel = _controlChannel;
@@ -569,8 +347,8 @@ class WebRtcService {
       'type': 'server_vad',
       'threshold': session.turnDetectionThreshold ?? 0.6,
       'prefix_padding_ms': 300,
-      'silence_duration_ms': 600,  // Adjusted from 1200 to 600ms to reduce half-sentence triggering
-      'create_response': false,  // Disable auto-response for manual control
+      'silence_duration_ms': 600,
+      'create_response': true,  // Enable auto-response for simplified approach
       'interrupt_response': true,
     };
 
@@ -581,350 +359,54 @@ class WebRtcService {
         'voice': session.voice,
         'turn_detection': turnDetection,
         'output_audio_format': 'pcm16',
-        'max_response_output_tokens': 300,  // Increased from 160 to 300 for more complete responses
-        'instructions': '请简单确认用户输入，无需过多寒暄。用于调试模式，验证音频输出是否正常工作。',
+        'max_response_output_tokens': 300,
         'input_audio_transcription': {
-          'model': session.transcriptionModel ?? 'gpt-4o-transcribe-diarize',
-          'language': 'zh',  // Explicitly set to Chinese for better transcription accuracy
+          'model': session.transcriptionModel ?? 'gpt-realtime-mini',
+          'language': 'zh',
         },
       },
     })));
 
-    logInfo('Sent initial session update with manual response control', {
+    logInfo('Sent initial session update with auto-response enabled', {
       'turn_detection': turnDetection,
       'voice': session.voice,
     });
-  }
-
-  void _handleConversationItemCreated(Map<String, dynamic> data) {
-    final item = data['item'] as Map<String, dynamic>?;
-    if (item == null) return;
-
-    final role = item['role'] as String?;
-    final type = item['type'] as String?;
-    final content = item['content'] as List<dynamic>?;
-
-    if (type == 'message' && role == 'user') {
-      // REMOVED: Transcript validation moved to _handleInputAudioTranscriptionCompleted
-      // to wait for actual transcription completion instead of checking on item creation
-      logInfo('User message item created, waiting for transcription completion', {
-        'item_id': item['id'],
-      });
-    } else if (type == 'message' && role == 'assistant') {
-      // Track assistant response for duplicate detection
-      final textContent = content?.firstWhere(
-        (c) => (c as Map<String, dynamic>)['type'] == 'text',
-        orElse: () => null,
-      ) as Map<String, dynamic>?;
-
-      final text = textContent?['text'] as String?;
-      if (text != null && text.isNotEmpty) {
-        // Normalize text for comparison (remove punctuation, lowercase)
-        final normalized = text.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase().trim();
-        if (_lastAssistantResponse != null && _isSimilarResponse(_lastAssistantResponse!, normalized)) {
-          // Check if there's an active response and if it was just created - protect against immediate cancellation
-          if (!_hasActiveResponse) {
-            logInfo('Duplicate response detected but no active response, skipping cancel');
-            return;
-          }
-
-          if (_lastResponseCreatedTime != null) {
-            final timeSinceResponseCreated = DateTime.now().difference(_lastResponseCreatedTime!);
-            if (timeSinceResponseCreated.inMilliseconds < 1000) {
-              logInfo('Duplicate response detected but response was just created, skipping cancel to avoid premature cancellation', {
-                'last': _lastAssistantResponse,
-                'current': normalized,
-                'timeSinceCreated': timeSinceResponseCreated.inMilliseconds,
-              });
-              return;
-            }
-          }
-
-          logInfo('Duplicate assistant response detected, canceling', {
-            'last': _lastAssistantResponse,
-            'current': normalized,
-          });
-          // Cancel this response
-          final channel = _controlChannel;
-          if (channel != null) {
-            channel.send(RTCDataChannelMessage(jsonEncode({'type': 'response.cancel'})));
-          }
-          return;
-        }
-        _lastAssistantResponse = normalized;
-      }
-    }
-  }
-
-  void _handleResponseCreated(Map<String, dynamic> data) {
-    final response = data['response'] as Map<String, dynamic>?;
-    final responseId = response?['id'] as String?;
-    logInfo('Response created, transitioning to thinking state', {
-      'response_id': responseId,
-    });
-
-    // Transition to Thinking state - AI is processing the response
-    _transitionToState(WebRtcState.thinking);
-
-    // Track the response creation time to protect against immediate cancellation
-    _lastResponseCreatedTime = DateTime.now();
-    _hasActiveResponse = true;
-  }
-
-  void _handleResponseDone() {
-    _responseDoneReceived = true;
-    _hasActiveResponse = false;  // Response is no longer active
-
-    logInfo('Response done received, response processing completed', {
-      'timestamp': DateTime.now().toIso8601String(),
-      'has_active_response': _hasActiveResponse,
-      'last_response_created_time': _lastResponseCreatedTime?.toIso8601String(),
-    });
-
-    // Note: State transition to Listening will be handled by output_audio_buffer.cleared
-    // after the cooldown period to prevent echo triggering new responses
-  }
-
-  void _executeBargeIn() {
-    final channel = _controlChannel;
-    if (channel == null) return;
-
-    // Execute complete barge-in flow: cancel response -> truncate conversation -> clear input buffer
-    channel.send(RTCDataChannelMessage(jsonEncode({
-      'type': 'response.cancel',
-    })));
-
-    // Note: conversation.item.truncate will be handled by the response.cancel event
-    // input_audio_buffer.clear will be sent after truncation completes
-
-    logInfo('Executed barge-in flow: response.cancel sent');
-  }
-
-  void _cancelCurrentResponse() {
-    final channel = _controlChannel;
-    if (channel == null) return;
-
-    // Simple response cancellation for echo prevention
-    channel.send(RTCDataChannelMessage(jsonEncode({
-      'type': 'response.cancel',
-    })));
-
-    logInfo('Cancelled current response to prevent echo loop');
-  }
-
-  void _handleSpeechStarted() {
-    // Only trigger barge-in if we're currently playing TTS AND have an active response
-    // This prevents false positives from echo or background noise
-    if (_isPlayingTTS && _hasActiveResponse) {
-      logInfo('Speech started during active playback - triggering barge-in flow', {
-        'isPlayingTTS': _isPlayingTTS,
-        'hasActiveResponse': _hasActiveResponse,
-      });
-
-      // Execute complete barge-in flow: cancel -> truncate -> clear
-      _executeBargeIn();
-      return;
-    }
-
-    // Check if this speech detection might be echo from recent playback
-    if (_lastPlaybackEndTime != null) {
-      final timeSincePlayback = DateTime.now().difference(_lastPlaybackEndTime!);
-      if (timeSincePlayback.inMilliseconds < 1000) {  // Increased from 500ms to 1000ms
-        logInfo('Detected potential echo speech within 1 second of playback end, ignoring', {
-          'timeSincePlayback': timeSincePlayback.inMilliseconds,
-        });
-        return;
-      }
-    }
-
-    logInfo('Speech started - not interrupting playback', {
-      'isPlayingTTS': _isPlayingTTS,
-      'hasActiveResponse': _hasActiveResponse,
-    });
-  }
-
-  void _handleAudioTranscriptionCompleted(Map<String, dynamic> data) {
-    final transcript = data['transcript'] as String?;
-    logInfo('Audio transcription completed', {'transcript': transcript});
-  }
-
-  void _handleAudioBufferCommitted() {
-    // When audio buffer is committed, we're waiting for transcription
-    logInfo('Audio buffer committed, waiting for transcription', {});
-  }
-
-  bool _isSimilarResponse(String last, String current) {
-    // Simple similarity check: if they share more than 70% of words
-    final lastWords = last.split(RegExp(r'\s+')).toSet();
-    final currentWords = current.split(RegExp(r'\s+')).toSet();
-    final intersection = lastWords.intersection(currentWords);
-    final union = lastWords.union(currentWords);
-    if (union.isEmpty) return false;
-    final similarity = intersection.length / union.length;
-    return similarity > 0.7;
   }
 
   void _handleInputAudioTranscriptionCompleted(Map<String, dynamic> data) {
     final transcript = data['transcript'] as String?;
     final itemId = data['item_id'] as String?;
 
-    // Special handling for empty transcript - cancel current response to prevent echo loops
-    if (transcript == '') {
-      logInfo('Empty transcript detected, cancelling current response to prevent echo loop', {
-        'item_id': itemId,
-      });
-      _cancelCurrentResponse();
-      return;
-    }
+    // Simplified approach based on working example:
+    // - Remove complex filtering and queues like the example project
+    // - Process transcript directly, only skip if completely empty
 
     if (transcript == null || transcript.trim().isEmpty || itemId == null) {
-      logInfo('Input audio transcription completed but transcript or item_id is missing, skipping', {
+      logInfo('Transcript or item_id missing, skipping', {
         'transcript': transcript,
         'item_id': itemId,
       });
       return;
     }
 
-    // Language filtering: REMOVED - allow all languages to trigger responses
-    // Previously required Chinese transcripts (>=30% Chinese characters)
-    // Now allow any language as fallback to ensure responses are always possible
-
-    // Semantic debouncing: check transcript length and content
-    final trimmed = transcript.trim();
-    if (!_isValidTranscriptForResponse(trimmed)) {
-      logInfo('Input audio transcription completed but content is not suitable for response, skipping', {
-        'transcript': transcript,
-        'length': trimmed.length,
-      });
-      return;
-    }
-
-    // Gate A: Item not consumed yet (de-duplication)
+    // Basic duplicate check (keep minimal to avoid blocking responses)
     if (_consumedUserItemIds.contains(itemId)) {
-      logInfo('Gate A failed: Item already consumed, skipping', {
+      logInfo('Transcript already processed, skipping', {
         'transcript': transcript,
         'item_id': itemId,
       });
       return;
     }
 
-    // If TTS is currently playing, enqueue the transcription for later processing
-    if (_isPlayingTTS) {
-      _pendingTranscriptionQueue.add({
-        'transcript': transcript,
-        'itemId': itemId,
-        'timestamp': DateTime.now(),
-      });
-      logInfo('TTS playing, enqueued transcription for later processing', {
-        'transcript': transcript,
-        'item_id': itemId,
-        'queueSize': _pendingTranscriptionQueue.length,
-      });
-      return;
-    }
-
-    // Gate B: Time window check - must be > 200ms since last TTS ended
-    if (_lastTTSEndAt != null) {
-      final timeSinceTTSEnded = DateTime.now().difference(_lastTTSEndAt!);
-      if (timeSinceTTSEnded.inMilliseconds <= 200) {
-        logInfo('Gate B failed: Too soon after TTS ended, skipping response creation', {
-          'transcript': transcript,
-          'timeSinceTTSEnded': timeSinceTTSEnded.inMilliseconds,
-        });
-        return;
-      }
-    }
-
-    // All gates passed - consume the item and create response
+    // Mark as consumed and process directly
     _consumedUserItemIds.add(itemId);
 
-    logInfo('Input audio transcription completed with valid content - creating response', {
+    logInfo('Processing user transcript directly (simplified approach)', {
       'transcript': transcript,
       'item_id': itemId,
-      'timeSinceTTSEnded': _lastTTSEndAt != null ? DateTime.now().difference(_lastTTSEndAt!).inMilliseconds : null,
     });
 
     // Server will auto-create response since create_response: true is enabled
-    // No need to send manual response.create
-  }
-
-  bool _isValidTranscriptForResponse(String transcript) {
-    // Check minimum length (at least 3 characters)
-    if (transcript.length < 3) return false;
-
-    // Define stop words/phrases that shouldn't trigger responses
-    const stopWords = {
-      '哦', '啊', '嗯', '哈', '嘿', '哎', '呀',
-      'oh', 'ah', 'um', 'uh', 'hmm', 'ha', 'hey', 'ay', 'ya',
-      'ta-da', 'tada', 'okay', 'ok', 'yes', 'no', 'yeah', 'yep',
-      '收到', '明白', '知道了', '好的', '好'
-    };
-
-    // Normalize transcript for comparison
-    final normalized = transcript.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();
-
-    // Check if transcript is only stop words
-    final words = normalized.split(RegExp(r'\s+'));
-    if (words.every((word) => stopWords.contains(word))) {
-      return false;
-    }
-
-    return true;
-  }
-
-
-
-  void _tryProcessTranscriptionQueue() {
-    if (_pendingTranscriptionQueue.isEmpty) {
-      return;
-    }
-
-    // Process the oldest pending transcription
-    final pendingItem = _pendingTranscriptionQueue.removeAt(0);
-    final transcript = pendingItem['transcript'] as String;
-    final itemId = pendingItem['itemId'] as String;
-    final timestamp = pendingItem['timestamp'] as DateTime;
-
-    // Check if item was already consumed (safety check)
-    if (_consumedUserItemIds.contains(itemId)) {
-      logInfo('Pending transcription item already consumed, skipping', {
-        'item_id': itemId,
-      });
-      // Try next item if available
-      _tryProcessTranscriptionQueue();
-      return;
-    }
-
-    // Check time window again (should pass since we're after cooldown)
-    if (_lastTTSEndAt != null) {
-      final timeSinceTTSEnded = DateTime.now().difference(_lastTTSEndAt!);
-      if (timeSinceTTSEnded.inMilliseconds <= 200) {
-        logInfo('Still too soon after TTS ended, re-enqueueing transcription', {
-          'transcript': transcript,
-          'timeSinceTTSEnded': timeSinceTTSEnded.inMilliseconds,
-        });
-        // Re-enqueue at the front
-        _pendingTranscriptionQueue.insert(0, pendingItem);
-        return;
-      }
-    }
-
-    // All gates passed - consume the item and create response
-    _consumedUserItemIds.add(itemId);
-
-    logInfo('Processing pending transcription after TTS cooldown', {
-      'transcript': transcript,
-      'item_id': itemId,
-      'queueSize': _pendingTranscriptionQueue.length,
-      'timeInQueue': DateTime.now().difference(timestamp).inMilliseconds,
-    });
-
-    // Server will auto-create response since create_response: true is enabled
-    // No need to send manual response.create
-
-    // If there are more items in queue, schedule next processing
-    if (_pendingTranscriptionQueue.isNotEmpty) {
-      Future.delayed(const Duration(milliseconds: 100), _tryProcessTranscriptionQueue);
-    }
+    // No complex queue management, time windows, or content validation needed
   }
 }

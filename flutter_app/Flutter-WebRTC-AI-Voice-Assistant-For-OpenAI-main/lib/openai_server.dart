@@ -2,29 +2,39 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class OpenAIService {
-  static const String baseUrl = 'https://api.openai.com/v1';
-  static const String apiKey = 'openAI API key here';
+  // Azure OpenAI 配置
+  static const String azureEndpoint = 'https://cater-mh074r36-eastus2.openai.azure.com/';
+  static const String apiKey = '***AZURE_OPENAI_API_KEY_REMOVED***';
+  static const String realtimeDeployment = 'gpt-realtime-mini';
 
   static Future<String> getEphemeralToken() async {
     try {
+      final sessionsUrl = Uri.parse(
+        '$azureEndpoint/openai/realtimeapi/sessions?api-version=2025-04-01-preview',
+      );
+
       final response = await http.post(
-        Uri.parse('$baseUrl/realtime/sessions'),
+        sessionsUrl,
         headers: {
-          'Authorization': 'Bearer $apiKey',
+          'api-key': apiKey,
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'model': 'gpt-4o-realtime-preview-2024-12-17',
+          'model': realtimeDeployment,
           'voice': 'verse',
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['client_secret']['value'];
+        final clientSecret = data['client_secret']?['value'] ?? data['token'];
+        if (clientSecret == null) {
+          throw Exception('No client_secret or token in response');
+        }
+        return clientSecret;
       } else {
         throw Exception(
-          'Failed to get ephemeral token: ${response.statusCode}',
+          'Failed to get ephemeral token: ${response.statusCode} - ${response.body}',
         );
       }
     } catch (e) {

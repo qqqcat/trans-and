@@ -236,9 +236,9 @@ class _MainScreenState extends State<MainScreen>
       });
       await peerConnection?.setLocalDescription(offer!);
 
-      const baseUrl = 'https://api.openai.com/v1/realtime';
-      const model = 'gpt-4o-realtime-preview-2024-12-17';
-      var request = http.Request('POST', Uri.parse('$baseUrl?model=$model'));
+      // Azure WebRTC SDP exchange
+      const azureWebRtcUrl = 'https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc?model=gpt-realtime-mini';
+      var request = http.Request('POST', Uri.parse(azureWebRtcUrl));
       request.body = offer?.sdp?.replaceAll('\r\n', '\n') ?? '';
       request.headers.addAll({
         'Authorization': 'Bearer $emphemeralKey',
