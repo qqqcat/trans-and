@@ -8,7 +8,6 @@ import '../../data/repositories/settings_repository.dart';
 import '../../domain/models/session_models.dart';
 import '../../domain/usecases/interrupt_assistant_usecase.dart';
 import '../../domain/usecases/observe_history_usecase.dart';
-import '../../domain/usecases/request_translation_usecase.dart';
 import '../../domain/usecases/start_session_usecase.dart';
 import '../../domain/usecases/stop_session_usecase.dart';
 
@@ -18,7 +17,6 @@ final homeViewModelProvider = StateNotifierProvider<HomeViewModel, HomeState>((
   final sessionRepository = ref.read(sessionRepositoryProvider);
   final historyRepository = ref.read(historyRepositoryProvider);
   final settingsRepository = ref.read(settingsRepositoryProvider);
-  final translationRepository = ref.read(translationRepositoryProvider);
 
   return HomeViewModel(
     startSession: StartSessionUseCase(sessionRepository),
@@ -26,7 +24,6 @@ final homeViewModelProvider = StateNotifierProvider<HomeViewModel, HomeState>((
     interruptAssistant: InterruptAssistantUseCase(sessionRepository),
     observeHistory: ObserveHistoryUseCase(historyRepository),
     settingsRepository: settingsRepository,
-    requestTranslation: RequestTranslationUseCase(translationRepository),
   );
 });
 
@@ -37,13 +34,11 @@ class HomeViewModel extends StateNotifier<HomeState> {
     required InterruptAssistantUseCase interruptAssistant,
     required ObserveHistoryUseCase observeHistory,
     required SettingsRepository settingsRepository,
-    required RequestTranslationUseCase requestTranslation,
   }) : _startSession = startSession,
        _stopSession = stopSession,
        _interruptAssistant = interruptAssistant,
        _observeHistory = observeHistory,
        _settingsRepository = settingsRepository,
-       _requestTranslation = requestTranslation,
        super(const HomeState()) {
     _syncSelectedModel();
     _historySubscription = _observeHistory().listen((history) {
@@ -58,7 +53,6 @@ class HomeViewModel extends StateNotifier<HomeState> {
   final InterruptAssistantUseCase _interruptAssistant;
   final ObserveHistoryUseCase _observeHistory;
   final SettingsRepository _settingsRepository;
-  final RequestTranslationUseCase _requestTranslation;
   late final StreamSubscription<List<HistoryEntry>> _historySubscription;
 
   @override

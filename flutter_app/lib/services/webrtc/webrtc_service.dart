@@ -47,11 +47,17 @@ class WebRtcService {
   // Track if assistant is currently playing audio (for blocking upstream audio)
   bool _isPlayingAudio = false;
 
+  // Control whether we can append to input audio buffer (double gate mechanism)
+  bool _canAppendAudioBuffer = true;
+
   // Track consumed user item IDs to prevent duplicate responses
   final Set<String> _consumedUserItemIds = {};
 
   // Track if last response is done (Gate A)
   bool _lastResponseDone = true;
+
+  // Track last playback ended time for time window validation
+  DateTime? _lastPlaybackEndedAt;
 
   final _metricsController = StreamController<LatencyMetrics>.broadcast();
 
@@ -89,6 +95,9 @@ class WebRtcService {
   Future<void> connect(RealtimeSession session) async {
     await disconnect();
     _currentSession = session;
+
+    // Configure system-level AEC for Android devices
+    await _audioSessionService.configureSystemAEC();
 
     final iceServers = session.iceServers.isNotEmpty
         ? session.iceServers
@@ -260,10 +269,11 @@ class WebRtcService {
         'voice': session.voice,
         'turn_detection': turnDetection,
         'output_audio_format': 'pcm16',
-        'max_response_output_tokens': 160,
+        'max_response_output_tokens': 300,  // Increased from 160 to 300 for more complete responses
         'instructions': '请简单确认用户输入，无需过多寒暄。用于调试模式，验证音频输出是否正常工作。',
         'input_audio_transcription': {
-          'model': session.transcriptionModel ?? 'gpt-4o-transcribe-diarize'
+          'model': session.transcriptionModel ?? 'gpt-4o-transcribe-diarize',
+          'language': 'zh',  // Explicitly set to Chinese for better transcription accuracy
         },
       },
     });
@@ -368,11 +378,22 @@ class WebRtcService {
     // Set playing state to block upstream audio
     _isPlayingAudio = true;
 
+    // Double gate: disable both WebRTC track and audio buffer append
+    _canAppendAudioBuffer = false;
+
     // Disable barge-in during playback to prevent echo triggering new responses
     _updateTurnDetection(
       interruptResponse: false,
       createResponse: false,
     );
+
+    // Clear input audio buffer to prevent any pending audio from being processed
+    final channel = _controlChannel;
+    if (channel != null) {
+      channel.send(RTCDataChannelMessage(jsonEncode({
+        'type': 'input_audio_buffer.clear'
+      })));
+    }
 
     // Cancel any pending fallback timer
     _playbackFallbackTimer?.cancel();
@@ -398,22 +419,43 @@ class WebRtcService {
 
   void _handleOutputBufferCleared() {
     _outputBufferClearedReceived = true;
-    _lastPlaybackEndTime = DateTime.now(); // Track when playback ended for echo detection
+    _lastPlaybackEndedAt = DateTime.now(); // Track when playback ended for time window validation
+
+    // Clear input audio buffer again to ensure no residual audio
+    final channel = _controlChannel;
+    if (channel != null) {
+      channel.send(RTCDataChannelMessage(jsonEncode({
+        'type': 'input_audio_buffer.clear'
+      })));
+    }
+
     // Only restore microphone when both response.done and output_audio_buffer.cleared are received
     // This ensures the assistant's audio has completely finished playing before re-enabling mic
     if (_responseDoneReceived && _remotePlaybackActive) {
-      // Re-enable barge-in after playback ends
-      _updateTurnDetection(
-        interruptResponse: true,
-        createResponse: false,
-      );
-
       // Add delay to prevent immediate speech detection after playback ends
-      Future.delayed(const Duration(milliseconds: 250), () {
+      Future.delayed(const Duration(milliseconds: 200), () async {
         if (_responseDoneReceived && _outputBufferClearedReceived && _remotePlaybackActive) {
           logInfo('Both response.done and output_audio_buffer.cleared received, restoring microphone after delay', {});
+
+          // Re-enable barge-in after playback ends
+          _updateTurnDetection(
+            interruptResponse: true,
+            createResponse: false, // Keep manual mode
+          );
+
+          // Re-enable local audio track
+          final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
+          for (final track in tracks) {
+            track.enabled = true;
+          }
+
+          // Re-enable audio buffer append after cooldown
+          _canAppendAudioBuffer = true;
+
           _isPlayingAudio = false; // Clear playing state
-          _restoreMicrophone();
+          _remotePlaybackActive = false;
+          _responseDoneReceived = false;
+          _outputBufferClearedReceived = false;
         }
       });
     }
@@ -446,10 +488,11 @@ class WebRtcService {
         'voice': session.voice,
         'turn_detection': turnDetection,
         'output_audio_format': 'pcm16',
-        'max_response_output_tokens': 160,
+        'max_response_output_tokens': 300,  // Increased from 160 to 300 for more complete responses
         'instructions': '请简单确认用户输入，无需过多寒暄。用于调试模式，验证音频输出是否正常工作。',
         'input_audio_transcription': {
-          'model': session.transcriptionModel ?? 'gpt-4o-transcribe-diarize'
+          'model': session.transcriptionModel ?? 'gpt-4o-transcribe-diarize',
+          'language': 'zh',  // Explicitly set to Chinese for better transcription accuracy
         },
       },
     })));
@@ -561,17 +604,19 @@ class WebRtcService {
     _responseDoneReceived = true;
     _hasActiveResponse = false;  // Response is no longer active
     _lastResponseDone = true;   // Gate A: Allow next response creation
-    
+
     // Start cooldown window before restoring microphone and interrupt_response
     _playbackFallbackTimer?.cancel();
-    _playbackFallbackTimer = Timer(const Duration(milliseconds: 500), () {
+    _playbackFallbackTimer = Timer(const Duration(milliseconds: 200), () {
       if (_responseDoneReceived && _remotePlaybackActive) {
         logInfo('Cooldown window ended, restoring microphone and interrupt_response after response.done', {});
         _restoreMicrophone();
         _updateTurnDetectionForPlaybackEnd();
+        // Re-enable audio buffer append after cooldown
+        _canAppendAudioBuffer = true;
       }
     });
-    logInfo('Response done received, starting 500ms cooldown window for mic restoration', {});
+    logInfo('Response done received, starting 200ms cooldown window for mic restoration', {});
   }
 
   void _executeBargeIn() {
@@ -722,9 +767,21 @@ class WebRtcService {
       return;
     }
 
-    // Gate C: Item not consumed yet (de-duplication)
+    // Gate C: Time window check - must be > 200ms since last playback ended
+    if (_lastPlaybackEndedAt != null) {
+      final timeSincePlaybackEnded = DateTime.now().difference(_lastPlaybackEndedAt!);
+      if (timeSincePlaybackEnded.inMilliseconds <= 200) {
+        logInfo('Gate C failed: Too soon after playback ended, skipping response creation', {
+          'transcript': transcript,
+          'timeSincePlaybackEnded': timeSincePlaybackEnded.inMilliseconds,
+        });
+        return;
+      }
+    }
+
+    // Gate D: Item not consumed yet (de-duplication)
     if (_consumedUserItemIds.contains(itemId)) {
-      logInfo('Gate C failed: Item already consumed, skipping response creation', {
+      logInfo('Gate D failed: Item already consumed, skipping response creation', {
         'transcript': transcript,
         'item_id': itemId,
       });
@@ -738,6 +795,7 @@ class WebRtcService {
     logInfo('Input audio transcription completed with valid content - sending manual response.create', {
       'transcript': transcript,
       'item_id': itemId,
+      'timeSincePlaybackEnded': _lastPlaybackEndedAt != null ? DateTime.now().difference(_lastPlaybackEndedAt!).inMilliseconds : null,
     });
 
     // Send manual response.create since auto-response is disabled (create_response: false)
