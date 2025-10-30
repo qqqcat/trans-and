@@ -56,7 +56,6 @@ class RealtimeApiClient {
     );
   }
 
-  static const _previewApiVersion = '2025-04-01-preview';
   static const _responsesApiVersion = '';
   static const _defaultRealtimeVoice = 'verse';
 
@@ -66,9 +65,14 @@ class RealtimeApiClient {
   final Map<String, RealtimeSession> _sessions = {};
   RealtimeSession? _activeSession;
 
-  bool get _isPreview => true;
 
   Future<RealtimeSession> createSession() async {
+    // Return existing active session if available to prevent multiple sessions
+    if (_activeSession != null) {
+      logInfo('Returning existing active session', {'sessionId': _activeSession!.sessionId});
+      return _activeSession!;
+    }
+
     final config = AppConfig.instance;
     final endpoint = await _settingsStorage.getApiEndpoint();
     final realtimeDeployment = await _settingsStorage.getRealtimeDeployment();
@@ -82,14 +86,18 @@ class RealtimeApiClient {
       throw StateError('Realtime WebRTC URL is not configured.');
     }
 
-    final uri = _buildStartSessionUri(endpoint, realtimeDeployment);
-    final payload = _buildSessionCreatePayload(
-      deployment: realtimeDeployment,
-      preferences: preferences,
+    // Azure 官方要求：Sessions 用 api-key header，body 为 JSON { model, voice }
+    // 参考：https://learn.microsoft.com/en-us/azure/ai-services/openai/realtime-audio
+    final sessionsUrl = Uri.parse(
+      '$endpoint/openai/realtimeapi/sessions?api-version=2025-04-01-preview',
     );
+    final payload = {
+      'model': realtimeDeployment, // 注意：这里是“部署名”，非裸模型名
+      'voice': _defaultRealtimeVoice,
+    };
 
     logInfo('Creating realtime session', {
-      'uri': uri.toString(),
+      'uri': sessionsUrl.toString(),
       'deployment': realtimeDeployment,
       'turnDetection': preferences.turnDetectionMode,
       'muteMicDuringPlayback': preferences.muteMicDuringPlayback,
@@ -97,13 +105,12 @@ class RealtimeApiClient {
     });
 
     final response = await _dio.postUri(
-      uri,
+      sessionsUrl,
       data: payload,
       options: Options(
         headers: {
           'api-key': config.apiKey,
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
         },
         responseType: ResponseType.json,
       ),
@@ -149,7 +156,7 @@ class RealtimeApiClient {
       'webrtcEndpoint': realtimeSession.webrtcEndpoint.toString(),
       'ephemeralKeyPrefix': clientSecret.length <= 8
           ? clientSecret
-          : '${clientSecret.substring(0, 4)}...${clientSecret.substring(clientSecret.length - 4)}',
+          : '${clientSecret.substring(0, 4)}...$clientSecret.substring(clientSecret.length - 4)',
     });
     return realtimeSession;
   }
@@ -169,18 +176,38 @@ class RealtimeApiClient {
     });
 
     try {
-      final response = await _dio.postUri(
-        session.webrtcEndpoint,
-        data: offerSdp,
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer ${session.ephemeralKey}',
-            'Accept': 'application/sdp',
-          },
-          contentType: 'application/sdp',
-          responseType: ResponseType.plain,
-        ),
+      // Azure 官方要求：WebRTC SDP 交换用 Bearer + application/sdp + 纯文本 offer.sdp
+      // 参考：https://learn.microsoft.com/en-us/azure/ai-services/openai/realtime-audio
+      // 超时设置：网络环境差异大，TLS握手+负载均衡可能需30s以上
+      final region = _extractRegionFromWebRtcUrl(session.webrtcEndpoint.toString());
+      final deployment = session.deployment;
+      final webrtcUrl = Uri.parse(
+        'https://$region.realtimeapi-preview.ai.azure.com/v1/realtimertc?model=$deployment',
       );
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 60),
+        responseType: ResponseType.plain,
+        headers: {
+          'Authorization': 'Bearer ${session.ephemeralKey}', // ephemeral key，一分钟有效
+          'Content-Type': 'application/sdp', // 必须是 application/sdp，非 JSON
+          'Accept': 'application/sdp',
+        },
+      ));
+      final response = await dio.postUri(
+        webrtcUrl,
+        data: offerSdp, // 纯 SDP 文本，别包成 JSON
+      );
+
+      // 检查响应状态码（Azure OpenAI 返回 201 Created 表示成功）
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          message: 'WebRTC SDP exchange failed with status ${response.statusCode}',
+        );
+      }
 
       final answer = response.data;
       if (answer is String) {
@@ -222,30 +249,7 @@ class RealtimeApiClient {
     yield const LatencyMetrics();
   }
 
-  Uri _buildStartSessionUri(String endpoint, String deployment) {
-    return _buildSessionsCollectionUri(endpoint, deployment: deployment);
-  }
 
-  Uri _buildSessionsCollectionUri(
-    String endpoint, {
-    required String deployment,
-  }) {
-    final normalized = AppConfig.normalizeEndpoint(endpoint);
-    final base = Uri.parse(normalized);
-    final baseSegments = base.pathSegments
-        .where((segment) => segment.isNotEmpty)
-        .toList();
-    final commonSegments = _isPreview
-        ? ['openai', 'realtimeapi', 'sessions']
-        : ['openai', 'v1', 'realtime', 'sessions'];
-    final query = _isPreview
-        ? {'api-version': _previewApiVersion, 'deployment': deployment}
-        : {'model': deployment};
-    return base.replace(
-      pathSegments: [...baseSegments, ...commonSegments],
-      queryParameters: query,
-    );
-  }
 
   Future<String> translateText({
     required String sourceText,
@@ -344,49 +348,22 @@ class RealtimeApiClient {
   }
 
   Uri _buildWebRtcUri(String baseUrl, String deployment) {
+    // WebRTC URL 直接用 baseUrl，不拼接 deployment
     final base = Uri.parse(baseUrl.trim());
-    final query = Map<String, String>.from(base.queryParameters)
-      ..['model'] = deployment;
-    return base.replace(queryParameters: query.isEmpty ? null : query);
+    return base;
+
   }
 
-  Map<String, dynamic> _buildSessionCreatePayload({
-    required String deployment,
-    required _RealtimePreferences preferences,
-  }) {
-    final turnDetectionPayload = preferences.turnDetectionMode == 'none'
-        ? null
-        : {
-            'type': 'server_vad',
-            if (preferences.turnDetectionThreshold != null)
-              'threshold': preferences.turnDetectionThreshold,
-            if (preferences.turnDetectionSilenceMs != null)
-              'silence_duration_ms': preferences.turnDetectionSilenceMs,
-          };
-    final transcriptionPayload = preferences.transcriptionModel == null
-        ? null
-        : {'model': preferences.transcriptionModel};
-
-    if (_isPreview) {
-      return <String, dynamic>{
-        'model': deployment,
-        'voice': _defaultRealtimeVoice,
-      };
-    }
-
-    return <String, dynamic>{
-      'session': {
-        'instructions': 'You are a realtime interpreter.',
-        'modalities': const ['text', 'audio'],
-        'voice': _defaultRealtimeVoice,
-        'input_audio_format': 'pcm16',
-        'output_audio_format': 'pcm16',
-        'turn_detection': turnDetectionPayload,
-        if (transcriptionPayload != null)
-          'input_audio_transcription': transcriptionPayload,
-      },
-    };
+  /// 提取 region（如 eastus2）
+  /// 确保 WebRTC URL 的区域与 Azure 资源区域一致，否则连接超时
+  /// 参考：https://learn.microsoft.com/en-us/azure/ai-services/openai/realtime-audio
+  String _extractRegionFromWebRtcUrl(String url) {
+    final uri = Uri.parse(url);
+    final host = uri.host;
+    final region = host.split('.').first;
+    return region;
   }
+
 
   Future<_RealtimePreferences> _loadPreferences() async {
     final transcriptionModel = await _settingsStorage

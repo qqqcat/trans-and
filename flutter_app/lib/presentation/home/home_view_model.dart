@@ -63,6 +63,13 @@ class HomeViewModel extends StateNotifier<HomeState> {
   }
 
   Future<void> startSession() async {
+    // Prevent starting session if already connecting or active
+    if (state.sessionStatus == SessionStatus.connecting ||
+        state.sessionStatus == SessionStatus.active) {
+      logInfo('Session already connecting or active, ignoring start request');
+      return;
+    }
+
     try {
       state = state.copyWith(
         sessionStatus: SessionStatus.connecting,

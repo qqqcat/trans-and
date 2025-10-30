@@ -133,10 +133,10 @@ class AppConfig {
 
     final double? realtimeTurnDetectionThreshold = _parseDouble(
       realtimeTurnDetectionThresholdRaw,
-    );
+    ) ?? 0.5; // 默认0.5的检测阈值
     final int? realtimeTurnDetectionSilenceMs = _parseInt(
       realtimeTurnDetectionSilenceRaw,
-    );
+    ) ?? 1000; // 默认1秒静音时间，减少过早回复
     final bool muteMicDuringPlayback =
         _parseBool(muteMicDuringPlaybackRaw) ?? true;
 
