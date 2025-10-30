@@ -25,9 +25,35 @@ class WebRtcService {
   bool _remotePlaybackActive = false;
   bool? _localMicEnabledBeforePlayback;
 
+  // Track response completion states to delay mic restoration
+  bool _responseDoneReceived = false;
+  bool _outputBufferClearedReceived = false;
+
+  // Track timestamps for echo detection
+  DateTime? _lastPlaybackEndTime;
+  bool _waitingForTranscription = false;
+
+  // Fallback timer for microphone restoration
+  Timer? _playbackFallbackTimer;
+
+  // Track last assistant response for duplicate detection
+  String? _lastAssistantResponse;
+
   final _metricsController = StreamController<LatencyMetrics>.broadcast();
 
   Stream<LatencyMetrics> get metricsStream => _metricsController.stream;
+
+  /// Interrupt the current assistant response
+  void interruptAssistant() {
+    final channel = _controlChannel;
+    if (channel == null) return;
+
+    // Send response.cancel first, then conversation.item.truncate to properly interrupt
+    // This follows the correct barge-in flow: cancel response -> truncate audio -> wait for truncated event
+    channel.send(RTCDataChannelMessage(jsonEncode({'type': 'response.cancel'})));
+    channel.send(RTCDataChannelMessage(jsonEncode({'type': 'conversation.item.truncate', 'item_id': 'assistant_response'})));
+    logInfo('Interrupted assistant response with proper barge-in flow');
+  }
 
   Future<void> connect(RealtimeSession session) async {
     await disconnect();
@@ -67,18 +93,11 @@ class WebRtcService {
       logInfo('ICE gathering state: $state');
     };
     pc.onIceCandidate = (candidate) {
-      logInfo('Local ICE candidate gathered', {
-        'candidate': candidate.candidate,
-        'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMLineIndex,
-      });
+      logInfo('Local ICE candidate gathered');
     };
     pc.onDataChannel = _attachDataChannel;
     pc.onTrack = (event) {
-      logInfo('Remote track received', {
-        'trackId': event.track.id,
-        'kind': event.track.kind,
-      });
+      logInfo('Remote track received');
       if (event.track.kind == 'audio' && event.streams.isNotEmpty) {
         unawaited(_audioSessionService.attachRemoteStream(event.streams.first));
       }
@@ -116,11 +135,17 @@ class WebRtcService {
   }
 
   Future<void> disconnect() async {
+    // Cancel any pending timers
+    _playbackFallbackTimer?.cancel();
+    _playbackFallbackTimer = null;
+
     await _controlChannel?.close();
     _controlChannel = null;
 
     _remotePlaybackActive = false;
     _localMicEnabledBeforePlayback = null;
+    _responseDoneReceived = false;
+    _outputBufferClearedReceived = false;
     _currentSession = null;
 
     final localTracks = _localStream?.getTracks() ?? <MediaStreamTrack>[];
@@ -157,10 +182,7 @@ class WebRtcService {
     _controlChannel = channel;
     channel.onMessage = (message) {
       if (message.isBinary) {
-        logInfo('WebRTC data message', {
-          'binary': true,
-          'length': message.binary.length,
-        });
+        logInfo('WebRTC data message');
         return;
       }
       final text = message.text;
@@ -190,10 +212,10 @@ class WebRtcService {
         ? null
         : {
             'type': 'server_vad',
-            if (session.turnDetectionThreshold != null)
-              'threshold': session.turnDetectionThreshold,
-            if (session.turnDetectionSilenceMs != null)
-              'silence_duration_ms': session.turnDetectionSilenceMs,
+            'threshold': session.turnDetectionThreshold ?? 0.75, // Higher threshold to reduce false triggers from echo
+            'silence_duration_ms': session.turnDetectionSilenceMs ?? 700, // Longer silence to prevent premature responses and echo triggering
+            'prefix_padding_ms': 300, // Add padding before speech detection to avoid cutting words
+            'max_speech_ms': 8000,
           };
 
     send({
@@ -203,8 +225,9 @@ class WebRtcService {
         'voice': session.voice,
         'turn_detection': turnDetection,
         'output_audio_format': {'type': 'pcm16'},
-        if (session.transcriptionModel != null)
-          'input_audio_transcription': {'model': session.transcriptionModel},
+        'max_response_output_tokens': 160, // Limit output length to reduce truncation issues
+        'instructions': '不要寒暄；只有听到明确需求或用户主动提问时再作答。保持简洁，避免重复问候语。', // Prevent repetitive greetings
+        'input_audio_transcription': {'model': session.transcriptionModel ?? 'gpt-4o-transcribe-diarize'},
       },
     });
   }
@@ -262,12 +285,26 @@ class WebRtcService {
       case 'output_audio_buffer.started':
         _handleRemotePlaybackStarted();
         break;
-      case 'output_audio_buffer.completed':
-      case 'output_audio_buffer.done':
-      case 'output_audio_buffer.cleared':
       case 'output_audio_buffer.stopped':
+        _handleRemotePlaybackStopped();
+        break;
+      case 'output_audio_buffer.cleared':
+        _handleOutputBufferCleared();
+        break;
+      case 'conversation.item.created':
+        _handleConversationItemCreated(data);
+        break;
       case 'response.done':
-        _handleRemotePlaybackFinished();
+        _handleResponseDone();
+        break;
+      case 'input_audio_buffer.speech_started':
+        _handleSpeechStarted();
+        break;
+      case 'input_audio_buffer.committed':
+        _handleAudioBufferCommitted();
+        break;
+      case 'conversation.item.audio_transcription.completed':
+        _handleAudioTranscriptionCompleted(data);
         break;
       default:
         break;
@@ -282,6 +319,9 @@ class WebRtcService {
       return;
     }
 
+    // Cancel any pending fallback timer
+    _playbackFallbackTimer?.cancel();
+
     final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
     if (tracks.isEmpty) return;
 
@@ -293,8 +333,153 @@ class WebRtcService {
     logInfo('Muted local microphone during assistant playback', {});
   }
 
-  void _handleRemotePlaybackFinished() {
-    if (!_remotePlaybackActive) return;
+  void _handleRemotePlaybackStopped() {
+    _lastPlaybackEndTime = DateTime.now(); // Track when playback ended for echo detection
+    // Restore microphone when playback stops, if response is done
+    // This handles normal playback completion (not interruption)
+    if (_responseDoneReceived && _remotePlaybackActive) {
+      logInfo('Playback stopped and response done, restoring microphone', {});
+      _restoreMicrophone();
+    }
+  }
+
+  void _handleOutputBufferCleared() {
+    _outputBufferClearedReceived = true;
+    _lastPlaybackEndTime = DateTime.now(); // Track when playback ended for echo detection
+    // Only restore microphone when both response.done and output_audio_buffer.cleared are received
+    // This ensures the assistant's audio has completely finished playing before re-enabling mic
+    if (_responseDoneReceived && _remotePlaybackActive) {
+      logInfo('Both response.done and output_audio_buffer.cleared received, restoring microphone', {});
+      _restoreMicrophone();
+    }
+  }
+
+  void _handleConversationItemTruncated() {
+    // After conversation item is truncated, we can safely start new audio collection
+    // This completes the barge-in flow: cancel -> truncate -> wait for truncated -> start new input
+    logInfo('Conversation item truncated, barge-in flow completed', {});
+    // Note: Microphone restoration will be handled by the cleared event if it comes
+  }
+
+  void _handleConversationItemCreated(Map<String, dynamic> data) {
+    final item = data['item'] as Map<String, dynamic>?;
+    if (item == null) return;
+
+    final role = item['role'] as String?;
+    final type = item['type'] as String?;
+    final content = item['content'] as List<dynamic>?;
+
+    if (type == 'message' && role == 'user') {
+      // Check if transcript is null or too short
+      final audioContent = content?.firstWhere(
+        (c) => (c as Map<String, dynamic>)['type'] == 'input_audio',
+        orElse: () => null,
+      ) as Map<String, dynamic>?;
+
+      final transcript = audioContent?['transcript'] as String?;
+      if (transcript == null || transcript.trim().length < 3) {
+        logInfo('Empty or too short transcript detected, skipping response creation', {
+          'transcript': transcript,
+        });
+        // Send cancel to prevent response
+        final channel = _controlChannel;
+        if (channel != null) {
+          channel.send(RTCDataChannelMessage(jsonEncode({'type': 'response.cancel'})));
+        }
+        return;
+      }
+    } else if (type == 'message' && role == 'assistant') {
+      // Track assistant response for duplicate detection
+      final textContent = content?.firstWhere(
+        (c) => (c as Map<String, dynamic>)['type'] == 'text',
+        orElse: () => null,
+      ) as Map<String, dynamic>?;
+
+      final text = textContent?['text'] as String?;
+      if (text != null && text.isNotEmpty) {
+        // Normalize text for comparison (remove punctuation, lowercase)
+        final normalized = text.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase().trim();
+        if (_lastAssistantResponse != null && _isSimilarResponse(_lastAssistantResponse!, normalized)) {
+          logInfo('Duplicate assistant response detected, canceling', {
+            'last': _lastAssistantResponse,
+            'current': normalized,
+          });
+          // Cancel this response
+          final channel = _controlChannel;
+          if (channel != null) {
+            channel.send(RTCDataChannelMessage(jsonEncode({'type': 'response.cancel'})));
+          }
+          return;
+        }
+        _lastAssistantResponse = normalized;
+      }
+    }
+  }
+
+  void _handleResponseDone() {
+    _responseDoneReceived = true;
+    // Start fallback timer in case output_audio_buffer.stopped doesn't arrive
+    _playbackFallbackTimer?.cancel();
+    _playbackFallbackTimer = Timer(const Duration(milliseconds: 600), () {
+      if (_responseDoneReceived && _remotePlaybackActive) {
+        logInfo('Fallback timer triggered, restoring microphone after response.done', {});
+        _restoreMicrophone();
+      }
+    });
+    logInfo('Response done received, starting fallback timer for mic restoration', {});
+  }
+
+  void _handleSpeechStarted() {
+    // Check if this speech detection might be echo from recent playback
+    if (_lastPlaybackEndTime != null) {
+      final timeSincePlayback = DateTime.now().difference(_lastPlaybackEndTime!);
+      if (timeSincePlayback.inMilliseconds < 500 && _waitingForTranscription) {
+        // Likely echo: cancel this input and wait for transcription
+        logInfo('Detected potential echo speech, canceling input', {
+          'timeSincePlayback': timeSincePlayback.inMilliseconds,
+        });
+        final channel = _controlChannel;
+        if (channel != null) {
+          channel.send(RTCDataChannelMessage(jsonEncode({'type': 'response.cancel'})));
+        }
+        return;
+      }
+    }
+    logInfo('Speech started', {});
+  }
+
+  void _handleAudioTranscriptionCompleted(Map<String, dynamic> data) {
+    _waitingForTranscription = false;
+    final transcript = data['transcript'] as String?;
+    logInfo('Audio transcription completed', {'transcript': transcript});
+  }
+
+  void _handleAudioBufferCommitted() {
+    // When audio buffer is committed, we're waiting for transcription
+    _waitingForTranscription = true;
+    logInfo('Audio buffer committed, waiting for transcription', {});
+  }
+
+  bool _isSimilarResponse(String last, String current) {
+    // Simple similarity check: if they share more than 70% of words
+    final lastWords = last.split(RegExp(r'\s+')).toSet();
+    final currentWords = current.split(RegExp(r'\s+')).toSet();
+    final intersection = lastWords.intersection(currentWords);
+    final union = lastWords.union(currentWords);
+    if (union.isEmpty) return false;
+    final similarity = intersection.length / union.length;
+    return similarity > 0.7;
+  }
+
+  void _restoreMicrophone() {
+    // Cancel fallback timer
+    _playbackFallbackTimer?.cancel();
+    _playbackFallbackTimer = null;
+
+    // Reset states
+    _responseDoneReceived = false;
+    _outputBufferClearedReceived = false;
+
     final targetState = _localMicEnabledBeforePlayback;
     _remotePlaybackActive = false;
     _localMicEnabledBeforePlayback = null;
@@ -302,10 +487,14 @@ class WebRtcService {
     if (targetState == null) {
       return;
     }
-    final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
-    for (final track in tracks) {
-      track.enabled = targetState;
-    }
-    logInfo('Restored local microphone state after assistant playback', {});
+
+    // Delay microphone restoration to avoid echo triggering VAD
+    Future.delayed(const Duration(milliseconds: 250), () {
+      final tracks = _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[];
+      for (final track in tracks) {
+        track.enabled = targetState;
+      }
+      logInfo('Restored local microphone state after assistant playback (delayed)', {});
+    });
   }
 }

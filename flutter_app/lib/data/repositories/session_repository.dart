@@ -36,5 +36,10 @@ class SessionRepository {
     await _realtimeApiClient.teardownSession();
   }
 
+  /// Interrupt the current assistant response
+  void interruptAssistant() {
+    _webRtcService.interruptAssistant();
+  }
+
   Stream<LatencyMetrics> observeMetrics() => _webRtcService.metricsStream;
 }

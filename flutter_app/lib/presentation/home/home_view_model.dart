@@ -6,6 +6,7 @@ import '../../core/logging/logger.dart';
 import '../../core/services/service_locator.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../domain/models/session_models.dart';
+import '../../domain/usecases/interrupt_assistant_usecase.dart';
 import '../../domain/usecases/observe_history_usecase.dart';
 import '../../domain/usecases/request_translation_usecase.dart';
 import '../../domain/usecases/start_session_usecase.dart';
@@ -22,6 +23,7 @@ final homeViewModelProvider = StateNotifierProvider<HomeViewModel, HomeState>((
   return HomeViewModel(
     startSession: StartSessionUseCase(sessionRepository),
     stopSession: StopSessionUseCase(sessionRepository),
+    interruptAssistant: InterruptAssistantUseCase(sessionRepository),
     observeHistory: ObserveHistoryUseCase(historyRepository),
     settingsRepository: settingsRepository,
     requestTranslation: RequestTranslationUseCase(translationRepository),
@@ -32,11 +34,13 @@ class HomeViewModel extends StateNotifier<HomeState> {
   HomeViewModel({
     required StartSessionUseCase startSession,
     required StopSessionUseCase stopSession,
+    required InterruptAssistantUseCase interruptAssistant,
     required ObserveHistoryUseCase observeHistory,
     required SettingsRepository settingsRepository,
     required RequestTranslationUseCase requestTranslation,
   }) : _startSession = startSession,
        _stopSession = stopSession,
+       _interruptAssistant = interruptAssistant,
        _observeHistory = observeHistory,
        _settingsRepository = settingsRepository,
        _requestTranslation = requestTranslation,
@@ -51,6 +55,7 @@ class HomeViewModel extends StateNotifier<HomeState> {
 
   final StartSessionUseCase _startSession;
   final StopSessionUseCase _stopSession;
+  final InterruptAssistantUseCase _interruptAssistant;
   final ObserveHistoryUseCase _observeHistory;
   final SettingsRepository _settingsRepository;
   final RequestTranslationUseCase _requestTranslation;
@@ -109,6 +114,10 @@ class HomeViewModel extends StateNotifier<HomeState> {
     } finally {
       state = state.copyWith(sessionStatus: SessionStatus.idle);
     }
+  }
+
+  void interruptAssistant() {
+    _interruptAssistant();
   }
 
   Future<void> _syncSelectedModel() async {

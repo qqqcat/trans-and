@@ -61,31 +61,46 @@ class HomePage extends ConsumerWidget {
                 subtitle: Text(
                   'Deployment: ${modelLabel.isEmpty ? '—' : modelLabel}',
                 ),
-                trailing: FilledButton.icon(
-                  onPressed: state.sessionStatus == SessionStatus.connecting
-                      ? null // 禁用按钮，防止重复点击
-                      : () async {
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (state.sessionStatus == SessionStatus.active)
+                      IconButton(
+                        icon: const Icon(Icons.cancel),
+                        tooltip: 'Interrupt assistant',
+                        onPressed: () {
                           final viewModel = ref.read(homeViewModelProvider.notifier);
-                          if (state.sessionStatus == SessionStatus.active) {
-                            await viewModel.stopSession();
-                          } else {
-                            await viewModel.startSession();
-                          }
+                          viewModel.interruptAssistant();
                         },
-                  icon: Icon(
-                    state.sessionStatus == SessionStatus.connecting
-                        ? Icons.hourglass_top // 显示加载图标
-                        : state.sessionStatus == SessionStatus.active
-                            ? Icons.stop
-                            : Icons.play_arrow,
-                  ),
-                  label: Text(
-                    state.sessionStatus == SessionStatus.connecting
-                        ? 'Connecting...'
-                        : state.sessionStatus == SessionStatus.active
-                            ? 'End'
-                            : 'Start',
-                  ),
+                      ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: state.sessionStatus == SessionStatus.connecting
+                          ? null // 禁用按钮，防止重复点击
+                          : () async {
+                              final viewModel = ref.read(homeViewModelProvider.notifier);
+                              if (state.sessionStatus == SessionStatus.active) {
+                                await viewModel.stopSession();
+                              } else {
+                                await viewModel.startSession();
+                              }
+                            },
+                      icon: Icon(
+                        state.sessionStatus == SessionStatus.connecting
+                            ? Icons.hourglass_top // 显示加载图标
+                            : state.sessionStatus == SessionStatus.active
+                                ? Icons.stop
+                                : Icons.play_arrow,
+                      ),
+                      label: Text(
+                        state.sessionStatus == SessionStatus.connecting
+                            ? 'Connecting...'
+                            : state.sessionStatus == SessionStatus.active
+                                ? 'End'
+                                : 'Start',
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

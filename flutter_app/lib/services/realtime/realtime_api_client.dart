@@ -388,7 +388,8 @@ class RealtimeApiClient {
 
     return _RealtimePreferences(
       turnDetectionMode: turnDetectionMode,
-      transcriptionModel: transcriptionModel,
+      // Force enable transcription to avoid template responses when transcript is null
+      transcriptionModel: transcriptionModel ?? 'gpt-4o-transcribe-diarize',
       turnDetectionThreshold: sanitizedThreshold,
       turnDetectionSilenceMs: sanitizedSilenceMs,
       muteMicDuringPlayback: muteMicDuringPlayback,
