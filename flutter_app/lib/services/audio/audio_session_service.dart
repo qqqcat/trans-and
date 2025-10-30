@@ -14,7 +14,18 @@ class AudioSessionService {
   Future<void> startCapture() async {
     await _ensureMicrophonePermission();
     _session ??= await AudioSession.instance;
-    await _session!.configure(const AudioSessionConfiguration.speech());
+    await _session!.configure(AudioSessionConfiguration(
+      avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+      avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker | AVAudioSessionCategoryOptions.allowBluetooth,
+      avAudioSessionMode: AVAudioSessionMode.voiceChat,
+      androidAudioAttributes: const AndroidAudioAttributes(
+        contentType: AndroidAudioContentType.speech,
+        flags: AndroidAudioFlags.none,
+        usage: AndroidAudioUsage.voiceCommunication,
+      ),
+      androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+      androidWillPauseWhenDucked: false,
+    ));
     // Actual microphone capture will be handled by flutter_webrtc.
   }
 
@@ -30,7 +41,16 @@ class AudioSessionService {
       _rendererInitialized = true;
     }
     _remoteRenderer!.srcObject = stream;
-    await Helper.setSpeakerphoneOn(true);
+
+    // Configure audio routing for voice communication
+    // Note: setSpeakerphoneOn is deprecated in API 34+, but flutter_webrtc may not have updated yet
+    // Using AudioSession configuration above should handle routing properly
+    try {
+      await Helper.setSpeakerphoneOn(true);
+    } catch (e) {
+      // Fallback if setSpeakerphoneOn fails on newer Android versions
+      // The AudioSession configuration should handle routing
+    }
   }
 
   Future<void> detachRemoteStream() async {

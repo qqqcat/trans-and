@@ -86,17 +86,20 @@ class HomeViewModel extends StateNotifier<HomeState> {
         sessionStatus: SessionStatus.active,
         modelLabel: deployment,
       );
-
-      final translated = await _requestTranslation(
-        sourceText: '欢迎使用 TransAnd 实时翻译。',
-        targetLanguage: 'English',
-      );
-      if (!translated) {
-        state = state.copyWith(
-          errorMessage:
-              'Unable to reach the configured realtime deployment. Please review Settings.',
-        );
-      }
+      // 延后 HTTP 翻译请求，避免和 Realtime 初始化抢首屏资源
+      // DISABLED: Temporarily disable REST translation for manual mode testing
+      // Future.delayed(const Duration(seconds: 2), () async {
+      //   final translated = await _requestTranslation(
+      //     sourceText: '欢迎使用 TransAnd 实时翻译。',
+      //     targetLanguage: 'English',
+      //   );
+      //   if (!translated) {
+      //     state = state.copyWith(
+      //       errorMessage:
+      //         'Unable to reach the configured realtime deployment. Please review Settings.',
+      //     );
+      //   }
+      // });
     } catch (error, stack) {
       logError('Failed to start session', error: error, stackTrace: stack);
       state = state.copyWith(

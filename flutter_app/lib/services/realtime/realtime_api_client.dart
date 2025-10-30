@@ -58,6 +58,12 @@ class RealtimeApiClient {
 
   static const _responsesApiVersion = '';
   static const _defaultRealtimeVoice = 'verse';
+  static const double _defaultVadThreshold = 0.3;
+  static const double _minVadThreshold = 0.2;
+  static const double _maxVadThreshold = 0.8;
+  static const int _defaultVadSilenceMs = 1200;  // Increased from 300 to 1200 for longer silence tolerance
+  static const int _minVadSilenceMs = 200;
+  static const int _maxVadSilenceMs = 2000;
 
   final SettingsStorage _settingsStorage;
   final Dio _dio;
@@ -100,6 +106,8 @@ class RealtimeApiClient {
       'uri': sessionsUrl.toString(),
       'deployment': realtimeDeployment,
       'turnDetection': preferences.turnDetectionMode,
+      'turnDetectionThreshold': preferences.turnDetectionThreshold,
+      'turnDetectionSilenceMs': preferences.turnDetectionSilenceMs,
       'muteMicDuringPlayback': preferences.muteMicDuringPlayback,
       'transcriptionModel': preferences.transcriptionModel,
     });
@@ -376,15 +384,17 @@ class RealtimeApiClient {
     final muteMicDuringPlayback = await _settingsStorage
         .getMuteMicDuringPlayback();
 
-    double? sanitizedThreshold;
-    if (turnDetectionThreshold != null) {
-      sanitizedThreshold = turnDetectionThreshold.clamp(0, 1).toDouble();
-    }
-
-    int? sanitizedSilenceMs;
-    if (turnDetectionSilenceMs != null && turnDetectionSilenceMs >= 0) {
-      sanitizedSilenceMs = turnDetectionSilenceMs;
-    }
+    final bool vadEnabled = turnDetectionMode != 'none';
+    final double? sanitizedThreshold = vadEnabled
+        ? ((turnDetectionThreshold ?? _defaultVadThreshold)
+            .clamp(_minVadThreshold, _maxVadThreshold)
+            .toDouble())
+        : null;
+    final int? sanitizedSilenceMs = vadEnabled
+        ? ((turnDetectionSilenceMs ?? _defaultVadSilenceMs)
+                .clamp(_minVadSilenceMs, _maxVadSilenceMs))
+            .toInt()
+        : null;
 
     return _RealtimePreferences(
       turnDetectionMode: turnDetectionMode,
