@@ -38,10 +38,14 @@ class AudioSessionManager {
                 return false
             }
 
+            // Release existing AEC if any
+            acousticEchoCanceler?.release()
+            acousticEchoCanceler = null
+
             // Create AcousticEchoCanceler for the session
             acousticEchoCanceler = AcousticEchoCanceler.create(audioRecordSessionId)
             if (acousticEchoCanceler == null) {
-                Log.w(TAG, "Failed to create AcousticEchoCanceler")
+                Log.w(TAG, "Failed to create AcousticEchoCanceler for session $audioRecordSessionId")
                 return false
             }
 
@@ -51,12 +55,12 @@ class AudioSessionManager {
                 acousticEchoCanceler!!.enabled = true
                 Log.i(TAG, "AcousticEchoCanceler enabled for session $audioRecordSessionId")
             } else {
-                Log.i(TAG, "AcousticEchoCanceler already enabled for session $audioRecordSessionId")
+                Log.i(TAG, "AcousticEchoCanceler was already enabled for session $audioRecordSessionId")
             }
 
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to configure AcousticEchoCanceler", e)
+            Log.e(TAG, "Error configuring AcousticEchoCanceler", e)
             return false
         }
     }
@@ -71,9 +75,13 @@ class AudioSessionManager {
                 return false
             }
 
+            // Release existing AGC if any
+            automaticGainControl?.release()
+            automaticGainControl = null
+
             automaticGainControl = AutomaticGainControl.create(audioRecordSessionId)
             if (automaticGainControl == null) {
-                Log.w(TAG, "Failed to create AutomaticGainControl")
+                Log.w(TAG, "Failed to create AutomaticGainControl for session $audioRecordSessionId")
                 return false
             }
 
@@ -81,11 +89,13 @@ class AudioSessionManager {
             if (!enabled) {
                 automaticGainControl!!.enabled = true
                 Log.i(TAG, "AutomaticGainControl enabled for session $audioRecordSessionId")
+            } else {
+                Log.i(TAG, "AutomaticGainControl was already enabled for session $audioRecordSessionId")
             }
 
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to configure AutomaticGainControl", e)
+            Log.e(TAG, "Error configuring AutomaticGainControl", e)
             return false
         }
     }
@@ -100,9 +110,13 @@ class AudioSessionManager {
                 return false
             }
 
+            // Release existing NoiseSuppressor if any
+            noiseSuppressor?.release()
+            noiseSuppressor = null
+
             noiseSuppressor = NoiseSuppressor.create(audioRecordSessionId)
             if (noiseSuppressor == null) {
-                Log.w(TAG, "Failed to create NoiseSuppressor")
+                Log.w(TAG, "Failed to create NoiseSuppressor for session $audioRecordSessionId")
                 return false
             }
 
@@ -110,11 +124,13 @@ class AudioSessionManager {
             if (!enabled) {
                 noiseSuppressor!!.enabled = true
                 Log.i(TAG, "NoiseSuppressor enabled for session $audioRecordSessionId")
+            } else {
+                Log.i(TAG, "NoiseSuppressor was already enabled for session $audioRecordSessionId")
             }
 
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to configure NoiseSuppressor", e)
+            Log.e(TAG, "Error configuring NoiseSuppressor", e)
             return false
         }
     }
@@ -158,15 +174,68 @@ class AudioSessionManager {
     }
 
     /**
-     * Configure all available audio effects for the given session
+     * Create a temporary AudioRecord to obtain a valid session ID for audio effects
+     * This is needed when we don't have access to the WebRTC AudioRecord session
      */
+    private fun createTemporaryAudioRecordSession(): Int {
+        try {
+            // Use minimal audio format for temporary recording
+            val sampleRate = 16000
+            val channelConfig = android.media.AudioFormat.CHANNEL_IN_MONO
+            val audioFormat = android.media.AudioFormat.ENCODING_PCM_16BIT
+            val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+            if (minBufferSize <= 0) {
+                Log.e(TAG, "Invalid buffer size for temporary AudioRecord")
+                return 0
+            }
+
+            // Create temporary AudioRecord
+            val tempAudioRecord = AudioRecord(
+                android.media.MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                channelConfig,
+                audioFormat,
+                minBufferSize
+            )
+
+            if (tempAudioRecord.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "Failed to initialize temporary AudioRecord")
+                tempAudioRecord.release()
+                return 0
+            }
+
+            // Get the session ID
+            val sessionId = tempAudioRecord.audioSessionId
+            Log.i(TAG, "Created temporary AudioRecord with session ID: $sessionId")
+
+            // Release the temporary AudioRecord immediately
+            tempAudioRecord.release()
+
+            return sessionId
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating temporary AudioRecord session", e)
+            return 0
+        }
+    }
     fun configureAllAudioEffects(audioRecordSessionId: Int, audioManager: AudioManager): Boolean {
         var success = true
+        var actualSessionId = audioRecordSessionId
+
+        // If sessionId is 0 or invalid, create a temporary AudioRecord to get a valid session ID
+        if (actualSessionId == 0) {
+            actualSessionId = createTemporaryAudioRecordSession()
+            if (actualSessionId == 0) {
+                Log.w(TAG, "Failed to create temporary AudioRecord session for audio effects")
+                return false
+            }
+            Log.i(TAG, "Using temporary AudioRecord session ID: $actualSessionId")
+        }
 
         // Configure system-level audio effects
-        success = success and configureSystemAEC(audioRecordSessionId)
-        success = success and configureAGC(audioRecordSessionId)
-        success = success and configureNoiseSuppression(audioRecordSessionId)
+        success = success and configureSystemAEC(actualSessionId)
+        success = success and configureAGC(actualSessionId)
+        success = success and configureNoiseSuppression(actualSessionId)
 
         // Configure communication device routing
         success = success and configureCommunicationDevice(audioManager)

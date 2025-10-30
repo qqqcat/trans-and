@@ -134,12 +134,8 @@ class AudioSessionService {
     // Attempt to enable system-level Acoustic Echo Cancellation
     // This now uses native Android implementation for better AEC control
     try {
-      // Note: We need AudioRecord session ID, which may not be directly available from flutter_webrtc
-      // For now, we'll attempt to configure all audio effects when we have a session
-      // This is a best-effort implementation for Android devices that support it
-
-      // Try to get session ID from WebRTC statistics (if available)
-      // For now, we'll call the native method without session ID and let it handle the configuration
+      // Note: We pass 0 as sessionId, which will be handled by creating a temporary AudioRecord
+      // in the Android native code to obtain a valid session ID for audio effects
       final success = await platform.invokeMethod('configureAllAudioEffects', {'sessionId': 0});
       if (success == true) {
         logInfo('System AEC and audio effects configured successfully via native Android API', {});
